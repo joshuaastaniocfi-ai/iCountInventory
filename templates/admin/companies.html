@@ -1,0 +1,345 @@
+{% extends 'layouts/base-sidebar.html' %}
+
+{% block title %}Company Management{% endblock %}
+
+{% block styles %}
+<link href="{{ url_for('static', filename='css/admin.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <!-- Page Header -->
+  <div class="admin-page-header">
+    <div class="header-left">
+      <div class="admin-header-icon violet">
+        <i class="fas fa-building"></i>
+      </div>
+      <div>
+        <h4 class="admin-page-title">Company Management</h4>
+        <p class="admin-page-subtitle">Manage the companies in your system</p>
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary px-3" data-bs-toggle="modal" data-bs-target="#addCompanyModal">
+      <i class="fas fa-plus-circle me-2"></i>Add New Company
+    </button>
+  </div>
+
+  <!-- Overview Stats -->
+  <div class="admin-stats">
+    <div class="admin-stat-card">
+      <div class="admin-stat-icon violet"><i class="fas fa-building"></i></div>
+      <div>
+        <div class="admin-stat-value">{{ stats.companies }}</div>
+        <div class="admin-stat-label">Companies</div>
+      </div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-icon emerald"><i class="fas fa-users"></i></div>
+      <div>
+        <div class="admin-stat-value">{{ stats.users }}</div>
+        <div class="admin-stat-label">Total Users</div>
+      </div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-icon sky"><i class="fas fa-image"></i></div>
+      <div>
+        <div class="admin-stat-value">{{ stats.with_logo }}</div>
+        <div class="admin-stat-label">With Logo</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Companies Grid -->
+  <div class="admin-card">
+    <div class="card-header">
+      <h5 class="card-title">
+        <i class="fas fa-building"></i> Companies
+        <span class="admin-count-badge"><i class="fas fa-building"></i>{{ stats.companies }}</span>
+      </h5>
+    </div>
+    <div class="card-body">
+      {% if companies %}
+      <div class="company-grid">
+        {% for company in companies %}
+        <div class="company-card">
+          <div class="card-body d-flex flex-column p-3">
+            <div class="company-logo-tile">
+              {% if company.logo %}
+                <img src="{{ url_for('static', filename=company.logo) }}" alt="{{ company.name }} Logo">
+              {% else %}
+                <i class="fas fa-city no-logo"></i>
+              {% endif %}
+            </div>
+            <h5 class="company-name">{{ company.name }}</h5>
+            <p class="company-franchise">{{ company.franchise_name or 'No franchise name' }}</p>
+            <div class="company-meta">
+              <span class="meta-item"><i class="fas fa-users"></i>{{ company.users|length }} users</span>
+              <span class="meta-item"><i class="fas fa-calendar-alt"></i>{{ company.created_at.strftime('%Y-%m-%d') if company.created_at else 'N/A' }}</span>
+            </div>
+            <div class="mt-auto d-flex justify-content-center gap-2 pt-2">
+              <button class="btn btn-outline-primary btn-sm edit-company-btn"
+                      data-company-id="{{ company.id }}"
+                      data-company-name="{{ company.name }}"
+                      data-franchise-name="{{ company.franchise_name or '' }}"
+                      data-logo-url="{{ url_for('static', filename=company.logo) if company.logo else '' }}"
+                      {% if company.id == current_user.company_id %}disabled{% endif %}>
+                <i class="fas fa-pencil-alt me-1"></i>Edit
+              </button>
+              {% if company.id != current_user.company_id %}
+              <form method="POST" action="{{ url_for('companies.delete_company', company_id=company.id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this company? This action cannot be undone.');">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                  <i class="fas fa-trash me-1"></i>Delete
+                </button>
+              </form>
+              {% else %}
+              <button class="btn btn-outline-danger btn-sm" disabled>
+                <i class="fas fa-trash me-1"></i>Delete
+              </button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="admin-empty">
+        <i class="fas fa-building"></i>
+        <h6 class="mb-1">No companies yet</h6>
+        <p class="mb-0">Add your first company to get started</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Add Company Modal -->
+<div class="modal fade admin-modal" id="addCompanyModal" tabindex="-1" aria-labelledby="addCompanyModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="addCompanyModalLabel">
+          <i class="fas fa-building me-2"></i>Add New Company
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="{{ url_for('companies.add_company') }}" enctype="multipart/form-data">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label for="addCompanyName" class="form-label">Company Name <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0">
+                  <i class="fas fa-building text-muted"></i>
+                </span>
+                <input type="text" class="form-control border-start-0" id="addCompanyName" name="name" placeholder="Enter company name" required>
+              </div>
+            </div>
+            <div class="col-12">
+              <label for="addFranchiseName" class="form-label">Franchise Name</label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0">
+                  <i class="fas fa-tag text-muted"></i>
+                </span>
+                <input type="text" class="form-control border-start-0" id="addFranchiseName" name="franchise_name" placeholder="Enter franchise name (optional)">
+              </div>
+            </div>
+            <div class="col-12">
+              <label for="addCompanyLogo" class="form-label">Company Logo</label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0">
+                  <i class="fas fa-image text-muted"></i>
+                </span>
+                <input type="file" class="form-control border-start-0" id="addCompanyLogo" name="logo" accept="image/*">
+              </div>
+              <div class="form-text">Allowed formats: PNG, JPG, JPEG, GIF (Max size: 2MB)</div>
+            </div>
+            <div class="col-12">
+              <div id="addLogoPreviewContainer" class="d-none">
+                <label class="form-label">Logo Preview</label>
+                <div class="border rounded-3 p-3 text-center bg-subtle">
+                  <img id="addLogoPreview" src="#" alt="Logo Preview" class="img-fluid rounded" style="max-height: 120px;">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>Cancel
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-plus-circle me-1"></i>Add Company
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Company Modal -->
+<div class="modal fade admin-modal" id="editCompanyModal" tabindex="-1" aria-labelledby="editCompanyModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="editCompanyModalLabel">
+          <i class="fas fa-pen-to-square me-2"></i>Edit Company
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="" enctype="multipart/form-data" id="editCompanyForm">
+        <div class="modal-body">
+          <input type="hidden" id="editCompanyId" name="company_id">
+          <div class="row g-3">
+            <div class="col-12">
+              <label for="editCompanyName" class="form-label">Company Name <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0">
+                  <i class="fas fa-building text-muted"></i>
+                </span>
+                <input type="text" class="form-control border-start-0" id="editCompanyName" name="name" placeholder="Enter company name" required>
+              </div>
+            </div>
+            <div class="col-12">
+              <label for="editFranchiseName" class="form-label">Franchise Name</label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0">
+                  <i class="fas fa-tag text-muted"></i>
+                </span>
+                <input type="text" class="form-control border-start-0" id="editFranchiseName" name="franchise_name" placeholder="Enter franchise name (optional)">
+              </div>
+            </div>
+            <div class="col-12">
+              <label for="editCompanyLogo" class="form-label">Company Logo</label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0">
+                  <i class="fas fa-image text-muted"></i>
+                </span>
+                <input type="file" class="form-control border-start-0" id="editCompanyLogo" name="logo" accept="image/*">
+              </div>
+              <div class="form-text">Allowed formats: PNG, JPG, JPEG, GIF (Max size: 2MB)</div>
+              <div id="currentLogoContainer" class="mt-2 d-none">
+                <label class="form-label">Current Logo</label>
+                <div class="border rounded-3 p-2 text-center bg-subtle">
+                  <img id="currentLogo" src="#" alt="Current Logo" class="img-fluid rounded" style="max-height: 80px;">
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div id="editLogoPreviewContainer" class="d-none">
+                <label class="form-label">New Logo Preview</label>
+                <div class="border rounded-3 p-3 text-center bg-subtle">
+                  <img id="editLogoPreview" src="#" alt="Logo Preview" class="img-fluid rounded" style="max-height: 120px;">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>Cancel
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Logo Preview Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Add Company Logo Preview
+  const addLogoInput = document.getElementById('addCompanyLogo');
+  const addLogoPreview = document.getElementById('addLogoPreview');
+  const addLogoPreviewContainer = document.getElementById('addLogoPreviewContainer');
+
+  addLogoInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        addLogoPreview.src = e.target.result;
+        addLogoPreviewContainer.classList.remove('d-none');
+      }
+      reader.readAsDataURL(file);
+    } else {
+      addLogoPreviewContainer.classList.add('d-none');
+    }
+  });
+
+  // Edit Company Logo Preview
+  const editLogoInput = document.getElementById('editCompanyLogo');
+  const editLogoPreview = document.getElementById('editLogoPreview');
+  const editLogoPreviewContainer = document.getElementById('editLogoPreviewContainer');
+  const currentLogoContainer = document.getElementById('currentLogoContainer');
+  const currentLogo = document.getElementById('currentLogo');
+
+  editLogoInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        editLogoPreview.src = e.target.result;
+        editLogoPreviewContainer.classList.remove('d-none');
+      }
+      reader.readAsDataURL(file);
+    } else {
+      editLogoPreviewContainer.classList.add('d-none');
+    }
+  });
+
+  // Edit Company Button Click Handler
+  const editButtons = document.querySelectorAll('.edit-company-btn');
+  editButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const companyId = this.getAttribute('data-company-id');
+      const companyName = this.getAttribute('data-company-name');
+      const franchiseName = this.getAttribute('data-franchise-name');
+      const logoUrl = this.getAttribute('data-logo-url');
+
+      // Set form action using the correct URL pattern
+      document.getElementById('editCompanyForm').action = `/companies/edit_company/${companyId}`;
+
+      // Populate form fields
+      document.getElementById('editCompanyId').value = companyId;
+      document.getElementById('editCompanyName').value = companyName;
+      document.getElementById('editFranchiseName').value = franchiseName;
+
+      // Handle logo display
+      if (logoUrl) {
+        currentLogo.src = logoUrl;
+        currentLogoContainer.classList.remove('d-none');
+      } else {
+        currentLogoContainer.classList.add('d-none');
+      }
+
+      // Hide preview container initially
+      editLogoPreviewContainer.classList.add('d-none');
+
+      // Show modal
+      const editModal = new bootstrap.Modal(document.getElementById('editCompanyModal'));
+      editModal.show();
+    });
+  });
+
+  // Ensure modal appears above header
+  const addModal = document.getElementById('addCompanyModal');
+  const editModal = document.getElementById('editCompanyModal');
+
+  if (addModal) {
+    addModal.addEventListener('show.bs.modal', function () {
+      this.style.zIndex = '1200';
+    });
+  }
+
+  if (editModal) {
+    editModal.addEventListener('show.bs.modal', function () {
+      this.style.zIndex = '1200';
+    });
+  }
+});
+</script>
+{% endblock %}

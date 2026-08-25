@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pending Batch Audits</title>
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#6366f1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Iceberg Batch">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="msapplication-TileColor" content="#4a5da7">
+  <meta name="msapplication-tap-highlight" content="no">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/static/manifest.json">
+  
+  <!-- PWA Icons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-16x16.png">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --wh-primary: #6366f1;
+      --wh-primary-light: #818cf8;
+      --wh-primary-dark: #4f46e5;
+      --wh-bg: #f0f2ff;
+      --wh-card-bg: #ffffff;
+      --wh-text: #1e1b4b;
+      --wh-text-muted: #6b7280;
+      --wh-border: #e0e3f0;
+      --wh-success: #10b981;
+      --wh-warning: #f59e0b;
+      --wh-danger: #ef4444;
+      --wh-shadow: rgba(99, 102, 241, 0.1);
+      --bs-primary: #6366f1;
+      --bs-success: #10b981;
+      --bs-warning: #f59e0b;
+      --bs-danger: #ef4444;
+      --bs-secondary: #6b7280;
+      --bs-dark: #1e1b4b;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--wh-bg);
+      font-family: system-ui, -apple-system, sans-serif;
+      color: var(--wh-text);
+      min-height: 100vh;
+    }
+    .pending-wrapper {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 1rem 0.75rem 2rem;
+    }
+    .card { border: none !important; border-radius: 1rem !important; box-shadow: 0 2px 12px var(--wh-shadow) !important; background: var(--wh-card-bg) !important; }
+    .card-body { padding: 1.25rem !important; }
+
+    .page-header { text-align: center; padding-bottom: 1rem; }
+    .page-header h4 { font-size: 1.1rem; font-weight: 700; color: var(--wh-primary-dark); }
+    .page-header h4 i { margin-right: 0.4rem; color: var(--wh-primary); }
+    .page-header small { color: var(--wh-text-muted); font-size: 0.8rem; }
+
+    .btn-outline-primary { border: 1.5px solid var(--wh-border) !important; color: var(--wh-primary) !important; border-radius: 0.6rem; font-weight: 600; font-size: 0.85rem; padding: 0.5rem 0.85rem; transition: all 0.2s; }
+    .btn-outline-primary:hover { background: var(--wh-primary) !important; color: #fff !important; border-color: var(--wh-primary) !important; }
+
+    .batch-group-header { background: linear-gradient(135deg, #f8f7ff 0%, #eef0ff 100%); padding: 0.75rem 1rem; border-radius: 0.6rem; margin-bottom: 0.75rem; font-weight: 700; font-size: 0.85rem; color: var(--wh-primary-dark); border: 1px solid var(--wh-border); cursor: pointer; transition: all 0.15s; }
+    .batch-group-header:active { transform: scale(0.99); }
+    .batch-group-header .badge { font-size: 0.65rem; font-weight: 600; padding: 0.25em 0.55em; }
+
+    .pending-list { max-height: 400px; overflow-y: auto; border: 1px solid var(--wh-border); border-radius: 0.6rem; background: var(--wh-card-bg); }
+    .pending-item { padding: 0.85rem 1rem; border-bottom: 1px solid var(--wh-border); background: var(--wh-card-bg); transition: background 0.15s; }
+    .pending-item:last-child { border-bottom: none; }
+    .pending-item:hover { background: var(--wh-bg); }
+    .pending-item h6 { font-size: 0.85rem; font-weight: 700; color: var(--wh-text); margin-bottom: 0.25rem; }
+
+    .discrepancy { display: inline-block; font-weight: 700; font-size: 0.9rem; padding: 0.2rem 0.5rem; border-radius: 999px; min-width: 50px; text-align: center; }
+    .discrepancy.positive { background: rgba(16,185,129,0.12); color: var(--wh-success); }
+    .discrepancy.negative { background: rgba(239,68,68,0.12); color: var(--wh-danger); }
+    .discrepancy.zero { background: rgba(245,158,11,0.12); color: var(--wh-warning); }
+
+    .btn-lg { font-size: 1rem; padding: 0.65rem; border-radius: 0.6rem; font-weight: 600; }
+    .btn-success { background: var(--wh-success) !important; border-color: var(--wh-success) !important; border-radius: 0.5rem; font-weight: 600; font-size: 0.75rem; padding: 0.3rem 0.55rem; }
+    .btn-sm { border-radius: 0.4rem; font-size: 0.7rem; padding: 0.25rem 0.5rem; }
+
+    .notification-toast { position: fixed; top: 20px; right: 20px; z-index: 9999; background: white; border-radius: 10px; padding: 14px 20px; box-shadow: 0 6px 20px rgba(99,102,241,0.15); border-left: 4px solid var(--wh-primary); transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); max-width: 300px; font-size: 0.85rem; }
+    .notification-toast.show { transform: translateX(0); }
+    .notification-toast.notification-success { border-left-color: var(--wh-success); }
+    .notification-toast.notification-error { border-left-color: var(--wh-danger); }
+    .notification-toast.notification-info { border-left-color: var(--wh-primary-light); }
+
+    .empty-state { text-align: center; padding: 3rem 1.5rem; }
+    .empty-state i { font-size: 2.5rem; color: var(--wh-success); opacity: 0.6; margin-bottom: 0.75rem; }
+    .empty-state h5 { font-size: 1rem; font-weight: 700; color: var(--wh-text); }
+    .empty-state p { font-size: 0.85rem; color: var(--wh-text-muted); margin-bottom: 0; }
+
+    .collapsible { cursor: pointer; width: 100%; border: none; text-align: left; outline: none; }
+  </style>
+</head>
+<body>
+  <!-- Flash Alert -->
+  <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1050">
+    <div id="flashAlert" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <!-- Message will be inserted here -->
+        </div>
+        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="pending-wrapper">
+    <div class="card shadow">
+      <div class="card-body">
+        <!-- Header -->
+        <div class="page-header">
+          <h4><i class="fas fa-list"></i> Pending Batch Audits</h4>
+          <small>List of pending batch audits grouped by submission</small>
+        </div>
+
+        <!-- Back Button -->
+        <div class="mb-3">
+          <button class="btn btn-outline-primary" onclick="window.location.href='/scanner/mobile-scanner'">
+            <i class="fas fa-arrow-left me-1"></i> Back to Scanner
+          </button>
+        </div>
+
+        <!-- Pending List -->
+        <div id="pending-list-section">
+          <h5 style="font-size:0.95rem;font-weight:700;color:var(--wh-primary-dark);margin-bottom:0.75rem;">
+            <i class="fas fa-clock me-1" style="color:var(--wh-warning);"></i> Pending Audit Groups
+          </h5>
+          {% if grouped_audits %}
+            {% for batch_label, audits in grouped_audits.items() %}
+              <div class="batch-group mb-3">
+                <div class="batch-group-header collapsible" onclick="toggleGroup('{{ batch_label }}')">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span>{{ batch_label }}</span>
+                    <span class="badge bg-primary">{{ audits|length }} items</span>
+                  </div>
+                </div>
+                <div class="pending-list" id="group-{{ batch_label }}" style="display: block;">
+                  {% for audit in audits %}
+                    <div class="pending-item">
+                      <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                          <h6 class="mb-1">{{ audit.product_name }}</h6>
+                          <div class="small text-muted mb-2">
+                            <span class="badge bg-dark">{{ audit.batch_barcode }}</span>
+                            <span class="badge bg-secondary">{{ audit.product_uom }}</span>
+                          </div>
+                          <div class="row">
+                            <div class="col-4">
+                              <small class="text-muted">Recorded:</small><br>
+                              <strong>{{ audit.recorded_quantity }}</strong>
+                            </div>
+                            <div class="col-4">
+                              <small class="text-muted">Actual:</small><br>
+                              <strong>{{ audit.actual_quantity }}</strong>
+                            </div>
+                            <div class="col-4">
+                              <small class="text-muted">Diff:</small><br>
+                              <span class="discrepancy 
+                                {% if audit.discrepancy > 0 %}positive{% elif audit.discrepancy < 0 %}negative{% else %}zero{% endif %}">
+                                {{ '+' if audit.discrepancy > 0 else '' }}{{ audit.discrepancy }}
+                              </span>
+                            </div>
+                          </div>
+                          <div class="mt-2">
+                            <small class="text-muted">Audited by: {{ audit.verified_by }}</small><br>
+                            <small class="text-muted">Date: {{ audit.audit_timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+                          </div>
+                        </div>
+                        <div>
+                          {% if current_user and current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+                          <form method="POST" action="{{ url_for('api.settle_batch_audit_pending', batch_label=batch_label) }}" 
+                                class="d-inline" onsubmit="return confirmSettle();">
+                            <button type="submit" class="btn btn-success btn-sm ms-2">
+                              <i class="fas fa-check-circle"></i> Settle
+                            </button>
+                          </form>
+                          {% endif %}
+                          <button class="btn btn-outline-primary btn-sm ms-2" onclick="viewAuditDetails('{{ audit.id }}')">
+                            <i class="fas fa-eye"></i> View
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="empty-state">
+              <i class="fas fa-check-circle"></i>
+              <h5>No pending batch audits</h5>
+              <p>All batch audits have been processed.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Function to toggle group visibility
+    function toggleGroup(batchLabel) {
+      var groupElement = document.getElementById('group-' + batchLabel);
+      if (groupElement.style.display === 'none') {
+        groupElement.style.display = 'block';
+      } else {
+        groupElement.style.display = 'none';
+      }
+    }
+    
+    // Function to view audit details
+    function viewAuditDetails(auditId) {
+      // For now, just show an alert with the audit ID
+      // You can implement a modal or redirect to a detailed view page
+      alert('Viewing details for audit ID: ' + auditId);
+    }
+    
+    // Settle Confirmation
+    function confirmSettle() {
+      return confirm(
+        '⚠️ Are you sure you want to settle all discrepancies for this batch?\\n\\n' +
+        'This will:\\n' +
+        '• Update product quantities to match actual audit quantities\\n' +
+        '• Add excess quantities to batches with quantity > 0 and earliest expiry (FEFO)\\n' +
+        '• Remove shortage quantities from batches according to FEFO\\n' +
+        '• Update product initial quantities to match current quantities\\n' +
+        '• Create transaction history records for all adjustments\\n' +
+        '• Mark all audits in this batch as settled\\n\\n' +
+        'This action cannot be undone!'
+      );
+    }
+    
+    // Show flash messages if any
+    window.addEventListener('load', function() {
+      // This would be handled by your flash message system
+    });
+  </script>
+  
+  <!-- PWA Scripts -->
+  <script src="{{ url_for('static', filename='js/scanner-pwa.js') }}"></script>
+</body>
+</html>

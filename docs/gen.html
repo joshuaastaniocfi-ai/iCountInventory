@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iCount System Gantt Chart - PowerPoint Ready</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: white;
+            color: #2c3e50;
+        }
+        
+        .slide-container {
+            width: 1280px;
+            height: 720px;
+            background: white;
+            margin: 20px auto;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+        }
+        
+        .title-slide {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+        }
+        
+        .main-title {
+            font-size: 48px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        
+        .subtitle {
+            font-size: 28px;
+            color: #5a87c7;
+            margin-bottom: 40px;
+        }
+        
+        .project-info {
+            font-size: 20px;
+            color: #7f8c8d;
+            line-height: 1.6;
+        }
+        
+        .gantt-slide {
+            height: 100%;
+        }
+        
+        .gantt-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .gantt-title {
+            font-size: 32px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .gantt-subtitle {
+            font-size: 16px;
+            color: #7f8c8d;
+        }
+        
+        .gantt-container {
+            width: 100%;
+            height: 500px;
+            position: relative;
+        }
+        
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 200px 10px 250px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-bottom: 2px solid #d9d9d9;
+            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .gantt-row {
+            display: flex;
+            align-items: center;
+            height: 35px;
+            margin-bottom: 8px;
+            position: relative;
+        }
+        
+        .phase-label {
+            width: 240px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+            padding-right: 10px;
+            text-align: right;
+        }
+        
+        .timeline-area {
+            flex: 1;
+            height: 25px;
+            position: relative;
+            background: linear-gradient(90deg, #f8f9fa 0%, #f8f9fa 100%);
+            border: 1px solid #d9d9d9;
+        }
+        
+        .gantt-bar {
+            position: absolute;
+            height: 23px;
+            background: linear-gradient(135deg, #6c9bd1, #5a87c7);
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 0 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .milestone {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            color: #e74c3c;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .duration-label {
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        
+        .instructions {
+            margin-top: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #e8f4f8, #d4edda);
+            border-radius: 8px;
+            border-left: 4px solid #5a87c7;
+        }
+        
+        .instructions h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        
+        .instructions ol {
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <!-- Title Slide -->
+    <div class="slide-container">
+        <div class="title-slide">
+            <h1 class="main-title">iCount System</h1>
+            <h2 class="subtitle">Retail Operations Workflow</h2>
+            <div class="project-info">
+                <p><strong>Project Timeline:</strong> September 8, 2025 - February 25, 2026</p>
+                <p><strong>Duration:</strong> 171 days | <strong>Phases:</strong> 12 sequential modules</p>
+                <p><strong>Scope:</strong> Complete retail inventory management system implementation</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gantt Chart Slide -->
+    <div class="slide-container">
+        <div class="gantt-slide">
+            <div class="gantt-header">
+                <h1 class="gantt-title">Project Timeline & Milestones</h1>
+                <p class="gantt-subtitle">iCount System Development Phases</p>
+            </div>
+            
+            <div class="timeline-header">
+                <span>Sep 2025</span>
+                <span>Oct 2025</span>
+                <span>Nov 2025</span>
+                <span>Dec 2025</span>
+                <span>Jan 2026</span>
+                <span>Feb 2026</span>
+            </div>
+            
+            <div class="gantt-container">
+                <div class="gantt-row">
+                    <div class="phase-label">Requirements & DB Schema</div>
+                    <div class="timeline-area">
+                        <div class="gantt-bar" style="left: 0%; width: 8.8%;">
+                            <span class="duration-label">15 days</span>
+                            <div class="milestone">◆</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="gantt-row">
+                    <div class="phase-label">Product Catalog & Barcode</div>
+                    <div class="timeline-area">
+                        <div class="gantt-bar" style="left: 8.8%; width: 11.7%;">
+                            <span class="duration-label">20 days</span>
+                            <div class="milestone">◆</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="gantt-row">
+                    <div class="phase-label">Ordering & Shipment</div>
+                    <div class="timeline-area">
+                        <div class="gantt-bar" style="left: 20.5%; width: 14.6%;">
+                            <span class="duration-label">25 days</span>
+                            <div class="milestone">◆</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="gantt-row">
+                    <div class="phase-label">Expiration Pre-Alerts</div>
+                    <div class="timeline-area">
+                        <div class="gantt-bar" style="left: 35.1%; width: 8.8%;">
+                            <span class="duration-label">15 days</span>
+                            <div class="milestone">◆</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="gantt-row">
+                    <div class="phase-label">Sales Integration</div>
+                    <div class="timeline-area">
+                        <div class="gantt-bar" style="left: 43.9%; width: 11.7%;">
+                            <span class="duration-label">20 days</span>
+                            <div class="milestone">◆</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="gantt-row">
+                    <div class="phase-label">Goods Receipt</div>
+                    <div class="timeline-area">
+                        <div class="gantt-bar" style="left: 55.6%; width: 8.8%;">
+                            <span class="duration-label">15 days</span>
+                            <div class="milestone">◆</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="gantt-row">
+                    <div class="phase-label">Inventory Counting</div>
+                    <div class="timeline-area">
+                        <div class="gantt-bar" style="left: 64.4%; width: 8.8%;">
+                            <span class="duration-label">15 days</span>
+                            <div class="milestone">◆</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="gantt-row">
+                    <div class="phase-label">Item Creation & Control</div>
+                    <div class="timeline-area">
+                        <div class="gantt-bar" style="left: 73.2%; width: 5.8%;">
+                            <span class="duration-label">10 days</span>
+                            <div class="milestone">◆</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="gantt-row">
+                    <div class="phase-label">Discounts & Promotions</div>
+                    <div class="timeline-area">
+                        <div class="gantt-bar" style="left: 79.0%; width: 5.8%;">
+                            <span class="duration-label">10 days</span>
+                            <div class="milestone">◆</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="gantt-row">
+                    <div class="phase-label">Spoilage & Transfers</div>
+                    <div class="timeline-area">
+                        <div class="gantt-bar" style="left: 84.8%; width: 5.8%;">
+                            <span class="duration-label">10 days</span>
+                            <div class="milestone">◆</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="gantt-row">
+                    <div class="phase-label">Data Adjustments</div>
+                    <div class="timeline-area">
+                        <div class="gantt-bar" style="left: 90.6%; width: 2.9%;">
+                            <span class="duration-label">5 days</span>
+                            <div class="milestone">◆</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="gantt-row">
+                    <div class="phase-label">Exporting & Variance Reports</div>
+                    <div class="timeline-area">
+                        <div class="gantt-bar" style="left: 93.5%; width: 5.8%;">
+                            <span class="duration-label">10 days</span>
+                            <div class="milestone">◆</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="instructions">
+        <h3>📋 How to Transfer to PowerPoint:</h3>
+        <ol>
+            <li><strong>Screenshot Method:</strong> Take screenshots of each slide above and insert as images in PowerPoint</li>
+            <li><strong>Copy Elements:</strong> Select and copy individual elements (titles, charts) and paste into PowerPoint slides</li>
+            <li><strong>Recreate in PowerPoint:</strong>
+                <ul>
+                    <li>Insert → SmartArt → Process → Basic Timeline</li>
+                    <li>Or use Insert → Shapes to create rectangular bars manually</li>
+                    <li>Apply gradient fill: #6c9bd1 to #5a87c7</li>
+                    <li>Add red diamond shapes (◆) for milestones</li>
+                </ul>
+            </li>
+            <li><strong>Colors to use:</strong>
+                <ul>
+                    <li>Bar gradient: #6c9bd1 → #5a87c7</li>
+                    <li>Grid lines: #d9d9d9</li>
+                    <li>Text: #2c3e50</li>
+                    <li>Milestones: #e74c3c</li>
+                </ul>
+            </li>
+        </ol>
+        <p><strong>Pro Tip:</strong> For fully editable bars in PowerPoint, use Insert → Chart → Bar Chart, then customize the appearance to match this design.</p>
+    </div>
+</body>
+</html>

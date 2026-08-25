@@ -1,0 +1,713 @@
+<!-- templates/stock_audit.html -->
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}Stock Audit - iCount{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+  <!-- Page Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-4 gap-3">
+    <div>
+      <div class="d-flex align-items-center mb-2">
+        <div class="feature-icon d-inline-flex align-items-center justify-content-center text-bg-primary bg-gradient fs-4 rounded-3 me-3" style="width: 48px; height: 48px;">
+          <i class="fas fa-clipboard-check"></i>
+        </div>
+        <div>
+          <h4 class="fw-bold mb-1" style="background: linear-gradient(45deg, #0d6efd, #0a58ca); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            Stock Audit
+          </h4>
+          <p class="text-muted mb-0">Verify and update your inventory counts</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Quick Stats -->
+    <div class="d-flex gap-2">
+      <div class="stat-card bg-primary-subtle border-primary p-2 rounded-2">
+        <div class="d-flex align-items-center gap-2">
+          <div class="stat-icon bg-primary rounded-circle p-1">
+            <i class="fas fa-boxes text-white small"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-primary h6 mb-0">{{ products|length }}</div>
+            <div class="small text-primary-emphasis">Total Products</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="stat-card bg-success-subtle border-success p-2 rounded-2">
+        <div class="d-flex align-items-center gap-2">
+          <div class="stat-icon bg-success rounded-circle p-1">
+            <i class="fas fa-check text-white small"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-success h6 mb-0" id="audited-count">0</div>
+            <div class="small text-success-emphasis">Audited</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="stat-card bg-warning-subtle border-warning p-2 rounded-2">
+        <div class="d-flex align-items-center gap-2">
+          <div class="stat-icon bg-warning rounded-circle p-1">
+            <i class="fas fa-clock text-white small"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-warning h6 mb-0" id="pending-count">{{ products|length }}</div>
+            <div class="small text-warning-emphasis">Pending</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audit Form -->
+  <form id="audit-form" class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <!-- Search & Filter -->
+      <div class="p-3 border-bottom">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-4">
+            <div class="input-group">
+              <span class="input-group-text bg-transparent border-end-0">
+                <i class="fas fa-search text-muted"></i>
+              </span>
+              <input type="text" id="product-search" class="form-control border-start-0 ps-0" 
+                     placeholder="Search products...">
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center gap-2">
+              <i class="fas fa-user-check text-primary"></i>
+              <input type="text" name="verified_by" class="form-control" 
+                     placeholder="Enter auditor's name" required>
+            </div>
+          </div>
+          <div class="col-md-4 text-md-end">
+            <div class="d-flex gap-2 justify-content-end">
+              <button type="button" class="btn btn-outline-secondary" onclick="refreshAllDiscrepancies()" title="Refresh all discrepancies">
+                <i class="fas fa-sync-alt me-1"></i>Refresh
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-paper-plane me-2"></i>Submit Audit
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+                    <!-- Table -->
+       <div class="table-responsive">
+         <table class="table table-hover align-middle mb-0" id="audit-table">
+           <thead>
+             <tr>
+<th class="border-0" style="width: 35%;">
+                  <div class="d-flex align-items-center ps-4">
+                    Product Details
+                  </div>
+                </th>
+                <th class="border-0" style="width: 20%;">
+                  <div class="d-flex align-items-center justify-content-center">
+                    System Qty
+                  </div>
+                </th>
+                <th class="border-0" style="width: 20%;">
+                  <div class="d-flex align-items-center justify-content-center">
+                    Actual Qty
+                  </div>
+                </th>
+                <th class="border-0" style="width: 15%;">
+                  <div class="d-flex align-items-center justify-content-center">
+                    Discrepancy
+                  </div>
+                </th>
+                <th class="border-0" style="width: 10%;">
+                  <div class="d-flex align-items-center justify-content-center">
+                    Batches
+                  </div>
+                </th>
+             </tr>
+           </thead>
+           <tbody>
+             {% for product in products %}
+             <tr class="audit-row {% if product.quantity == 0 %}zero-stock{% endif %}" data-status="pending">
+               <td class="ps-4">
+                 <div class="d-flex align-items-center">
+                   <div class="product-icon me-3">
+                     <img src="{{ url_for('static', filename='product_barcodes/company_' ~ product.company_id|string ~ '/' ~ product.barcode ~ '.png') }}" 
+                          alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
+                   </div>
+                   <div class="flex-grow-1 min-width-0">
+                     <h6 class="mb-1 text-truncate">{{ product.name }}</h6>
+                     <div class="d-flex align-items-center gap-2 flex-wrap">
+                       <span class="badge bg-dark">{{ product.barcode }}</span>
+                       <span class="badge bg-secondary">{{ product.uom }}</span>
+                       {% if product.quantity == 0 %}
+                         <span class="badge bg-danger">Zero Stock</span>
+                       {% endif %}
+                     </div>
+                   </div>
+                 </div>
+               </td>
+               <td>
+                 <div class="d-flex flex-column gap-2 px-2">
+                   <div class="input-group input-group-sm">
+                     <input type="number" name="recorded_qty" class="form-control text-center recorded-qty"
+                            value="{{ product.quantity }}" readonly>
+                   </div>
+                 </div>
+               </td>
+               <td>
+                 <div class="d-flex flex-column gap-2 px-2">
+                   <input type="number" name="actual_qty" class="form-control form-control-sm text-center actual-qty" 
+                          value="{% if product.quantity == 0 %}0{% endif %}"
+                          placeholder="Enter count" required min="0" step="0.01">
+                   <input type="hidden" class="product-id" value="{{ product.id }}">
+                 </div>
+               </td>
+               <td>
+                 <div class="px-2 text-center">
+                   <div class="discrepancy fw-bold py-2 px-3 rounded-pill text-center">-</div>
+                 </div>
+               </td>
+               <td>
+                 <div class="d-flex justify-content-center">
+                   <button type="button" class="btn btn-sm btn-outline-primary view-batches" data-bs-toggle="modal" 
+                           data-bs-target="#batchModal{{ product.id }}" title="View Batches">
+                     <i class="fas fa-box"></i>
+                   </button>
+                 </div>
+               </td>
+             </tr>
+             {% endfor %}
+           </tbody>
+         </table>
+       </div>
+     </div>
+   </form>
+
+   <!-- Batch Details Modals -->
+   {% for product in products %}
+     <div class="modal fade" id="batchModal{{ product.id }}" tabindex="-1">
+       <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+         <div class="modal-content border-0 shadow">
+           <div class="modal-header">
+             <div>
+               <h5 class="modal-title fw-bold mb-1">{{ product.name }}</h5>
+               <small class="text-muted">
+                 <i class="fas fa-barcode me-1"></i>{{ product.barcode }}
+               </small>
+             </div>
+             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+           </div>
+           <div class="modal-body p-0">
+             <div class="table-responsive">
+               <table class="table table-sm align-middle mb-0">
+                 <thead>
+                   <tr>
+                     <th class="text-muted small">Batch</th>
+                     <th class="text-muted small">Quantity</th>
+                     <th class="text-muted small">Expiry</th>
+                     <th class="text-end text-muted small">Status</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   {% for batch in product.batches|sort(attribute='exp_date') %}
+                     {% set qty = batch.quantity or 0 %}
+                     {% set int_qty = batch.int_quantity if batch.int_quantity is not none else 0 %}
+                     {% set pct = (qty / int_qty * 100) if int_qty > 0 else 0 %}
+                     {% set pct_class = 'bg-success' if pct > 30 else ('bg-warning' if pct > 10 else 'bg-danger') %}
+                     <tr>
+                       <td class="text-muted">#{{ loop.index }}</td>
+                       <td style="min-width: 240px;">
+                         <div class="d-flex align-items-center justify-content-between">
+                           <div class="fw-semibold">{{ qty }}/{{ int_qty if int_qty > 0 else qty }} {{ product.uom }}</div>
+                           <span class="badge bg-light text-dark">{{ pct|round(0) }}%</span>
+                         </div>
+                         <div class="progress mt-1" style="height: 6px;">
+                           <div class="progress-bar {{ pct_class }}" role="progressbar" style="width: {{ pct|round(0) }}%;"></div>
+                         </div>
+                       </td>
+                       <td style="min-width: 160px;">{% if batch.exp_date %}{{ batch.exp_date.strftime('%Y-%m-%d') }}{% else %}-{% endif %}</td>
+                       <td class="text-end" style="width: 1%; white-space: nowrap;">
+                         {% if batch.quantity > 0 %}
+                           <span class="badge bg-success-subtle text-success">In Stock</span>
+                         {% else %}
+                           <span class="badge bg-danger-subtle text-danger">Out of Stock</span>
+                         {% endif %}
+                       </td>
+                     </tr>
+                   {% else %}
+                     <tr>
+                       <td colspan="4" class="text-center py-4 text-muted">
+                         <i class="fas fa-box-open mb-2"></i>
+                         <p class="mb-0">No batch information available</p>
+                       </td>
+                     </tr>
+                   {% endfor %}
+                 </tbody>
+               </table>
+             </div>
+           </div>
+         </div>
+       </div>
+     </div>
+   {% endfor %}
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+<style>
+  /* Header Styles: use global .text-gradient from main.css */
+
+  /* Stat Card Styles */
+  .stat-card {
+    transition: all 0.3s ease;
+    min-width: 120px;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+
+  /* Table Styles */
+  #audit-table {
+    --table-cell-padding: 1rem;
+  }
+
+  #audit-table thead th {
+    padding: var(--table-cell-padding);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  #audit-table tbody td {
+    padding: var(--table-cell-padding);
+  }
+
+  #audit-table input {
+    background-color: transparent;
+    transition: all 0.2s ease;
+  }
+
+  #audit-table input:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+  }
+
+  #audit-table .audit-row {
+    transition: background-color 0.2s ease;
+  }
+
+  #audit-table .audit-row:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+
+  #audit-table .audit-row.zero-stock {
+    background-color: rgba(220, 53, 69, 0.02);
+  }
+
+  #audit-table .audit-row.zero-stock:hover {
+    background-color: rgba(220, 53, 69, 0.05);
+  }
+
+  #audit-table .product-icon {
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+    width: 40px;
+  }
+
+  #audit-table .audit-row:hover .product-icon {
+    transform: scale(1.1);
+  }
+
+  #audit-table .product-icon img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+
+  #audit-table h6 {
+    font-size: 0.9375rem;
+    line-height: 1.4;
+  }
+
+  .discrepancy {
+    transition: all 0.3s ease;
+    font-size: 0.875rem;
+    width: 100%;
+    display: inline-block;
+  }
+
+  .discrepancy.positive {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+  }
+
+  .discrepancy.negative {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+
+  .discrepancy.zero {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+  }
+
+  /* Input Groups */
+  .input-group-sm {
+    width: 100%;
+  }
+
+  .input-group-sm .form-control {
+    min-height: calc(1.5em + 0.5rem + 2px);
+  }
+
+  .input-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+  }
+
+  /* Batch Select Styles */
+  .batch-select {
+    border-color: rgba(0, 0, 0, 0.1);
+    font-size: 0.875rem;
+    width: 100%;
+  }
+
+  .batch-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+  }
+
+  .batch-info {
+    font-size: 0.75rem;
+    min-height: 1rem;
+  }
+
+  /* Modal Styles */
+  .modal-body .table {
+    font-size: 0.875rem;
+    margin: 0;
+  }
+
+  .modal-body .table th {
+    font-weight: 600;
+    color: #495057;
+    background-color: #f8f9fa;
+    padding: 0.75rem 1rem;
+  }
+
+  .modal-body .table td {
+    vertical-align: middle;
+    padding: 0.75rem 1rem;
+  }
+
+  .modal-body .table tr:last-child td {
+    border-bottom: 0;
+  }
+
+  /* Toast Styles */
+  .toast {
+    background: var(--card-bg);
+    border: none;
+    box-shadow: var(--shadow-md);
+  }
+
+  .toast.success {
+    border-left: 4px solid #10b981;
+  }
+
+  .toast.error {
+    border-left: 4px solid #dc3545;
+  }
+
+  :where(.dark-mode) .modal-content {
+    background: #121523;
+  }
+  :where(.dark-mode) .modal-header .modal-title {
+    color: rgba(255,255,255,0.85);
+  }
+  :where(.dark-mode) .modal-body .table th {
+    color: rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.06);
+  }
+  :where(.dark-mode) .modal-body .table td {
+    color: rgba(255,255,255,0.75);
+    border-color: rgba(255,255,255,0.06);
+  }
+  :where(.dark-mode) .modal-header {
+    border-color: rgba(255,255,255,0.08);
+  }
+  :where(.dark-mode) .modal-body .table .badge.bg-success-subtle {
+    background: rgba(52,211,153,0.15) !important;
+    color: #34d399 !important;
+  }
+  :where(.dark-mode) .modal-body .table .badge.bg-danger-subtle {
+    background: rgba(248,113,113,0.15) !important;
+    color: #f87171 !important;
+  }
+
+  /* ── Dark mode overrides ── */
+  :where(.dark-mode) #audit-form {
+    background: #121523 !important;
+  }
+  :where(.dark-mode) #audit-table {
+    background: #121523;
+  }
+  :where(.dark-mode) #audit-table .form-control {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.85);
+  }
+  :where(.dark-mode) #audit-table .form-control:focus {
+    background: rgba(255,255,255,0.12);
+    border-color: #818cf8;
+    color: #fff;
+  }
+  :where(.dark-mode) #audit-table .input-group-text {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.45);
+  }
+  :where(.dark-mode) #audit-table .audit-row {
+    background: #121523;
+  }
+  :where(.dark-mode) #audit-table .audit-row:hover {
+    background: rgba(255,255,255,0.03) !important;
+  }
+  :where(.dark-mode) #audit-table .audit-row.zero-stock {
+    background: rgba(248,113,113,0.06);
+  }
+  :where(.dark-mode) #audit-table .audit-row.zero-stock:hover {
+    background: rgba(248,113,113,0.1) !important;
+  }
+  :where(.dark-mode) h6 {
+    color: rgba(255,255,255,0.85);
+  }
+</style>
+
+<script>
+// Toast Notification Function
+function showToast(message, type = 'success') {
+  const toastContainer = document.querySelector('.toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type} show`;
+  toast.setAttribute('role', 'alert');
+  toast.innerHTML = `
+    <div class="toast-header">
+      <i class="fas fa-${type === 'success' ? 'check-circle text-success' : 'exclamation-circle text-danger'} me-2"></i>
+      <strong class="me-auto">${type === 'success' ? 'Success' : 'Error'}</strong>
+      <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body">${message}</div>
+  `;
+  toastContainer.appendChild(toast);
+  setTimeout(() => {
+    toast.remove();
+  }, 5000);
+}
+
+// Update Progress Function
+function updateProgress() {
+  const totalProducts = document.querySelectorAll('.audit-row').length;
+  const auditedProducts = document.querySelectorAll('.audit-row[data-status="audited"]').length;
+  const pendingProducts = totalProducts - auditedProducts;
+  
+  document.getElementById('audited-count').textContent = auditedProducts;
+  document.getElementById('pending-count').textContent = pendingProducts;
+  document.getElementById('audited-badge').textContent = auditedProducts;
+  document.getElementById('pending-badge').textContent = pendingProducts;
+}
+
+// Search Function
+document.getElementById('product-search').addEventListener('input', (e) => {
+  const searchTerm = e.target.value.toLowerCase();
+  document.querySelectorAll('.audit-row').forEach(row => {
+    const productName = row.querySelector('h6').textContent.toLowerCase();
+    const barcode = row.querySelector('.badge').textContent.toLowerCase();
+    const isMatch = productName.includes(searchTerm) || barcode.includes(searchTerm);
+    row.style.display = isMatch ? '' : 'none';
+  });
+  
+  // Reinitialize event listeners for visible rows
+  setTimeout(() => {
+    setupRowEventListeners();
+  }, 100);
+});
+
+// Filter Function
+document.querySelectorAll('[data-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelector('[data-filter].active').classList.remove('active');
+    btn.classList.add('active');
+    const filter = btn.dataset.filter;
+    
+    document.querySelectorAll('.audit-row').forEach(row => {
+      if (filter === 'all' || row.dataset.status === filter) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  });
+});
+
+// Handle Quantity Input
+function setupRowEventListeners() {
+  document.querySelectorAll('#audit-table tbody tr.audit-row').forEach(row => {
+    const recordedInput = row.querySelector('.recorded-qty');
+    const actualInput = row.querySelector('.actual-qty');
+    const discrepancyCell = row.querySelector('.discrepancy');
+
+    if (!recordedInput || !actualInput || !discrepancyCell) {
+      console.warn('Missing required elements in row:', row);
+      return;
+    }
+
+    // Initialize zero stock items
+    if (parseFloat(recordedInput.value) === 0) {
+      actualInput.value = '0';
+      updateDiscrepancy(row);
+    }
+
+    // Remove existing event listeners to prevent duplicates
+    actualInput.removeEventListener('input', row._discrepancyHandler);
+    
+    // Create new event handler
+    row._discrepancyHandler = () => {
+      updateDiscrepancy(row);
+    };
+    
+    // Add event listener
+    actualInput.addEventListener('input', row._discrepancyHandler);
+    
+    // Initialize discrepancy display
+    updateDiscrepancy(row);
+  });
+}
+
+// Initialize event listeners when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('Setting up stock audit event listeners...');
+  setupRowEventListeners();
+  
+  // Force update all discrepancies after a short delay to ensure everything is loaded
+  setTimeout(() => {
+    console.log('Forcing discrepancy updates for all rows...');
+    document.querySelectorAll('.audit-row').forEach((row, index) => {
+      console.log(`Updating discrepancy for row ${index + 1}`);
+      updateDiscrepancy(row);
+    });
+  }, 500);
+});
+
+// Add a manual refresh function for debugging
+function refreshAllDiscrepancies() {
+  console.log('Manually refreshing all discrepancies...');
+  document.querySelectorAll('.audit-row').forEach((row, index) => {
+    console.log(`Refreshing discrepancy for row ${index + 1}`);
+    updateDiscrepancy(row);
+  });
+}
+
+// Update discrepancy display
+function updateDiscrepancy(row) {
+  try {
+    const recordedInput = row.querySelector('.recorded-qty');
+    const actualInput = row.querySelector('.actual-qty');
+    const discrepancyCell = row.querySelector('.discrepancy');
+    
+    if (!recordedInput || !actualInput || !discrepancyCell) {
+      console.warn('Missing required elements for discrepancy calculation:', row);
+      return;
+    }
+    
+    const recorded = parseFloat(recordedInput.value) || 0;
+    const actual = parseFloat(actualInput.value) || 0;
+    const diff = actual - recorded;
+
+    // Clear previous classes
+    discrepancyCell.className = 'discrepancy';
+
+    if (actualInput.value === '' || actualInput.value === null || isNaN(actual)) {
+      discrepancyCell.textContent = '-';
+      row.dataset.status = 'pending';
+    } else {
+      // Format the discrepancy display
+      if (diff > 0) {
+        discrepancyCell.textContent = `+${diff}`;
+        discrepancyCell.className = 'discrepancy positive';
+      } else if (diff < 0) {
+        discrepancyCell.textContent = `${diff}`;
+        discrepancyCell.className = 'discrepancy negative';
+      } else {
+        discrepancyCell.textContent = '0';
+        discrepancyCell.className = 'discrepancy zero';
+      }
+      row.dataset.status = 'audited';
+    }
+    
+    // Log the calculation for debugging
+    console.log(`Row discrepancy updated: recorded=${recorded}, actual=${actual}, diff=${diff}`);
+    
+    updateProgress();
+  } catch (error) {
+    console.error('Error updating discrepancy for row:', row, error);
+  }
+}
+
+// Form Submission
+document.getElementById('audit-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const audits = [];
+  const verified_by = document.querySelector('[name="verified_by"]').value;
+
+  if (!verified_by.trim()) {
+    showToast('Please enter the auditor\'s name', 'error');
+    return;
+  }
+
+  let hasAudits = false;
+  document.querySelectorAll('#audit-table tbody tr').forEach(row => {
+    const recorded = parseFloat(row.querySelector('.recorded-qty').value) || 0;
+    const actual = parseFloat(row.querySelector('.actual-qty').value) || 0;
+    const product_id = parseInt(row.querySelector('.product-id').value);
+
+    if (row.querySelector('.actual-qty').value !== '') {
+      hasAudits = true;
+      audits.push({
+        product_id,
+        recorded_quantity: recorded,
+        actual_quantity: actual
+      });
+    }
+  });
+
+  if (!hasAudits) {
+    showToast('Please audit at least one product', 'error');
+    return;
+  }
+
+  try {
+          const response = await fetch('/api/submit_audit', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ audits, verified_by })
+  });
+
+  const result = await response.json();
+  if (result.status === 'success') {
+      showToast('Audit submitted successfully! Redirecting...');
+      setTimeout(() => {
+                location.href = `/api/stock_audit_report?batch=${result.batch}`;
+      }, 1500);
+  } else {
+      showToast(result.message || 'Failed to submit audit', 'error');
+    }
+  } catch (error) {
+    showToast('An error occurred while submitting the audit', 'error');
+  }
+});
+</script>
+
+{% endblock %}

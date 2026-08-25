@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Delivery Form - {{ requisition.company.name if requisition.company else 'Iceberg' }}</title>
+    <style>
+        @media print {
+            body { 
+                margin: 0; 
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .no-print { display: none; }
+            .page-break { page-break-before: always; }
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            color: #333;
+            line-height: 1.4;
+            font-size: 12px;
+        }
+        
+        .page {
+            width: 8.5in;
+            height: 11in;
+            position: relative;
+            background: white;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px 0;
+            border-bottom: 3px solid #00B4D8;
+            position: relative;
+        }
+        
+        .logo-container {
+            margin-bottom: 12px;
+        }
+        
+        .logo {
+            height: 120px;
+            width: auto;
+            max-width: 300px;
+        }
+        
+        .company-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #004b6b;
+            margin: 10px 0 5px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .company-subtitle {
+            font-size: 18px;
+            color: #666;
+            margin: 4px 0;
+            font-weight: 600;
+        }
+        
+        .company-address {
+            font-size: 14px;
+            color: #888;
+            margin: 4px 0;
+        }
+        
+        .form-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #004b6b;
+            text-align: center;
+            margin: 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border: 3px solid #00B4D8;
+            padding: 15px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+        
+        .info-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 2px solid #00B4D8;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .info-section h4 {
+            margin: 0 0 15px 0;
+            color: #004b6b;
+            font-size: 18px;
+            border-bottom: 3px solid #00B4D8;
+            padding-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+        
+        .info-item {
+            margin: 8px 0;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #004b6b;
+            min-width: 140px;
+            display: inline-block;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .info-value {
+            color: #333;
+            font-size: 14px;
+            font-weight: 600;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 2px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: 2px solid #004b6b;
+        }
+        
+        th {
+            background: linear-gradient(135deg, #004b6b 0%, #003d5a 100%);
+            color: white;
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: bold;
+            border: 1px solid #003d5a;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+            font-size: 13px;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        tr:hover {
+            background-color: #e3f2fd;
+        }
+        
+        .signature-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin: 35px 0;
+            gap: 40px;
+        }
+        
+        .signature-section {
+            flex: 1;
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 2px solid #00B4D8;
+            border-radius: 8px;
+        }
+        
+        .signature-line {
+            border-top: 3px solid #333;
+            width: 250px;
+            margin: 0 auto 5px auto;
+        }
+        
+        .signature-label {
+            font-size: 16px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 120px;
+            color: rgba(0, 180, 216, 0.03);
+            font-weight: bold;
+            z-index: -1;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="watermark">{{ requisition.company.name if requisition.company else 'ICEBERG' }}</div>
+
+    <div class="header">
+            <div class="logo-container">
+                {% if requisition.company and requisition.company.logo %}
+                <img src="/static/{{ requisition.company.logo }}" alt="{{ requisition.company.name }} Logo" class="logo">
+                {% else %}
+                <img src="/static/logo_iceberg.png" alt="Iceberg Logo" class="logo">
+                {% endif %}
+            </div>
+            <div class="company-name">{{ requisition.company.name if requisition.company else 'Cool Ice Food Deserts' }}</div>
+            <div class="company-subtitle">Warehouse Division</div>
+            <div class="company-address">Lumbang 2, Calanipawan, Tacloban City</div>
+    </div>
+
+        <div class="form-title">Delivery Form</div>
+
+        <div class="info-section">
+            <h4>Customer Information</h4>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Franchise Name:</span>
+                    <span class="info-value">{{ requisition.branch }}</span>
+                </div>    
+                <div class="info-item">
+                    <span class="info-label">Requested by:</span>
+                    <span class="info-value">{{ requisition.requested_by }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Contact no:</span>
+                    <span class="info-value">0{{ requisition.contact_number }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Date of Delivery:</span>
+                    <span class="info-value">
+                        {% if requisition.date_of_delivery %}
+                            {{ requisition.date_of_delivery.strftime('%B %d, %Y at %I:%M %p') }}
+                        {% else %}
+                            {{ requisition.date_created.strftime('%B %d, %Y') }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% if requisition.date_approved %}
+                <div class="info-item">
+                    <span class="info-label">Date Approved:</span>
+                    <span class="info-value">{{ requisition.date_approved.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="info-section">
+    <h4>Order Information</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Item/UOM Description</th>
+                        <th>Quantity</th>
+                        <th>Unit of Measure</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in requisition.items %}
+            <tr>
+                <td>{{ item.product.item_uom_desc }}</td>
+                        <td style="text-align: center; font-weight: bold;">{{ item.quantity }}</td>
+                        <td style="text-align: center;">{{ item.uom }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+        </div>
+
+        <div class="signature-group">
+            <div class="signature-section">
+                <div class="signature-line"></div>
+                <div class="signature-label">Signature over printed name</div>
+                <div class="signature-label">Received by</div>
+            </div>
+            <div class="signature-section">
+                <div class="signature-line"></div>
+                <div class="signature-label">Signature over printed name</div>
+                <div class="signature-label">Authorized by</div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <script>
+        // Auto-print functionality
+        window.onload = function() {
+            // Small delay to ensure everything is loaded
+            setTimeout(function() {
+                window.print();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

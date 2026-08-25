@@ -1,0 +1,194 @@
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}Misc Dashboard - iCount{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <!-- Page Header -->
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <div class="d-flex align-items-center justify-content-center rounded-3" style="width:42px;height:42px;background:#121523;color:#a5b4fc">
+      <i class="fas fa-tools"></i>
+    </div>
+    <div>
+      <h4 class="fw-bold mb-0" style="letter-spacing:-0.02em">Misc Dashboard</h4>
+      <p class="text-muted small mb-0">Export reports and download product barcodes</p>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="row g-3">
+
+    <!-- Transaction History Card -->
+    <div class="col-lg-4 col-md-6">
+      <div class="card h-100 border-0" style="border-radius:10px;background:#121523;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
+        <div class="card-body p-3" style="color:#fff">
+          <div class="text-center mb-3">
+            <i class="fas fa-history" style="font-size:2rem;color:#818cf8"></i>
+            <h6 class="mt-2 mb-1" style="color:#fff;font-weight:600;font-size:0.9rem">Transaction History</h6>
+            <p style="color:rgba(255,255,255,0.5);font-size:0.75rem;margin-bottom:0">Export detailed transaction history</p>
+          </div>
+          <form method="POST" action="{{ url_for('misc.download_transaction_history') }}" id="transactionHistoryForm">
+            <div class="row g-2">
+              <div class="col-6">
+                <label for="from_date" class="small" style="color:rgba(255,255,255,0.6)"><i class="fas fa-calendar-alt me-1"></i>From</label>
+                <input type="date" class="form-control form-control-sm" id="from_date" name="from_date" required
+                       max="{{ today.strftime('%Y-%m-%d') }}" value="{{ one_month_ago.strftime('%Y-%m-%d') }}"
+                       style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:6px">
+              </div>
+              <div class="col-6">
+                <label for="to_date" class="small" style="color:rgba(255,255,255,0.6)"><i class="fas fa-calendar-alt me-1"></i>To</label>
+                <input type="date" class="form-control form-control-sm" id="to_date" name="to_date" required
+                       max="{{ today.strftime('%Y-%m-%d') }}" value="{{ today.strftime('%Y-%m-%d') }}"
+                       style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:6px">
+              </div>
+            </div>
+            <div class="d-grid mt-3">
+              <button type="submit" class="btn btn-sm" style="background:#818cf8;border:none;color:#fff;border-radius:6px;padding:0.5rem;font-weight:500" id="downloadHistoryBtn">
+                <i class="fas fa-download me-1"></i>Download Excel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Requisition History Card -->
+    <div class="col-lg-4 col-md-6">
+      <div class="card h-100 border-0" style="border-radius:10px;background:#121523;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
+        <div class="card-body p-3" style="color:#fff">
+          <div class="text-center mb-3">
+            <i class="fas fa-clipboard-list" style="font-size:2rem;color:#fbbf24"></i>
+            <h6 class="mt-2 mb-1" style="color:#fff;font-weight:600;font-size:0.9rem">Requisition History</h6>
+            <p style="color:rgba(255,255,255,0.5);font-size:0.75rem;margin-bottom:0">Export approved requisitions</p>
+          </div>
+          <form method="POST" action="{{ url_for('misc.download_requisition_history') }}" id="requisitionHistoryForm">
+            <div class="row g-2">
+              <div class="col-6">
+                <label for="req_from_date" class="small" style="color:rgba(255,255,255,0.6)"><i class="fas fa-calendar-alt me-1"></i>From</label>
+                <input type="date" class="form-control form-control-sm" id="req_from_date" name="req_from_date" required
+                       max="{{ today.strftime('%Y-%m-%d') }}" value="{{ one_month_ago.strftime('%Y-%m-%d') }}"
+                       style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:6px">
+              </div>
+              <div class="col-6">
+                <label for="req_to_date" class="small" style="color:rgba(255,255,255,0.6)"><i class="fas fa-calendar-alt me-1"></i>To</label>
+                <input type="date" class="form-control form-control-sm" id="req_to_date" name="req_to_date" required
+                       max="{{ today.strftime('%Y-%m-%d') }}" value="{{ today.strftime('%Y-%m-%d') }}"
+                       style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:6px">
+              </div>
+            </div>
+            <div class="d-grid mt-3">
+              <button type="submit" class="btn btn-sm" style="background:#fbbf24;border:none;color:#1a1a2e;border-radius:6px;padding:0.5rem;font-weight:600" id="downloadRequisitionBtn">
+                <i class="fas fa-download me-1"></i>Download Excel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download Barcodes Card -->
+    <div class="col-lg-4 col-md-6">
+      <div class="card h-100 border-0" style="border-radius:10px;background:#121523;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
+        <div class="card-body p-3" style="color:#fff">
+          <div class="text-center mb-3">
+            <i class="fas fa-barcode" style="font-size:2rem;color:#34d399"></i>
+            <h6 class="mt-2 mb-1" style="color:#fff;font-weight:600;font-size:0.9rem">Download Barcodes</h6>
+            <p style="color:rgba(255,255,255,0.5);font-size:0.75rem;margin-bottom:0">Generate PDF with all barcodes</p>
+          </div>
+          <div class="text-center mb-3">
+            <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:0.35rem 0.75rem;display:inline-block">
+              <span style="color:rgba(255,255,255,0.6);font-size:0.75rem"><i class="fas fa-info-circle me-1" style="color:#818cf8"></i><strong style="color:rgba(255,255,255,0.8)">Ready to Download!</strong></span>
+            </div>
+          </div>
+          <div class="d-grid">
+            <a href="{{ url_for('misc.download_barcodes') }}" class="btn btn-sm" style="background:#34d399;border:none;color:#fff;border-radius:6px;padding:0.5rem;font-weight:500" id="downloadBarcodesBtn">
+              <i class="fas fa-file-pdf me-1"></i>Download PDF
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- All Transactions Card -->
+    <div class="col-lg-4 col-md-6">
+      <div class="card h-100 border-0" style="border-radius:10px;background:#121523;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
+        <div class="card-body p-3" style="color:#fff">
+          <div class="text-center mb-3">
+            <i class="fas fa-arrow-down" style="font-size:2rem;color:#38bdf8"></i>
+            <h6 class="mt-2 mb-1" style="color:#fff;font-weight:600;font-size:0.9rem">TRANS IN Only</h6>
+            <p style="color:rgba(255,255,255,0.5);font-size:0.75rem;margin-bottom:0">Export TRANS IN with supplier details</p>
+          </div>
+          <form method="POST" action="{{ url_for('misc.download_all_transactions') }}" id="allTransactionsForm">
+            <div class="row g-2">
+              <div class="col-6">
+                <label for="all_from_date" class="small" style="color:rgba(255,255,255,0.6)"><i class="fas fa-calendar-alt me-1"></i>From</label>
+                <input type="date" class="form-control form-control-sm" id="all_from_date" name="from_date" required
+                       max="{{ today.strftime('%Y-%m-%d') }}" value="{{ one_month_ago.strftime('%Y-%m-%d') }}"
+                       style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:6px">
+              </div>
+              <div class="col-6">
+                <label for="all_to_date" class="small" style="color:rgba(255,255,255,0.6)"><i class="fas fa-calendar-alt me-1"></i>To</label>
+                <input type="date" class="form-control form-control-sm" id="all_to_date" name="to_date" required
+                       max="{{ today.strftime('%Y-%m-%d') }}" value="{{ today.strftime('%Y-%m-%d') }}"
+                       style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:6px">
+              </div>
+            </div>
+            <div class="d-grid mt-3">
+              <button type="submit" class="btn btn-sm" style="background:#38bdf8;border:none;color:#fff;border-radius:6px;padding:0.5rem;font-weight:500" id="downloadAllTransactionsBtn">
+                <i class="fas fa-download me-1"></i>Download Excel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download Batch Barcodes Card -->
+    <div class="col-lg-4 col-md-6">
+      <div class="card h-100 border-0" style="border-radius:10px;background:#121523;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
+        <div class="card-body p-3" style="color:#fff">
+          <div class="text-center mb-3">
+            <i class="fas fa-barcode" style="font-size:2rem;color:#f87171"></i>
+            <h6 class="mt-2 mb-1" style="color:#fff;font-weight:600;font-size:0.9rem">Download Batch Barcodes</h6>
+            <p style="color:rgba(255,255,255,0.5);font-size:0.75rem;margin-bottom:0">Generate PDF with batch barcodes and exp dates</p>
+          </div>
+          <div class="text-center mb-3">
+            <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:0.35rem 0.75rem;display:inline-block">
+              <span style="color:rgba(255,255,255,0.6);font-size:0.75rem"><i class="fas fa-info-circle me-1" style="color:#818cf8"></i><strong style="color:rgba(255,255,255,0.8)">Ready to Download!</strong></span>
+            </div>
+          </div>
+          <div class="d-grid">
+            <a href="{{ url_for('misc.download_batch_barcodes') }}" class="btn btn-sm" style="background:#f87171;border:none;color:#fff;border-radius:6px;padding:0.5rem;font-weight:500" id="downloadBatchBarcodesBtn">
+              <i class="fas fa-file-pdf me-1"></i>Download Batch PDF
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Print Batch Barcodes Card -->
+    <div class="col-lg-4 col-md-6">
+      <div class="card h-100 border-0" style="border-radius:10px;background:#121523;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
+        <div class="card-body p-3" style="color:#fff">
+          <div class="text-center mb-3">
+            <i class="fas fa-print" style="font-size:2rem;color:#9ca3af"></i>
+            <h6 class="mt-2 mb-1" style="color:#fff;font-weight:600;font-size:0.9rem">Print Batch Barcodes</h6>
+            <p style="color:rgba(255,255,255,0.5);font-size:0.75rem;margin-bottom:0">Search by barcode and print batch barcodes</p>
+          </div>
+          <div class="text-center mb-3">
+            <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:0.35rem 0.75rem;display:inline-block">
+              <span style="color:rgba(255,255,255,0.6);font-size:0.75rem"><i class="fas fa-search me-1" style="color:#fbbf24"></i><strong style="color:rgba(255,255,255,0.8)">Search by Barcode</strong></span>
+            </div>
+          </div>
+          <div class="d-grid">
+            <a href="{{ url_for('misc.print_batch_barcodes') }}" class="btn btn-sm" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);border-radius:6px;padding:0.5rem;font-weight:500" id="printBatchBarcodesBtn">
+              <i class="fas fa-print me-1"></i>Print Batch Barcodes
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

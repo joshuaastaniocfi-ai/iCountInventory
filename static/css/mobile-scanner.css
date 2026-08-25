@@ -1,0 +1,251 @@
+/* Mobile Scanner Specific Styles */
+
+/* Mobile Device Detection Styles */
+.mobile-device .desktop-only {
+    display: none !important;
+}
+
+.desktop-device .mobile-only {
+    display: none !important;
+}
+
+/* Scanner Access Control */
+[data-scanner-only] {
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+[data-scanner-only].d-none {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Scanner Link Styling */
+[data-scanner-link] {
+    transition: all 0.3s ease;
+}
+
+[data-scanner-link].disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+[data-scanner-link].disabled:hover {
+    text-decoration: none;
+}
+
+/* Mobile Scanner Button Styles */
+.scanner-access-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: white;
+    text-decoration: none;
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.scanner-access-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+.scanner-access-btn i {
+    font-size: 1.2rem;
+}
+
+/* Mobile Scanner Status Indicator */
+.scanner-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.scanner-status.available {
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+    border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.scanner-status.unavailable {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.scanner-status.pending {
+    background: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+/* Mobile Scanner Info Card */
+.scanner-info-card {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border: 1px solid #dee2e6;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    text-align: center;
+}
+
+.scanner-info-card h5 {
+    color: #495057;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.scanner-info-card p {
+    color: #6c757d;
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+.scanner-info-card .device-info {
+    background: white;
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 1rem 0;
+    border: 1px solid #e9ecef;
+}
+
+.device-info .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.device-info .info-row:last-child {
+    border-bottom: none;
+}
+
+.device-info .info-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.device-info .info-value {
+    color: #6c757d;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+/* Mobile Scanner Access Denied */
+.scanner-access-denied {
+    background: linear-gradient(135deg, #fff5f5, #fed7d7);
+    border: 1px solid #feb2b2;
+    border-radius: 15px;
+    padding: 2rem;
+    text-align: center;
+    margin: 2rem 0;
+}
+
+.scanner-access-denied i {
+    font-size: 3rem;
+    color: #e53e3e;
+    margin-bottom: 1rem;
+}
+
+.scanner-access-denied h4 {
+    color: #c53030;
+    margin-bottom: 1rem;
+}
+
+.scanner-access-denied p {
+    color: #742a2a;
+    margin-bottom: 1.5rem;
+}
+
+/* Mobile Scanner Loading States */
+.scanner-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 2rem;
+    color: #6c757d;
+}
+
+.scanner-loading .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(99, 102, 241, 0.1);
+    border-top: 2px solid #6366f1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Mobile Scanner Responsive Adjustments */
+@media (max-width: 768px) {
+    .scanner-info-card {
+        margin: 0.5rem 0;
+        padding: 1rem;
+    }
+    
+    .scanner-access-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 1rem;
+    }
+    
+    .device-info .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+}
+
+/* Mobile Scanner Animation Classes */
+.scanner-fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+.scanner-slide-up {
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Mobile Scanner Focus States */
+.scanner-access-btn:focus {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
+.scanner-info-card:focus-within {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* Mobile Scanner Print Styles */
+@media print {
+    .scanner-access-btn,
+    .scanner-status,
+    .scanner-info-card {
+        display: none !important;
+    }
+}

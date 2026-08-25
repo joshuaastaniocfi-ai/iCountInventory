@@ -1,0 +1,181 @@
+{% extends 'layouts/base-sidebar.html' %}
+
+{% block title %}Pending Removals{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header & Actions (Products style) -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-4 gap-3">
+    <div class="d-flex align-items-center mb-2">
+      <div class="feature-icon d-inline-flex align-items-center justify-content-center text-bg-primary bg-gradient fs-4 rounded-3 me-3" style="width: 48px; height: 48px;">
+        <i class="fas fa-clock"></i>
+      </div>
+      <div>
+        <h4 class="fw-bold mb-1" style="background: linear-gradient(45deg, var(--accent), var(--accent-hover)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+          Pending Removal Requests
+        </h4>
+        <p class="text-muted mb-0">
+          <i class="fas fa-list me-1"></i> Total Pending: {{ pending_removals|length }}
+        </p>
+      </div>
+    </div>
+    <div class="ms-md-auto">
+      <a href="{{ url_for('pending_removals.removal_history') }}" class="btn btn-outline-primary">
+        <i class="fas fa-history me-1"></i>View History
+      </a>
+    </div>
+  </div>
+
+  {% if pending_removals %}
+    <!-- Pending Removals Table -->
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead
+            <tr>
+              <th>Product Info</th>
+              <th class="text-center">Quantity</th>
+              <th>Batch</th>
+              <th>Reason</th>
+              <th>Requested By</th>
+              <th>Request Date</th>
+              <th class="text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for removal in pending_removals %}
+              <tr>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="product-info">
+                      <h6 class="mb-0">{{ removal.product.name }}</h6>
+                      <small class="text-muted d-block">{{ removal.product.barcode }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td class="text-center">
+                  <span class="fw-semibold text-primary">{{ removal.quantity }}</span>
+                  <small class="text-muted d-block">{{ removal.product.uom }}</small>
+                </td>
+                <td>
+                  <div>
+                    <span class="fw-semibold">#{{ removal.batch.id }}</span>
+                    <small class="text-muted d-block">Exp: {{ removal.batch.exp_date.strftime('%Y-%m-%d') }}</small>
+                    <small class="text-muted d-block">Available: {{ removal.batch.quantity }} {{ removal.product.uom }}</small>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark border">{{ removal.reason }}</span>
+                  {% if removal.remarks %}
+                    <small class="text-muted d-block mt-1">{{ removal.remarks }}</small>
+                  {% endif %}
+                </td>
+                <td>
+                  <div>
+                    <span class="fw-semibold">{{ removal.requester.full_name }}</span>
+                    <small class="text-muted d-block">{{ removal.requester.role }}</small>
+                  </div>
+                </td>
+                <td>
+                  <div>
+                    <span class="fw-semibold">{{ removal.created_at.strftime('%Y-%m-%d') }}</span>
+                    <small class="text-muted d-block">{{ removal.created_at.strftime('%H:%M') }}</small>
+                  </div>
+                </td>
+                <td class="text-center">
+                  {% if current_user.role == 'SYS-Admin' or current_user.role == 'Company-Admin' %}
+                    <div class="btn-group" role="group">
+                      <button class="btn btn-sm btn-success" onclick="approveRemoval({{ removal.id }})">
+                        <i class="fas fa-check me-1"></i>Approve
+                      </button>
+                      <button class="btn btn-sm btn-danger" onclick="rejectRemoval({{ removal.id }})">
+                        <i class="fas fa-times me-1"></i>Reject
+                      </button>
+                    </div>
+                  {% else %}
+                    <span class="badge bg-warning">
+                      <i class="fas fa-clock me-1"></i>Waiting for Approval
+                    </span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <div class="text-center py-5">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body py-5">
+          <i class="fas fa-inbox fa-4x text-muted mb-4"></i>
+          <h4 class="text-muted mb-3">No Pending Removals</h4>
+          <p class="text-muted mb-0">There are no pending removal requests at this time.</p>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<script>
+function approveRemoval(removalId) {
+  if (confirm('Are you sure you want to approve this removal request?')) {
+    fetch(`/pending-removals/approve-removal/${removalId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        review_remarks: 'Approved via simple confirmation'
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        showAlert('✅ ' + data.message, 'success');
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        showAlert('❌ ' + data.message, 'danger');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showAlert('❌ An error occurred while approving the request', 'danger');
+    });
+  }
+}
+
+function rejectRemoval(removalId) {
+  const reason = prompt('Please provide a reason for rejection:');
+  if (reason !== null) {
+    if (reason.trim() === '') {
+      showAlert('❌ Please provide a rejection reason', 'danger');
+      return;
+    }
+    
+    fetch(`/pending-removals/reject-removal/${removalId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        review_remarks: reason
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        showAlert('✅ ' + data.message, 'success');
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        showAlert('❌ ' + data.message, 'danger');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showAlert('❌ An error occurred while rejecting the request', 'danger');
+    });
+  }
+}
+</script>
+{% endblock %}

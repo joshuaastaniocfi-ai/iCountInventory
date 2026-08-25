@@ -1,0 +1,305 @@
+{% extends 'layouts/base-sidebar.html' %}
+
+{% block title %}Product History - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-4 gap-3">
+    <div class="d-flex align-items-center mb-2">
+      <div class="feature-icon d-inline-flex align-items-center justify-content-center text-bg-primary bg-gradient fs-4 rounded-3 me-3" style="width: 48px; height: 48px;">
+        <i class="fas fa-history"></i>
+      </div>
+      <div>
+        <h4 class="fw-bold mb-1" style="background: linear-gradient(45deg, var(--accent), var(--accent-hover)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+          Product Transaction History
+        </h4>
+        <p class="text-muted mb-0">
+          <i class="fas fa-box me-1"></i> {{ product.name }}
+          <span class="ms-3">
+            <i class="fas fa-barcode me-1"></i> {{ product.barcode }}
+          </span>
+        </p>
+      </div>
+    </div>
+    <div class="ms-md-auto">
+      <a href="{{ url_for('products.view_products') }}" class="btn btn-outline-primary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Products
+      </a>
+    </div>
+  </div>
+
+  <!-- Product Info Card -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
+            <i class="fas fa-box fa-lg text-primary"></i>
+            <div>
+              <div class="text-muted small">Current Stock</div>
+                                                           <div class="fw-bold text-primary">{{ product.quantity|decimal_format(2) }} {{ product.uom }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
+            <i class="fas fa-chart-pie fa-lg text-info"></i>
+            <div>
+              <div class="text-muted small">Account Title</div>
+              <div class="fw-bold">{{ product.account_title }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
+            <i class="fas fa-map-marker-alt fa-lg text-success"></i>
+            <div>
+              <div class="text-muted small">Purchase Order Place</div>
+              <div class="fw-bold">{{ product.purchase_order_place or 'N/A' }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
+            <i class="fas fa-info-circle fa-lg text-warning"></i>
+            <div>
+              <div class="text-muted small">Description</div>
+              <div class="fw-bold">{{ product.item_uom_desc or 'N/A' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transaction History Table -->
+  <div class="card">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">
+        <i class="fas fa-list me-2"></i>Transaction History
+      </h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead
+            <tr>
+              <th class="px-3">Transaction Date</th>
+              <th>Transaction Type</th>
+              <th>Payee/Counter-party</th>
+              <th class="text-center">Quantity In</th>
+              <th class="text-center">Quantity Out</th>
+              <th class="text-center">Net Change</th>
+              {% if current_user.role in ('WH-Admin', 'SYS-Admin') %}
+              <th class="text-center">Action</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% if history_records %}
+              {% for record in history_records %}
+                <tr>
+                  <td class="px-3">
+                    <div class="fw-semibold">{{ record.trxn_date.strftime('%m/%d/%Y') }}</div>
+                    <small class="text-muted">{{ record.trxn_date.strftime('%I:%M %p') }}</small>
+                  </td>
+                  <td>
+                    <span class="badge {% if record.trxn_code == 'TRANS IN' %}bg-success{% else %}bg-danger{% endif %}">
+                      {{ record.trxn_code }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="fw-semibold">{{ record.payee }}</div>
+                    <small class="text-muted">
+                      {% if record.reference_type == 'batch' %}
+                        Batch #{{ record.reference_id }}
+                      {% elif record.reference_type == 'requisition' %}
+                        Req #{{ record.reference_id }}
+                      {% endif %}
+                    </small>
+                  </td>
+                  <td class="text-center">
+                                         {% if record.quantity_in > 0 %}
+                       <span class="fw-semibold text-success">{{ record.quantity_in|decimal_format(2) }}</span>
+                     {% else %}
+                       <span class="text-muted">-</span>
+                     {% endif %}
+                  </td>
+                  <td class="text-center">
+                                         {% if record.quantity_out > 0 %}
+                       <span class="fw-semibold text-danger">{{ record.quantity_out|decimal_format(2) }}</span>
+                     {% else %}
+                       <span class="text-muted">-</span>
+                     {% endif %}
+                  </td>
+                  <td class="text-center">
+                                         <span class="fw-bold {% if record.net_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                       {% if record.net_change >= 0 %}+{% endif %}{{ record.net_change|decimal_format(2) }}
+                     </span>
+                  </td>
+                  {% if current_user.role in ('WH-Admin', 'SYS-Admin') %}
+                  <td class="text-center">
+                    <button class="btn btn-sm btn-outline-danger" onclick="requestDelete({{ record.id }}, '{{ record.trxn_code|e }}', '{{ record.payee|e }}', {{ record.net_change }}, '{{ product.name|e }}')" title="Request deletion of this transaction">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="7" class="text-center py-5 text-muted">
+                  <i class="fas fa-history fa-3x mb-3"></i>
+                  <h5>No Transaction History</h5>
+                  <p class="mb-0">This product has no transaction history yet.</p>
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Deletion Request Modal -->
+{% if current_user.role in ('WH-Admin', 'SYS-Admin') %}
+<div class="modal fade" id="deletionModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0 bg-danger">
+        <h6 class="modal-title fw-bold text-white">
+          <i class="fas fa-exclamation-triangle me-2"></i>Request Transaction Deletion
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning small mb-3">
+          <i class="fas fa-info-circle me-1"></i>
+          This request will be sent to the <strong>Company-Admin</strong> for approval. The transaction will only be deleted after approval.
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Transaction</label>
+          <div id="delTrxnInfo" class="p-2 bg-light rounded small"></div>
+        </div>
+        <div class="mb-3">
+          <label for="delReason" class="form-label fw-semibold small">Reason for deletion <span class="text-danger">*</span></label>
+          <textarea class="form-control" id="delReason" rows="3" placeholder="Explain why this transaction needs to be deleted..." required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="submitDelBtn" onclick="submitDeletionRequest()">
+          <i class="fas fa-paper-plane me-1"></i>Submit Request
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<style>
+.card {
+  border: none;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border-radius: 0.5rem;
+}
+
+.card-header {
+  border-bottom: none;
+  border-radius: 0.5rem 0.5rem 0 0 !important;
+}
+
+.table th {
+  border-top: none;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.table td {
+  vertical-align: middle;
+  border-top: 1px solid var(--border);
+}
+
+.table tbody tr:hover {
+  background-color: var(--light-bg);
+}
+
+.badge {
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.feature-icon {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+}
+
+/* Dark mode for deletion modal */
+html.dark-mode .modal-content { background: #1e293b !important; }
+html.dark-mode .modal-header.bg-danger { background: rgba(239,68,68,0.5) !important; }
+html.dark-mode #delTrxnInfo { background: rgba(255,255,255,0.06) !important; color: #fff !important; }
+html.dark-mode .alert-warning { background: rgba(251,191,36,0.1) !important; border-color: rgba(251,191,36,0.25) !important; color: #fbbf24 !important; }
+</style>
+
+<script>
+{% if current_user.role in ('WH-Admin', 'SYS-Admin') %}
+let _delHistoryId = null;
+
+function requestDelete(historyId, trxnCode, payee, netChange, productName) {
+  _delHistoryId = historyId;
+  const sign = netChange >= 0 ? '+' : '';
+  document.getElementById('delTrxnInfo').innerHTML =
+    '<strong>' + esc(trxnCode) + '</strong> — ' + esc(productName) + '<br>' +
+    'Payee: ' + esc(payee) + '<br>' +
+    'Net Change: <span class="' + (netChange >= 0 ? 'text-success' : 'text-danger') + ' fw-bold">' + sign + netChange + '</span>';
+  document.getElementById('delReason').value = '';
+  new bootstrap.Modal(document.getElementById('deletionModal')).show();
+}
+
+function submitDeletionRequest() {
+  if (!_delHistoryId) return;
+  const reason = document.getElementById('delReason').value.trim();
+  if (!reason) { alert('Please provide a reason.'); return; }
+
+  const btn = document.getElementById('submitDelBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Submitting...';
+
+  fetch('/products/request_deletion/' + _delHistoryId, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({reason: reason})
+  })
+  .then(r => r.json())
+  .then(data => {
+    bootstrap.Modal.getInstance(document.getElementById('deletionModal')).hide();
+    if (data.success) {
+      showToast(data.message, 'success');
+    } else {
+      showToast(data.message || 'Error', 'danger');
+    }
+  })
+  .catch(() => showToast('Network error', 'danger'))
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Submit Request';
+  });
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+function showToast(msg, type) {
+  const c = document.createElement('div');
+  c.className = 'position-fixed top-0 end-0 p-3';
+  c.style.zIndex = '9999';
+  c.innerHTML = '<div class="alert alert-' + type + ' shadow-sm mb-0">' + msg + '</div>';
+  document.body.appendChild(c);
+  setTimeout(() => c.remove(), 4000);
+}
+{% endif %}
+</script>
+{% endblock %}

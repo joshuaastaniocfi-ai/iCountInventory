@@ -1,0 +1,169 @@
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}Reports Hub - iCount{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold mb-1"><i class="fas fa-chart-pie text-primary me-2"></i>Reports Hub</h4>
+      <p class="text-muted small mb-0">Generate and export inventory, activity, and requisition reports</p>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center py-3">
+          <div class="text-primary mb-1"><i class="fas fa-box-open fa-lg"></i></div>
+          <h5 class="fw-bold mb-0">{{ total_products }}</h5>
+          <small class="text-muted">Products</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center py-3">
+          <div class="text-success mb-1"><i class="fas fa-clipboard-list fa-lg"></i></div>
+          <h5 class="fw-bold mb-0">{{ total_requisitions }}</h5>
+          <small class="text-muted">Requisitions</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center py-3">
+          <div class="text-warning mb-1"><i class="fas fa-clock fa-lg"></i></div>
+          <h5 class="fw-bold mb-0">{{ pending_requisitions }}</h5>
+          <small class="text-muted">Pending Reqs</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center py-3">
+          <div class="text-info mb-1"><i class="fas fa-history fa-lg"></i></div>
+          <h5 class="fw-bold mb-0">{{ total_activity_logs }}</h5>
+          <small class="text-muted">Activity Logs</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Cards -->
+  <div class="row g-4">
+    <div class="col-md-6 col-lg-4">
+      <div class="card dashboard-card h-100">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rounded-circle bg-primary bg-opacity-10 p-3">
+              <i class="fas fa-boxes text-primary fa-lg"></i>
+            </div>
+            <div>
+              <h6 class="fw-bold mb-1">Inventory Report</h6>
+              <small class="text-muted">All products with stock levels</small>
+            </div>
+          </div>
+          <div class="mt-auto d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary flex-fill" onclick="exportReport('inventory', 'csv')">
+              <i class="fas fa-file-csv me-1"></i>CSV
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4">
+      <div class="card dashboard-card h-100">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rounded-circle bg-success bg-opacity-10 p-3">
+              <i class="fas fa-clipboard-list text-success fa-lg"></i>
+            </div>
+            <div>
+              <h6 class="fw-bold mb-1">Activity Report</h6>
+              <small class="text-muted">System activity log with date filter</small>
+            </div>
+          </div>
+          <div class="mb-3">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small mb-1">From</label>
+                <input type="date" class="form-control form-control-sm" id="activityFrom">
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">To</label>
+                <input type="date" class="form-control form-control-sm" id="activityTo">
+              </div>
+            </div>
+          </div>
+          <div class="mt-auto d-flex gap-2">
+            <button class="btn btn-sm btn-outline-success flex-fill" onclick="exportReport('activity', 'csv')">
+              <i class="fas fa-file-csv me-1"></i>CSV
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4">
+      <div class="card dashboard-card h-100">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+              <i class="fas fa-truck text-warning fa-lg"></i>
+            </div>
+            <div>
+              <h6 class="fw-bold mb-1">Requisitions Report</h6>
+              <small class="text-muted">All requisitions with date filter</small>
+            </div>
+          </div>
+          <div class="mb-3">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small mb-1">From</label>
+                <input type="date" class="form-control form-control-sm" id="reqFrom">
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">To</label>
+                <input type="date" class="form-control form-control-sm" id="reqTo">
+              </div>
+            </div>
+          </div>
+          <div class="mt-auto d-flex gap-2">
+            <button class="btn btn-sm btn-outline-warning flex-fill" onclick="exportReport('requisitions', 'csv')">
+              <i class="fas fa-file-csv me-1"></i>CSV
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.form-control-sm { font-size: 0.8rem; }
+</style>
+
+<script>
+function exportReport(type, format) {
+  let params = new URLSearchParams({ type: type });
+  
+  if (type === 'activity') {
+    const from = document.getElementById('activityFrom').value;
+    const to = document.getElementById('activityTo').value;
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+  } else if (type === 'requisitions') {
+    const from = document.getElementById('reqFrom').value;
+    const to = document.getElementById('reqTo').value;
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+  }
+
+  if (format === 'csv') {
+    window.location.href = '/reports/export/csv?' + params.toString();
+  }
+}
+</script>
+{% endblock %}

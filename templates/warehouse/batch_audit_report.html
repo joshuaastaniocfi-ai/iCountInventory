@@ -1,0 +1,669 @@
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}Batch Audit Report - iCount{% endblock %}
+
+{% block content %}
+<style>
+  /* Circular button styles */
+  .btn-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  
+  .btn-circle.btn-sm {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .btn-circle.btn-lg {
+    width: 42px;
+    height: 42px;
+  }
+  
+  /* Batch group header */
+  .batch-group-header {
+    background-color: var(--light-bg);
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    margin: 0.5rem 0;
+    font-weight: bold;
+  }
+  
+  /* Product name header styles */
+  .product-name-header {
+    background-color: var(--light-bg);
+    font-weight: bold;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    margin: 0;
+    font-size: 1rem;
+  }
+  
+  /* Product table styles */
+  .product-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+  }
+  
+  .product-table th,
+  .product-table td {
+    padding: 0.75rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    white-space: normal;
+  }
+  
+  .product-table th {
+    font-weight: 600;
+    text-align: center;
+    font-size: 1rem;
+  }
+  
+  /* Discrepancy cell styling - using pill style to match mobile design */
+  .discrepancy-cell {
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.85rem;
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 1rem; /* Pill shape */
+    min-width: 80px; /* Minimum width for consistent pill size */
+  }
+  
+  .discrepancy-cell.positive {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+  }
+  
+  .discrepancy-cell.negative {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+  }
+  
+  .discrepancy-cell.zero {
+    background-color: #fff3cd;
+    color: #664d03;
+    border: 1px solid #ffe69c;
+  }
+  
+  /* Dark mode discrepancy pills */
+  :where(.dark-mode) .discrepancy-cell.positive {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+  :where(.dark-mode) .discrepancy-cell.negative {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+  :where(.dark-mode) .discrepancy-cell.zero {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #fcd34d;
+    border-color: rgba(245, 158, 11, 0.3);
+  }
+  
+  /* Status badge styling */
+  .status-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 1rem;
+    font-weight: 600;
+  }
+  
+  .status-pending {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+  
+  .status-settled {
+    background-color: #d1e7dd;
+    color: #0f5132;
+  }
+  
+  /* Dark mode status badges */
+  :where(.dark-mode) .status-pending {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #fcd34d;
+  }
+  :where(.dark-mode) .status-settled {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+  }
+  
+  /* Back button style */
+  .back-btn {
+    margin-bottom: 1rem;
+  }
+  
+  /* Modal Styles - Fix for proper z-index layering */
+  .modal {
+    /* Above header (1100) and backdrop */
+    z-index: 1205 !important;
+  }
+
+  .modal-backdrop {
+    /* Below modal content, above header */
+    z-index: 1200 !important;
+  }
+  
+  /* Make modal width more compact */
+  .modal-dialog {
+    max-width: 800px;
+    margin: 1.75rem auto;
+  }
+
+  .modal-content {
+    max-height: calc(100vh - 3.5rem);
+  }
+
+  .modal-body {
+    overflow-y: auto;
+    padding: 1rem;
+  }
+  
+  /* Stats cards in modal */
+  .stat-card {
+    min-width: 100px;
+  }
+  
+  /* Modal header styling */
+  .modal-header {
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .modal-footer {
+    border-top: 1px solid var(--border);
+  }
+  
+  /* Modal header info */
+  .modal-header-info {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+  
+  .modal-header-info span {
+    margin-right: 1rem;
+  }
+  
+  /* Filter form styling */
+  .filter-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.5rem;
+  }
+  
+  .filter-input {
+    border-color: var(--border);
+  }
+  
+  .filter-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25);
+  }
+  
+  /* Batch group card styling */
+  .batch-group-card {
+    border: none;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 0.75rem;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+  }
+  
+  .batch-group-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+  
+  .batch-group-header {
+    background-color: var(--light-bg);
+    padding: 1rem;
+    border-radius: 0.5rem 0.5rem 0 0;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .batch-group-body {
+    padding: 1rem;
+  }
+  
+  /* Badge Improvements */
+  .badge {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    font-weight: 500;
+  }
+  
+  /* Empty State */
+  .empty-state {
+    background: linear-gradient(135deg, var(--light-bg), rgba(99, 102, 241, 0.02));
+    border-radius: 16px;
+    border: 2px dashed var(--border);
+  }
+  
+  .empty-state i {
+    color: var(--text-muted);
+  }
+</style>
+
+<div class="container-fluid px-4">
+  <!-- Page Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-4 gap-3">
+    <div>
+      <div class="d-flex align-items-center mb-2">
+        <div class="feature-icon d-inline-flex align-items-center justify-content-center text-bg-primary bg-gradient fs-4 rounded-3 me-3" style="width: 48px; height: 48px;">
+          <i class="fas fa-file-alt"></i>
+        </div>
+        <div>
+          <h4 class="fw-bold mb-1" style="background: linear-gradient(45deg, var(--accent), var(--accent-hover)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            Batch Audit Report
+          </h4>
+          <p class="text-muted mb-0">
+            Comprehensive report of all batch audits with status indicators
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Quick Stats -->
+    <div class="d-flex gap-2">
+      {% set total_reports = batch_summary|length %}
+      {% set pending_reports = batch_summary|selectattr('pending_count', 'greaterthan', 0)|list|length %}
+      {% set settled_reports = batch_summary|selectattr('settled_count', 'greaterthan', 0)|list|length %}
+      
+      <div class="stat-card bg-warning-subtle border-warning p-2 rounded-2">
+        <div class="d-flex align-items-center gap-2">
+          <div class="stat-icon bg-warning rounded-circle p-1">
+            <i class="fas fa-clock text-white small"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-warning h6 mb-0">{{ pending_reports }}</div>
+            <div class="small text-warning-emphasis">Pending</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card bg-success-subtle border-success p-2 rounded-2">
+        <div class="d-flex align-items-center gap-2">
+          <div class="stat-icon bg-success rounded-circle p-1">
+            <i class="fas fa-check text-white small"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-success h6 mb-0">{{ settled_reports }}</div>
+            <div class="small text-success-emphasis">Settled</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card bg-info-subtle border-info p-2 rounded-2">
+        <div class="d-flex align-items-center gap-2">
+          <div class="stat-icon bg-info rounded-circle p-1">
+            <i class="fas fa-file-alt text-white small"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-info h6 mb-0">{{ total_reports }}</div>
+            <div class="small text-info-emphasis">Reports</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Form -->
+  <div class="card filter-card shadow-sm border mb-4">
+    <div class="card-body">
+      <form method="GET" class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <div class="input-group">
+            <span class="input-group-text bg-transparent border">
+              <i class="fas fa-search text-muted"></i>
+            </span>
+            <input type="text" name="q" class="form-control filter-input border" 
+                   placeholder="Search by batch label or product..." value="{{ request.args.get('q', '') }}">
+          </div>
+        </div>
+
+        <div class="col-md-2">
+          <select name="status" class="form-select filter-input border">
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
+            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="settled" {% if status_filter == 'settled' %}selected{% endif %}>Settled</option>
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <input type="date" name="date" class="form-control filter-input border" value="{{ request.args.get('date', '') }}">
+        </div>
+
+        <div class="col-md-2">
+          <input type="date" name="date_to" class="form-control filter-input border" value="{{ request.args.get('date_to', '') }}" placeholder="To Date">
+        </div>
+
+        <div class="col-md-2 d-flex justify-content-end gap-2">
+          <button type="submit" class="btn btn-primary" title="Filter">
+            <i class="fas fa-filter"></i>
+          </button>
+          <a href="{{ url_for('api.batch_audit_report') }}" class="btn btn-primary" title="Reset">
+            <i class="fas fa-undo-alt me-1"></i>Reset
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Report List -->
+  <div id="report-list-section">
+    {% if batch_summary %}
+      {% for session in batch_summary %}
+        <div class="card batch-group-card border-0 shadow-sm">
+          <div class="batch-group-header">
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="d-flex flex-column">
+                <div class="fw-semibold fs-6">{{ session.batch_label }}</div>
+                <div class="text-muted small">
+                  <i class="far fa-calendar me-1"></i>{{ session.latest_ts.strftime('%b %d, %Y') }}
+                  <span class="mx-1">•</span>
+                  <i class="far fa-clock me-1"></i>{{ session.latest_ts.strftime('%I:%M %p') }}
+                  <span class="mx-1">•</span>
+                  <i class="fas fa-boxes me-1"></i>{{ session.total_audits }} item{{ 's' if session.total_audits != 1 }}
+                </div>
+              </div>
+              <div>
+                {% if session.pending_count and session.pending_count > 0 %}
+                  <span class="badge rounded-pill bg-warning-subtle text-warning me-2">
+                    <i class="fas fa-clock me-1"></i>{{ session.pending_count }} pending
+                  </span>
+                {% endif %}
+                {% if session.settled_count and session.settled_count > 0 %}
+                  <span class="badge rounded-pill bg-success-subtle text-success me-2">
+                    <i class="fas fa-check me-1"></i>{{ session.settled_count }} settled
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          <div class="batch-group-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="d-flex gap-2">
+                <span class="badge bg-primary">{{ session.total_audits }} items</span>
+                {% if session.over_count and session.over_count > 0 %}
+                  <span class="badge bg-success">{{ session.over_count }} over</span>
+                {% endif %}
+                {% if session.short_count and session.short_count > 0 %}
+                  <span class="badge bg-danger">{{ session.short_count }} short</span>
+                {% endif %}
+                {% if session.matched_count and session.matched_count > 0 %}
+                  <span class="badge bg-info">{{ session.matched_count }} matched</span>
+                {% endif %}
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-outline-primary btn-sm" onclick="showAuditDetails('{{ session.batch_label }}')">
+                  <i class="fas fa-eye me-1"></i> View
+                </button>
+                <a href="{{ url_for('api.print_batch_audit_report', batch_label=session.batch_label) }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+                  <i class="fas fa-print me-1"></i> Print
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+      
+      <!-- Pagination -->
+      {% if pagination.pages > 1 %}
+        <nav aria-label="Audit sessions pages" class="mt-4">
+          <ul class="pagination justify-content-center">
+            <!-- Previous Page -->
+            <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+              <a class="page-link" href="{{ url_for('api.batch_audit_report', page=pagination.prev_num, status=status_filter, q=search_query, date=date_from, date_to=date_to) if pagination.has_prev else '#' }}" tabindex="-1">
+                <i class="fas fa-chevron-left"></i>
+              </a>
+            </li>
+
+            <!-- First Page -->
+            {% if pagination.page > 2 %}
+              <li class="page-item">
+                <a class="page-link" href="{{ url_for('api.batch_audit_report', page=1, status=status_filter, q=search_query, date=date_from, date_to=date_to) }}">1</a>
+              </li>
+              {% if pagination.page > 3 %}
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              {% endif %}
+            {% endif %}
+
+            <!-- Page Numbers -->
+            {% set start = [1, pagination.page - 1]|max %}
+            {% set end = [pagination.pages + 1, pagination.page + 2]|min %}
+            {% for page_num in range(start, end) %}
+              <li class="page-item {{ 'active' if page_num == pagination.page }}">
+                <a class="page-link" href="{{ url_for('api.batch_audit_report', page=page_num, status=status_filter, q=search_query, date=date_from, date_to=date_to) }}">{{ page_num }}</a>
+              </li>
+            {% endfor %}
+
+            <!-- Last Page -->
+            {% if pagination.page < pagination.pages - 1 %}
+              {% if pagination.page < pagination.pages - 2 %}
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              {% endif %}
+              <li class="page-item">
+                <a class="page-link" href="{{ url_for('api.batch_audit_report', page=pagination.pages, status=status_filter, q=search_query, date=date_from, date_to=date_to) }}">{{ pagination.pages }}</a>
+              </li>
+            {% endif %}
+
+            <!-- Next Page -->
+            <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+              <a class="page-link" href="{{ url_for('api.batch_audit_report', page=pagination.next_num, status=status_filter, q=search_query, date=date_from, date_to=date_to) if pagination.has_next else '#' }}">
+                <i class="fas fa-chevron-right"></i>
+              </a>
+            </li>
+          </ul>
+        </nav>
+      {% endif %}
+    {% else %}
+      <div class="empty-state text-center py-5">
+        <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+        <h5>No batch audit reports found</h5>
+        <p class="text-muted">There are no batch audit reports matching your current filters.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal for Audit Details -->
+<div class="modal fade" id="auditDetailsModal" tabindex="-1" aria-labelledby="auditDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="auditDetailsModalLabel">Audit Details</h5>
+          <div class="modal-header-info">
+            <span id="modalVerifiedBy">Verified by: </span>
+            <span id="modalTimestamp">Timestamp: </span>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-content-between align-items-start mb-4 gap-3">
+          <div>
+            <h4 class="fw-bold mb-1" id="modalBatchLabel">Audit Session: </h4>
+            <p class="text-muted mb-0">Review and manage audit details for this session</p>
+          </div>
+          
+          <!-- Quick Stats for Selected Session -->
+          <div class="d-flex gap-2">
+            <div class="stat-card bg-success-subtle border-success p-2 rounded-2">
+              <div class="d-flex align-items-center gap-2">
+                <div class="stat-icon bg-success rounded-circle p-1">
+                  <i class="fas fa-arrow-up text-white small"></i>
+                </div>
+                <div>
+                  <div class="fw-bold text-success h6 mb-0" id="positiveCount">0</div>
+                  <div class="small text-success-emphasis">Over</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card bg-danger-subtle border-danger p-2 rounded-2">
+              <div class="d-flex align-items-center gap-2">
+                <div class="stat-icon bg-danger rounded-circle p-1">
+                  <i class="fas fa-arrow-down text-white small"></i>
+                </div>
+                <div>
+                  <div class="fw-bold text-danger h6 mb-0" id="negativeCount">0</div>
+                  <div class="small text-danger-emphasis">Short</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card bg-info-subtle border-info p-2 rounded-2">
+              <div class="d-flex align-items-center gap-2">
+                <div class="stat-icon bg-info rounded-circle p-1">
+                  <i class="fas fa-equals text-white small"></i>
+                </div>
+                <div>
+                  <div class="fw-bold text-info h6 mb-0" id="matchedCount">0</div>
+                  <div class="small text-info-emphasis">Matched</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Audit List Container -->
+        <div id="modalAuditList">
+          <!-- Audit details will be loaded here via AJAX -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+        <form method="POST" action="{{ url_for('api.settle_batch_audit_pending', batch_label='PLACEHOLDER') }}" 
+              class="d-inline" id="settleForm" onsubmit="return confirmSettle();">
+          <button type="submit" class="btn btn-success" id="settleButton">
+            <i class="fas fa-check-circle"></i> Settle
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Store current batch label for settle action
+  let currentBatchLabel = '';
+  let currentAudits = [];
+  
+  // Updated function to handle settle action
+  function confirmSettle() {
+    if (confirm('⚠️ Are you sure you want to settle all discrepancies for this batch?\\n\\n' +
+                'This will:\\n' +
+                '• Update product quantities to match actual audit quantities\\n' +
+                '• Add excess quantities directly to the audited batch\\n' +
+                '• Remove shortage quantities directly from the audited batch\\n' +
+                '• Update product initial quantities to match current quantities\\n' +
+                '• Create transaction history records for all adjustments\\n' +
+                '• Mark all audits in this batch as settled\\n\\n' +
+                'This action cannot be undone!')) {
+      // Update the form action with the current batch label
+      const form = document.getElementById('settleForm');
+      form.action = form.action.replace('PLACEHOLDER', encodeURIComponent(currentBatchLabel));
+      return true;
+    }
+    return false;
+  }
+  
+  // Function to show audit details in modal
+  function showAuditDetails(batchLabel) {
+    // Store the batch label for settle action
+    currentBatchLabel = batchLabel;
+    
+    // Set the batch label in the modal header
+    document.getElementById('modalBatchLabel').textContent = 'Audit Session: ' + batchLabel;
+    
+    // Show loading state
+    document.getElementById('modalAuditList').innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+    
+    // Show the modal
+    var modal = new bootstrap.Modal(document.getElementById('auditDetailsModal'));
+    modal.show();
+    
+    // Fetch audit details via AJAX
+    fetch('/api/batch_audit_report_details/' + encodeURIComponent(batchLabel), {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+      .then(response => response.text())
+      .then(html => {
+        // Parse the HTML response to extract the audit table content and metadata
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Extract the audit list section
+        const auditListSection = doc.querySelector('#report-list-section');
+        if (auditListSection) {
+          document.getElementById('modalAuditList').innerHTML = auditListSection.innerHTML;
+          
+          // Update stats
+          const positiveCount = doc.getElementById('positiveCount')?.textContent || '0';
+          const negativeCount = doc.getElementById('negativeCount')?.textContent || '0';
+          const matchedCount = doc.getElementById('matchedCount')?.textContent || '0';
+          
+          document.getElementById('positiveCount').textContent = positiveCount;
+          document.getElementById('negativeCount').textContent = negativeCount;
+          document.getElementById('matchedCount').textContent = matchedCount;
+          
+          // Update verified by and timestamp in modal header
+          const verifiedBy = doc.getElementById('verifiedBy')?.textContent || '';
+          const auditTimestamp = doc.getElementById('auditTimestamp')?.textContent || '';
+          
+          document.getElementById('modalVerifiedBy').textContent = 'Verified by: ' + verifiedBy;
+          document.getElementById('modalTimestamp').textContent = 'Timestamp: ' + auditTimestamp;
+          
+          // Update the settle form action with the current batch label
+          const form = document.getElementById('settleForm');
+          if (form) {
+            form.action = form.action.replace('PLACEHOLDER', encodeURIComponent(currentBatchLabel));
+            
+            // Check if all audits are settled and disable the settle button if so
+            const pendingCount = parseInt(doc.getElementById('pendingCount')?.textContent || '0');
+            if (pendingCount === 0) {
+              const settleButton = document.getElementById('settleButton');
+              if (settleButton) {
+                settleButton.disabled = true;
+                settleButton.classList.remove('btn-success');
+                settleButton.classList.add('btn-secondary');
+                settleButton.title = 'All audits in this batch are already settled';
+              }
+            }
+          }
+        } else {
+          document.getElementById('modalAuditList').innerHTML = '<p>Error loading audit details.</p>';
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('modalAuditList').innerHTML = '<p>Error loading audit details.</p>';
+      });
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Batch Sub Audit</title>
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#6366f1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Iceberg Batch">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="msapplication-TileColor" content="#4a5da7">
+  <meta name="msapplication-tap-highlight" content="no">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/static/manifest.json">
+  
+  <!-- PWA Icons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-16x16.png">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    :root {
+      --wh-primary: #6366f1;
+      --wh-primary-light: #818cf8;
+      --wh-primary-dark: #4f46e5;
+      --wh-bg: #f0f2ff;
+      --wh-card-bg: #ffffff;
+      --wh-text: #1e1b4b;
+      --wh-text-muted: #6b7280;
+      --wh-border: #e0e3f0;
+      --wh-success: #10b981;
+      --wh-warning: #f59e0b;
+      --wh-danger: #ef4444;
+      --wh-shadow: rgba(99, 102, 241, 0.1);
+      --bs-primary: #6366f1;
+      --bs-success: #10b981;
+      --bs-warning: #f59e0b;
+      --bs-danger: #ef4444;
+      --bs-secondary: #6b7280;
+      --bs-dark: #1e1b4b;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--wh-bg);
+      font-family: system-ui, -apple-system, sans-serif;
+      color: var(--wh-text);
+      min-height: 100vh;
+    }
+    .audit-wrapper {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 1rem 0.75rem 2rem;
+    }
+    .card { border: none !important; border-radius: 1rem !important; box-shadow: 0 2px 12px var(--wh-shadow) !important; background: var(--wh-card-bg) !important; }
+    .card-body { padding: 1.25rem !important; }
+
+    .page-header { text-align: center; padding-bottom: 1rem; }
+    .page-header h4 { font-size: 1.1rem; font-weight: 700; color: var(--wh-primary-dark); }
+    .page-header h4 i { margin-right: 0.4rem; color: var(--wh-primary); }
+    .page-header small { color: var(--wh-text-muted); font-size: 0.8rem; }
+
+    .input-group { border-radius: 0.6rem; overflow: hidden; }
+    .input-group .input-group-text { background: var(--wh-bg); border: 1.5px solid var(--wh-border); color: var(--wh-text-muted); font-size: 0.85rem; }
+    .input-group .form-control { border: 1.5px solid var(--wh-border); font-size: 0.9rem; padding: 0.5rem 0.75rem; }
+    .input-group .form-control:focus { border-color: var(--wh-primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+
+    .scanner-container { position: relative; border-radius: 0.75rem; overflow: hidden; background: #000; box-shadow: 0 0 0 2px var(--wh-primary-light), 0 4px 16px rgba(99,102,241,0.2); margin-bottom: 0.75rem; }
+    #reader { width: 100%; aspect-ratio: 1/1; background: #000; }
+    #reader video { object-fit: cover; }
+    #reader__scan_region { display: flex; justify-content: center; align-items: center; position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+    #reader__scan_region img { display: none; }
+    #reader__scan_region > svg { position: static !important; width: 100% !important; height: 100px !important; margin-top: -50px; }
+
+    .scanner-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 70%; height: 50%; border: 2.5px solid var(--wh-primary-light); border-radius: 0.5rem; box-shadow: 0 0 0 9999px rgba(0,0,0,0.35); pointer-events: none; z-index: 5; }
+    .scanner-frame::before, .scanner-frame::after, .scanner-frame .sf-br, .scanner-frame .sf-bl { content: ''; position: absolute; width: 18px; height: 18px; border-color: var(--wh-primary); border-style: solid; }
+    .scanner-frame::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+    .scanner-frame::after { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+    .scanner-frame .sf-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+    .scanner-frame .sf-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+    .scan-line { position: absolute; left: 15%; right: 15%; height: 2px; background: linear-gradient(90deg, transparent, var(--wh-primary-light), transparent); z-index: 6; animation: scanMove 1.8s ease-in-out infinite; border-radius: 1px; }
+    @keyframes scanMove { 0% { top: 30%; opacity: 0; } 30% { opacity: 1; } 70% { opacity: 1; } 100% { top: 65%; opacity: 0; } }
+
+    #status { position: absolute; top: 8px; left: 8px; z-index: 10; background: rgba(0,0,0,0.75); color: #fff; padding: 0.25rem 0.6rem; border-radius: 0.35rem; font-size: 0.75rem; backdrop-filter: blur(4px); }
+    #batch-audit { margin-top: 0; }
+    #retryBtn { display: none; }
+
+    .audit-card { border-radius: 0.85rem; overflow: hidden; box-shadow: 0 2px 10px var(--wh-shadow); margin-bottom: 1rem; border: 1px solid var(--wh-border); background: var(--wh-card-bg); }
+    .audit-header { background: linear-gradient(135deg, #f8f7ff 0%, #eef0ff 100%); padding: 0.85rem 1rem; border-bottom: 1px solid var(--wh-border); }
+    .audit-body { padding: 1rem; }
+
+    .discrepancy { font-weight: 700; font-size: 1.1rem; padding: 0.5rem; border-radius: 0.5rem; text-align: center; }
+    .discrepancy.positive { background: rgba(16,185,129,0.1); color: var(--wh-success); }
+    .discrepancy.negative { background: rgba(239,68,68,0.1); color: var(--wh-danger); }
+    .discrepancy.zero { background: rgba(245,158,11,0.1); color: var(--wh-warning); }
+
+    .audit-list { max-height: 300px; overflow-y: auto; border: 1px solid var(--wh-border); border-radius: 0.6rem; background: var(--wh-card-bg); }
+    .audit-item { padding: 0.75rem 1rem; border-bottom: 1px solid var(--wh-border); background: var(--wh-card-bg); transition: background 0.15s; }
+    .audit-item:last-child { border-bottom: none; }
+    .audit-item:hover { background: var(--wh-bg); }
+    .audit-item .row { margin: 0; }
+    .audit-item .col-4 { padding: 0.4rem; border-right: 1px solid var(--wh-border); }
+    .audit-item .col-4:last-child { border-right: none; }
+
+    .btn-lg { font-size: 1rem; padding: 0.65rem; border-radius: 0.6rem; font-weight: 600; }
+    .btn-primary { background: var(--wh-primary) !important; border-color: var(--wh-primary) !important; }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-success { background: var(--wh-success) !important; border-color: var(--wh-success) !important; }
+    .btn-outline-secondary { border: 1.5px solid var(--wh-border) !important; color: var(--wh-text-muted) !important; border-radius: 0.6rem; font-weight: 600; }
+    .btn-outline-secondary:hover { background: var(--wh-bg) !important; border-color: var(--wh-primary) !important; color: var(--wh-primary) !important; }
+    .btn-outline-primary { border: 1.5px solid var(--wh-primary) !important; color: var(--wh-primary) !important; border-radius: 0.6rem; font-weight: 600; }
+    .btn-outline-primary:hover { background: var(--wh-primary) !important; color: #fff !important; }
+
+    .form-label { font-size: 0.8rem; font-weight: 600; color: var(--wh-text); margin-bottom: 0.3rem; }
+
+    .product-name-header { background: var(--wh-bg); font-weight: 700; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--wh-border); margin: 0; font-size: 0.8rem; color: var(--wh-primary-dark); }
+
+    .product-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 0; border-radius: 0.5rem; overflow: hidden; font-size: 0.78rem; table-layout: fixed; }
+    .product-table th, .product-table td { padding: 0.4rem 0.35rem; text-align: center; border-bottom: 1px solid var(--wh-border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .product-table th { background: var(--wh-bg); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--wh-text-muted); }
+    .product-table th:nth-child(1), .product-table td:nth-child(1) { width: 10%; }
+    .product-table th:nth-child(2), .product-table td:nth-child(2) { width: 25%; }
+    .product-table th:nth-child(3), .product-table td:nth-child(3) { width: 20%; }
+    .product-table th:nth-child(4), .product-table td:nth-child(4) { width: 20%; }
+    .product-table th:nth-child(5), .product-table td:nth-child(5) { width: 25%; }
+
+    .discrepancy-cell { text-align: center; font-weight: 700; font-size: 0.78rem; display: inline-block; padding: 0.2rem 0.5rem; border-radius: 999px; min-width: 70px; }
+    .discrepancy-cell.positive { background: rgba(16,185,129,0.12); color: var(--wh-success); }
+    .discrepancy-cell.negative { background: rgba(239,68,68,0.12); color: var(--wh-danger); }
+    .discrepancy-cell.zero { background: rgba(245,158,11,0.12); color: var(--wh-warning); }
+
+    .actual-qty-input { padding: 0.25rem; font-size: 0.8rem; text-align: center; border: 1.5px solid var(--wh-border); border-radius: 0.35rem; width: 70px; }
+    .actual-qty-input:focus { border-color: var(--wh-primary); outline: none; box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
+
+    .stats-container { display: flex; justify-content: space-between; align-items: center; background: var(--wh-bg); border-radius: 0.6rem; padding: 0.65rem 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.04); border: 1px solid var(--wh-border); }
+    .stat-item { text-align: center; flex: 1; }
+    .stat-label { font-size: 0.65rem; color: var(--wh-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.2rem; font-weight: 600; }
+    .stat-value { font-size: 1.15rem; font-weight: 700; color: var(--wh-text); }
+    .stat-value.audited { color: var(--wh-success); }
+    .divider { width: 1px; background: var(--wh-border); height: 2.2rem; margin: 0 0.5rem; }
+
+    .notification-toast { position: fixed; top: 20px; right: 20px; z-index: 9999; background: white; border-radius: 10px; padding: 14px 20px; box-shadow: 0 6px 20px rgba(99,102,241,0.15); border-left: 4px solid var(--wh-primary); transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); max-width: 300px; font-size: 0.85rem; }
+    .notification-toast.show { transform: translateX(0); }
+    .notification-toast.notification-success { border-left-color: var(--wh-success); }
+    .notification-toast.notification-error { border-left-color: var(--wh-danger); }
+    .notification-toast.notification-info { border-left-color: var(--wh-primary-light); }
+  </style>
+</head>
+<body>
+  <!-- Flash Alert -->
+  <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1050">
+    <div id="flashAlert" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <!-- Message will be inserted here -->
+        </div>
+        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="audit-wrapper">
+    <div class="card shadow">
+      <div class="card-body">
+        <!-- Header -->
+        <div class="page-header">
+          <h4><i class="fas fa-clipboard-check"></i> Batch Sub Audit</h4>
+          <small>All products with batch sub barcodes</small>
+        </div>
+
+        <!-- Auditor Info -->
+        <div class="mb-3">
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-user"></i></span>
+            <input type="text" id="auditor-name" class="form-control" placeholder="Enter your name" required>
+          </div>
+        </div>
+
+        <!-- Camera Scanner Section -->
+        <div class="scanner-container">
+          <div id="reader" class="scanner-video-container"></div>
+          <div id="status" class="scanner-status">Initializing camera...</div>
+          <div class="scanner-frame"><div class="sf-br"></div><div class="sf-bl"></div></div>
+          <div class="scan-line"></div>
+        </div>
+
+        <!-- Scanner Controls -->
+        <div class="d-grid gap-2 mb-3">
+          <button id="batch-audit" class="btn btn-primary btn-lg">
+            <i class="fas fa-paper-plane me-1"></i> Submit
+          </button>
+          
+          <!-- Professional Stats Display -->
+          <div class="stats-container">
+            <div class="stat-item">
+              <div class="stat-label">Total Batches</div>
+              <div class="stat-value" id="total-batches">0</div>
+            </div>
+            <div class="divider"></div>
+            <div class="stat-item">
+              <div class="stat-label">Audited</div>
+              <div class="stat-value audited" id="audited-count">0</div>
+            </div>
+          </div>
+          
+          <button id="retryBtn" class="btn btn-outline-secondary btn-lg">
+            <i class="fas fa-redo me-1"></i> Try Again
+          </button>
+        </div>
+
+        <!-- Product List Table -->
+        <div class="mt-2">
+          <div id="products-list">
+            <!-- Products will be populated here by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Audit List -->
+        <div id="audit-list-section" class="mt-4 d-none">
+          <h5><i class="fas fa-list"></i> Audit List (<span id="audit-count">0</span> items)</h5>
+          <div class="audit-list" id="audit-list">
+            <!-- Audit items will be added here -->
+          </div>
+         
+          <div class="d-grid gap-2 mt-3">
+            <button class="btn btn-primary btn-lg" onclick="submitAudit()">
+              <i class="fas fa-paper-plane"></i> Submit Audit
+            </button>
+            <button class="btn btn-outline-secondary" onclick="clearAuditList()">
+              <i class="fas fa-trash"></i> Clear List
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let auditList = [];
+    let productsData = [];
+    let html5QrCode = null;
+    
+    // Load products data from the server when page loads
+    window.addEventListener('load', function() {
+      loadProductsData();
+      initializeCamera();
+      
+      // Add event listener to the Submit button
+      document.getElementById('batch-audit').addEventListener('click', submitAudit);
+    });
+    
+    // Initialize camera
+    async function initializeCamera() {
+      try {
+        // Clean up any existing scanner instance
+        if (html5QrCode) {
+          try {
+            await html5QrCode.stop();
+          } catch (stopError) {
+          }
+          html5QrCode = null;
+        }
+        
+        // Initialize scanner
+        html5QrCode = new Html5Qrcode("reader");
+        
+        // Configure scanner with more compatible settings
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 100 },
+          aspectRatio: 1
+        };
+
+        // Try to start camera with environment facing mode first
+        try {
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            onScanSuccess,
+            onScanError
+          );
+        } catch (primaryError) {
+          // Fallback to any camera
+          await html5QrCode.start(
+            { facingMode: "user" },
+            config,
+            onScanSuccess,
+            onScanError
+          );
+        }
+
+        // Update status
+        const statusElement = document.getElementById('status');
+        if (statusElement) {
+          statusElement.textContent = 'Camera is active and scanning';
+        }
+      } catch (err) {
+        const statusElement = document.getElementById('status');
+        if (statusElement) {
+          statusElement.textContent = 'Error starting camera: ' + (err.message || 'Unknown error');
+        }
+      }
+    }
+    
+    // Scan success callback
+    function onScanSuccess(decodedText) {
+      // Always trim to 12 characters for barcode (same as mobile scanner)
+      const barcode = decodedText.slice(0, 12);
+      
+      // Stop scanning temporarily
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+          // Process the scanned barcode
+          handleBarcodeScan(barcode);
+        });
+      }
+    }
+    
+    // Scan error callback
+    function onScanError(error) {
+      // Filter out common scan errors that aren't useful to log
+      const errorString = String(error);
+      const ignoreErrors = [
+        'QR code parse error',
+        'No MultiFormat Readers were able',
+        'No barcode or QR code detected'
+      ];
+      
+      // Only log errors that aren't in our ignore list
+      const shouldLog = !ignoreErrors.some(ignore => errorString.includes(ignore));
+    }
+    
+    // Load products data from the server
+    function loadProductsData() {
+      fetch('/scanner/api/products-with-batches')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            productsData = data.products;
+            renderProductsTable();
+            loadCompletedBatches(); // Load completed batches from localStorage
+            updateBatchCounts(); // Update batch counts
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching products:', err);
+          renderProductsTable();
+          updateBatchCounts(); // Update batch counts
+        });
+    }
+    
+    // Update batch counts display
+    function updateBatchCounts() {
+      // Calculate total batches
+      let totalBatches = 0;
+      productsData.forEach(product => {
+        totalBatches += product.batches.length;
+      });
+      
+      // Update the display
+      document.getElementById('total-batches').textContent = totalBatches;
+      document.getElementById('audited-count').textContent = auditList.length;
+    }
+    
+    // Render products table in the requested format
+    function renderProductsTable() {
+      const productsList = document.getElementById('products-list');
+      productsList.innerHTML = '';
+      
+      // If we don't have real data, show empty state
+      let productsToDisplay = productsData;
+      if (!productsData || productsData.length === 0) {
+        productsList.innerHTML = '<div class="text-center py-5 text-muted"><i class="fas fa-box-open fa-2x mb-2"></i><p>No products found</p></div>';
+        return;
+      }
+      
+      // Sort products alphabetically by name
+      productsToDisplay.sort((a, b) => a.name.localeCompare(b.name));
+      
+      productsToDisplay.forEach((product, productIndex) => {
+        // Create product header
+        const productHeader = document.createElement('div');
+        productHeader.className = 'product-name-header';
+        productHeader.innerHTML = `<h6 class="mb-0">${product.name}</h6>`;
+        productsList.appendChild(productHeader);
+        
+        // Create table for this product
+        const table = document.createElement('table');
+        table.className = 'product-table';
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Exp Date</th>
+              <th>System Qty</th>
+              <th>Actual Qty</th>
+              <th>Discrepancy</th>
+            </tr>
+          </thead>
+          <tbody id="product-${product.id}-batches">
+          </tbody>
+        `;
+        productsList.appendChild(table);
+        
+        // Add batches to the table
+        const tbody = document.getElementById(`product-${product.id}-batches`);
+        product.batches.forEach((batch, batchIndex) => {
+          const row = document.createElement('tr');
+          row.id = `row-${product.id}-${batch.id}`; // Add ID for row highlighting
+          
+          // Calculate loop index (product index + 1).(batch index + 1)
+          const loopIndex = `${productIndex + 1}.${batchIndex + 1}`;
+          
+          row.innerHTML = `
+            <td style="text-align: center;">${loopIndex}</td>
+            <td style="text-align: center;">${batch.exp_date || 'N/A'}</td>
+            <td style="text-align: center;">${batch.quantity}</td>
+            <td style="text-align: center;" id="actual-qty-${product.id}-${batch.id}">-</td>
+            <td id="discrepancy-${product.id}-${batch.id}" class="discrepancy-cell">-</td>
+          `;
+          tbody.appendChild(row);
+        });
+      });
+    }
+    
+    // Remove the event listeners for actual qty inputs since we're removing the input fields
+    // Add barcode scanning functionality
+    let scannedBatch = null;
+    
+    // Function to handle barcode scanning
+    function handleBarcodeScan(barcode) {
+      // Look up the barcode in our products data
+      let found = false;
+      let batchInfo = null;
+      let productInfo = null;
+      
+      // Check if barcode matches any product or batch
+      for (const product of productsData) {
+        // Check product barcode
+        if (product.barcode === barcode) {
+          // Flash message - product found but not a batch
+          showFlashMessage('Product barcode scanned. Please scan a batch sub-barcode.', 'info');
+          initializeCamera(); // Restart camera
+          return;
+        }
+        
+        // Check batch sub-barcodes
+        for (const batch of product.batches) {
+          if (batch.sub_barcode === barcode) {
+            batchInfo = batch;
+            productInfo = product;
+            found = true;
+            break;
+          }
+        }
+        
+        if (found) break;
+      }
+      
+      if (found && batchInfo && productInfo) {
+        // Show modal for actual qty entry
+        showActualQtyModal(productInfo.name, batchInfo.sub_barcode, batchInfo.quantity, productInfo.id, batchInfo.id);
+      } else {
+        // If not found, check if it's a product from another company
+        fetch(`/scanner/lookup_batch_by_sub_barcode?sub_barcode=${encodeURIComponent(barcode)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              // Check if batch belongs to current user's company
+              showFlashMessage('Barcode not found in your company.', 'error');
+            } else {
+              showFlashMessage('Barcode not found.', 'error');
+            }
+            initializeCamera(); // Restart camera
+          })
+          .catch(err => {
+            console.error('Error looking up barcode:', err);
+            showFlashMessage('Error scanning barcode.', 'error');
+            initializeCamera(); // Restart camera
+          });
+      }
+    }
+    
+    // Function to show flash message
+    function showFlashMessage(message, type) {
+      const flashAlert = document.getElementById('flashAlert');
+      const toastBody = flashAlert.querySelector('.toast-body');
+      toastBody.textContent = message;
+      
+      // Set type-specific styling
+      flashAlert.classList.remove('bg-success', 'bg-danger', 'bg-info');
+      if (type === 'error') {
+        flashAlert.classList.add('bg-danger', 'text-white');
+      } else if (type === 'info') {
+        flashAlert.classList.add('bg-info', 'text-white');
+      } else {
+        flashAlert.classList.add('bg-success', 'text-white');
+      }
+      
+      // Show toast
+      const toast = new bootstrap.Toast(flashAlert);
+      toast.show();
+    }
+    
+    // Function to show actual qty modal
+    function showActualQtyModal(productName, subBarcode, systemQty, productId, batchId) {
+      // Create modal HTML
+      const modalHtml = `
+        <div class="modal fade" id="actualQtyModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Enter Actual Quantity</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <div class="mb-3">
+                  <label class="form-label">Product: ${productName}</label><br>
+                  <label class="form-label">Sub Barcode: ${subBarcode}</label><br>
+                  <label class="form-label">System Quantity: ${systemQty}</label>
+                </div>
+                <div class="mb-3">
+                  <label for="actualQtyInput" class="form-label">Actual Quantity</label>
+                  <input type="number" class="form-control" id="actualQtyInput" min="0" step="0.01" autofocus>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveActualQty">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Add modal to body
+      const modalContainer = document.createElement('div');
+      modalContainer.innerHTML = modalHtml;
+      document.body.appendChild(modalContainer);
+      
+      // Show modal
+      const modal = new bootstrap.Modal(document.getElementById('actualQtyModal'));
+      modal.show();
+      
+      // Focus on input field
+      setTimeout(() => {
+        document.getElementById('actualQtyInput').focus();
+      }, 500);
+      
+      // Handle Enter key press
+      document.getElementById('actualQtyInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          saveActualQty(productId, batchId, systemQty);
+        }
+      });
+      
+      // Handle save button click
+      document.getElementById('saveActualQty').addEventListener('click', function() {
+        saveActualQty(productId, batchId, systemQty);
+      });
+      
+      // Function to save actual qty
+      function saveActualQty(productId, batchId, systemQty) {
+        const actualQty = parseFloat(document.getElementById('actualQtyInput').value) || 0;
+        const discrepancy = actualQty - systemQty;
+        
+        // Update discrepancy display
+        const discrepancyElement = document.getElementById(`discrepancy-${productId}-${batchId}`);
+        if (discrepancyElement) {
+          // Use shorter text for discrepancy with pill style
+          discrepancyElement.textContent = discrepancy > 0 ? `+${discrepancy}` : 
+            (discrepancy < 0 ? `${discrepancy}` : '0');
+          discrepancyElement.className = 'discrepancy-cell ' + 
+            (discrepancy > 0 ? 'positive' : discrepancy < 0 ? 'negative' : 'zero');
+        }
+        
+        // Save to localStorage
+        const auditKey = `batch_audit_${productId}_${batchId}`;
+        const auditData = {
+          productId: productId,
+          batchId: batchId,
+          actualQty: actualQty,
+          systemQty: systemQty,
+          discrepancy: discrepancy,
+          timestamp: new Date().toISOString()
+        };
+        localStorage.setItem(auditKey, JSON.stringify(auditData));
+        
+        // Update audit list
+        updateAuditListForBatch(productId, batchId, actualQty, discrepancy);
+        
+        // Update the table display
+        const actualQtyCell = document.getElementById(`actual-qty-${productId}-${batchId}`);
+        const discrepancyCell = document.getElementById(`discrepancy-${productId}-${batchId}`);
+        const row = document.getElementById(`row-${productId}-${batchId}`);
+        
+        if (actualQtyCell && discrepancyCell && row) {
+          actualQtyCell.textContent = actualQty;
+          // Use shorter text for discrepancy with pill style
+          discrepancyCell.textContent = discrepancy > 0 ? `+${discrepancy}` : 
+            (discrepancy < 0 ? `${discrepancy}` : '0');
+          discrepancyCell.className = 'discrepancy-cell ' + 
+            (discrepancy > 0 ? 'positive' : discrepancy < 0 ? 'negative' : 'zero');
+          
+          // Highlight row in green and scroll to it
+          row.style.backgroundColor = '#d4edda';
+          
+          // Scroll to the row to make it visible at the top
+          // Adding a small delay to ensure DOM is fully updated before scrolling
+          setTimeout(() => {
+            row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 100);
+        }
+        
+        // Hide modal
+        modal.hide();
+        
+        // Show flash message
+        showFlashMessage(`Successfully scanned ${actualQty} for batch`, 'success');
+        
+        // Remove modal from DOM after it's hidden
+        document.getElementById('actualQtyModal').addEventListener('hidden.bs.modal', function () {
+          document.getElementById('actualQtyModal').remove();
+          initializeCamera(); // Restart camera
+        });
+      }
+    }
+    
+    // Load completed batches from localStorage when page loads
+    function loadCompletedBatches() {
+      // Clear existing audit list
+      auditList = [];
+      
+      // Iterate through all localStorage items
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('batch_audit_')) {
+          try {
+            const auditData = JSON.parse(localStorage.getItem(key));
+            // Add to audit list
+            const product = productsData.find(p => p.id == auditData.productId);
+            if (product) {
+              const batch = product.batches.find(b => b.id == auditData.batchId);
+              if (batch) {
+                const auditItem = {
+                  product_id: auditData.productId,
+                  batch_id: auditData.batchId,
+                  product_name: product.name,
+                  batch_barcode: batch.sub_barcode,
+                  product_uom: product.uom || "units",
+                  recorded_quantity: auditData.systemQty,
+                  actual_quantity: auditData.actualQty,
+                  discrepancy: auditData.discrepancy,
+                  exp_date: batch.exp_date
+                };
+                auditList.push(auditItem);
+                
+                // Update the table display
+                const actualQtyCell = document.getElementById(`actual-qty-${auditData.productId}-${auditData.batchId}`);
+                const discrepancyCell = document.getElementById(`discrepancy-${auditData.productId}-${auditData.batchId}`);
+                const row = document.getElementById(`row-${auditData.productId}-${auditData.batchId}`);
+                
+                if (actualQtyCell && discrepancyCell && row) {
+                  actualQtyCell.textContent = auditData.actualQty;
+                  // Use shorter text for discrepancy with pill style
+                  discrepancyCell.textContent = auditData.discrepancy > 0 ? `+${auditData.discrepancy}` : 
+                    (auditData.discrepancy < 0 ? `${auditData.discrepancy}` : '0');
+                  discrepancyCell.className = 'discrepancy-cell ' + 
+                    (auditData.discrepancy > 0 ? 'positive' : auditData.discrepancy < 0 ? 'negative' : 'zero');
+                  
+                  // Highlight row in green
+                  row.style.backgroundColor = '#d4edda';
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Error loading audit data from localStorage:', e);
+          }
+        }
+      }
+      
+      // Update audit list display
+      updateAuditList();
+      // Update batch counts
+      updateBatchCounts();
+    }
+    
+    // Update audit list for a specific batch
+    function updateAuditListForBatch(productId, batchId, actualQty, discrepancy) {
+      // Find if this batch is already in audit list
+      const existingIndex = auditList.findIndex(item => 
+        item.product_id == productId && item.batch_id == batchId
+      );
+      
+      // Get product data from productsData
+      const product = productsData.find(p => p.id == productId);
+      if (!product) {
+        console.error('Product not found for ID:', productId);
+        return;
+      }
+      
+      const batch = product.batches.find(b => b.id == batchId);
+      if (!batch) {
+        console.error('Batch not found for ID:', batchId);
+        return;
+      }
+      
+      const auditItem = {
+        product_id: productId,
+        batch_id: batchId,
+        product_name: product.name,
+        batch_barcode: batch.sub_barcode,
+        product_uom: product.uom || "units",
+        recorded_quantity: batch.quantity,
+        actual_quantity: actualQty,
+        discrepancy: discrepancy,
+        exp_date: batch.exp_date
+      };
+      
+      if (existingIndex >= 0) {
+        // Update existing item
+        auditList[existingIndex] = auditItem;
+      } else {
+        // Add new item
+        auditList.push(auditItem);
+      }
+      
+      updateAuditList();
+      updateBatchCounts();
+    }
+    
+    // Update audit list display
+    function updateAuditList() {
+      const auditListElement = document.getElementById('audit-list');
+      const auditCountElement = document.getElementById('audit-count');
+      const auditListSection = document.getElementById('audit-list-section');
+      
+      auditCountElement.textContent = auditList.length;
+      
+      if (auditList.length > 0) {
+        auditListSection.classList.remove('d-none');
+        
+        auditListElement.innerHTML = '';
+        auditList.forEach((item, index) => {
+          const auditItem = document.createElement('div');
+          auditItem.className = 'audit-item';
+          
+          const discrepancyClass = item.discrepancy > 0 ? 'positive' : 
+                                  item.discrepancy < 0 ? 'negative' : 'zero';
+          
+          auditItem.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="flex-grow-1">
+                <h6 class="mb-1">${item.product_name}</h6>
+                <div class="small text-muted mb-2">
+                  <span class="badge bg-dark">${item.batch_barcode}</span>
+                  <span class="badge bg-secondary">${item.product_uom}</span>
+                </div>
+                <div class="row">
+                  <div class="col-4">
+                    <small class="text-muted">System:</small><br>
+                    <strong>${item.recorded_quantity}</strong>
+                  </div>
+                  <div class="col-4">
+                    <small class="text-muted">Actual:</small><br>
+                    <strong>${item.actual_quantity}</strong>
+                  </div>
+                  <div class="col-4">
+                    <small class="text-muted">Diff:</small><br>
+                    <span class="discrepancy-cell ${discrepancyClass}">${item.discrepancy > 0 ? '+' : ''}${item.discrepancy}</span>
+                  </div>
+                </div>
+              </div>
+              <button class="btn btn-outline-danger btn-sm ms-2" onclick="removeFromAudit(${index})">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          `;
+          
+          auditListElement.appendChild(auditItem);
+        });
+      } else {
+        auditListSection.classList.add('d-none');
+      }
+    }
+
+    function removeFromAudit(index) {
+      if (confirm('Are you sure you want to remove this batch from the audit list?')) {
+        auditList.splice(index, 1);
+        updateAuditList();
+        updateBatchCounts();
+      }
+    }
+
+    function clearAuditList() {
+      if (confirm(`Are you sure you want to clear all ${auditList.length} audited batches?`)) {
+        auditList = [];
+        updateAuditList();
+        updateBatchCounts();
+        document.getElementById('auditor-name').value = '';
+      }
+    }
+
+    function submitAudit() {
+      const auditorName = document.getElementById('auditor-name').value.trim();
+      
+      if (!auditorName) {
+        alert('Please enter your name');
+        document.getElementById('auditor-name').focus();
+        return;
+      }
+      
+      if (auditList.length === 0) {
+        alert('No items to audit');
+        return;
+      }
+
+      // Confirmation before submission with specific batch count
+      if (!confirm(`Are you sure you want to submit ${auditList.length} batches only?`)) {
+        return;
+      }
+
+      // Show loading screen
+      showLoadingScreen();
+
+      const auditData = {
+        audits: auditList,
+        verified_by: auditorName
+      };
+      
+      fetch('/api/submit_batch_audit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(auditData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          // Show success message
+          showFlashMessage(data.message, 'success');
+          
+          // Clear audit list and localStorage
+          auditList = [];
+          updateAuditList();
+          updateBatchCounts();
+          document.getElementById('auditor-name').value = '';
+          
+          // Clear localStorage entries for batch audits
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('batch_audit_')) {
+              localStorage.removeItem(key);
+            }
+          }
+          
+          // Hide loading screen after a short delay and redirect
+          setTimeout(() => {
+            hideLoadingScreen();
+            // Redirect to mobile scanner
+            window.location.href = '/scanner/mobile-scanner';
+          }, 1500);
+        } else {
+          hideLoadingScreen();
+          showFlashMessage(data.message || 'Failed to submit audit. Please try again.', 'error');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        hideLoadingScreen();
+        showFlashMessage('An error occurred while submitting the audit. Please check your connection and try again.', 'error');
+      });
+    }
+
+    // Function to show loading screen
+    function showLoadingScreen() {
+      // Create loading overlay if it doesn't exist
+      if (!document.getElementById('loading-overlay')) {
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'loading-overlay';
+        loadingOverlay.innerHTML = `
+          <div class="loading-content">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Submitting audit data...</p>
+          </div>
+        `;
+        loadingOverlay.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.5);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 9999;
+        `;
+        loadingOverlay.querySelector('.loading-content').style.cssText = `
+          text-align: center;
+          color: white;
+          padding: 2rem;
+          border-radius: 0.5rem;
+          background-color: rgba(0, 0, 0, 0.7);
+        `;
+        document.body.appendChild(loadingOverlay);
+      } else {
+        document.getElementById('loading-overlay').style.display = 'flex';
+      }
+    }
+
+    // Function to hide loading screen
+    function hideLoadingScreen() {
+      const loadingOverlay = document.getElementById('loading-overlay');
+      if (loadingOverlay) {
+        loadingOverlay.style.display = 'none';
+      }
+    }
+  </script>
+
+  <!-- PWA Scripts -->
+  <script src="{{ url_for('static', filename='js/scanner-pwa.js') }}"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

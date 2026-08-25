@@ -1,0 +1,429 @@
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}User Management - iCount{% endblock %}
+
+{% block styles %}
+<link href="{{ url_for('static', filename='css/admin.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <!-- Page Header -->
+  <div class="admin-page-header">
+    <div class="header-left">
+      <div class="admin-header-icon indigo">
+        <i class="fas fa-user-shield"></i>
+      </div>
+      <div>
+        <h4 class="admin-page-title">User Management</h4>
+        <p class="admin-page-subtitle">Monitor users, change roles, and remove accounts</p>
+      </div>
+    </div>
+    {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+    <button class="btn btn-primary px-3" data-bs-toggle="modal" data-bs-target="#addUserModal">
+      <i class="fas fa-user-plus me-2"></i>Add User
+    </button>
+    {% endif %}
+  </div>
+
+  <!-- Overview Stats -->
+  <div class="admin-stats">
+    <div class="admin-stat-card">
+      <div class="admin-stat-icon indigo"><i class="fas fa-users"></i></div>
+      <div>
+        <div class="admin-stat-value">{{ stats.total }}</div>
+        <div class="admin-stat-label">Total Users</div>
+      </div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-icon rose"><i class="fas fa-crown"></i></div>
+      <div>
+        <div class="admin-stat-value">{{ stats.sys_admin + stats.company_admin }}</div>
+        <div class="admin-stat-label">Admins</div>
+      </div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-icon violet"><i class="fas fa-warehouse"></i></div>
+      <div>
+        <div class="admin-stat-value">{{ stats.wh_admin }}</div>
+        <div class="admin-stat-label">Warehouse Admins</div>
+      </div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-icon emerald"><i class="fas fa-cart-shopping"></i></div>
+      <div>
+        <div class="admin-stat-value">{{ stats.purchaser }}</div>
+        <div class="admin-stat-label">Purchasers</div>
+      </div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="admin-stat-icon amber"><i class="fas fa-user-clock"></i></div>
+      <div>
+        <div class="admin-stat-value">{{ stats.unverified }}</div>
+        <div class="admin-stat-label">Unverified</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="admin-filter-card">
+    <div class="card-body">
+      <form method="get" action="{{ url_for('admin.admin_users') }}" class="row g-3 align-items-end">
+        <div class="col-md-8">
+          <div class="input-group">
+            <span class="input-group-text border-end-0"><i class="fas fa-search text-muted"></i></span>
+            <input class="form-control border-start-0 ps-0" type="search" placeholder="Search by name, username, email, company, or role" name="q" value="{{ search }}">
+          </div>
+        </div>
+        <div class="col-md-4 d-flex align-items-end justify-content-end gap-2">
+          <button class="btn btn-primary" type="submit"><i class="fas fa-search me-1"></i>Search</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('admin.admin_users') }}">
+            <i class="fas fa-rotate-left me-1"></i>Reset
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Users Table -->
+  <div class="admin-card">
+    <div class="card-header">
+      <h5 class="card-title">
+        <i class="fas fa-list"></i> All Users
+        <span class="admin-count-badge"><i class="fas fa-user"></i>{{ stats.total }}</span>
+      </h5>
+      {% if search %}
+      <span class="text-muted small">Results for "<strong>{{ search }}</strong>"</span>
+      {% endif %}
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Company</th>
+            <th>Role</th>
+            <th>Verified</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if current_admin %}
+          <tr class="table-highlight">
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="user-avatar">
+                  <span>{{ current_admin.full_name[:1] }}</span>
+                </div>
+                <div class="user-info-text">
+                  <div class="fw-semibold">{{ current_admin.full_name }}</div>
+                  <small class="text-muted">ID #{{ current_admin.id }}</small>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="badge badge-username">{{ current_admin.username }}</span>
+            </td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <span id="email-display-{{ current_admin.id }}">{{ current_admin.email }}</span>
+                <button class="btn btn-sm btn-outline-secondary email-edit-btn" data-user-id="{{ current_admin.id }}" data-email="{{ current_admin.email }}" title="Edit email">
+                  <i class="fas fa-edit"></i>
+                </button>
+              </div>
+              <div id="email-edit-{{ current_admin.id }}" class="d-none">
+                <form method="post" action="{{ url_for('admin.admin_update_email', user_id=current_admin.id) }}" class="d-flex align-items-center gap-2">
+                  <input type="email" name="email" value="{{ current_admin.email }}" class="form-control form-control-sm" required>
+                  <button class="btn btn-sm btn-success" type="submit" title="Save email">
+                    <i class="fas fa-save"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary email-cancel-btn" type="button" data-user-id="{{ current_admin.id }}" data-email="{{ current_admin.email }}" title="Cancel">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+            <td class="text-secondary">{{ current_admin.company.franchise_name if current_admin.company else current_admin.branch or '-' }}</td>
+            <td>
+              {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+              <form method="post" action="{{ url_for('admin.admin_update_role', user_id=current_admin.id) }}" class="d-flex align-items-center gap-2">
+                <select name="role" class="form-select form-select-sm" disabled>
+                  <option value="User" {% if current_admin.role == 'User' %}selected{% endif %}>User</option>
+                  <option value="WH-Admin" {% if current_admin.role == 'WH-Admin' %}selected{% endif %}>WH-Admin</option>
+                  <option value="Company-Admin" {% if current_admin.role == 'Company-Admin' %}selected{% endif %}>Company-Admin</option>
+                  <option value="SYS-Admin" {% if current_admin.role == 'SYS-Admin' %}selected{% endif %}>SYS-Admin</option>
+                  <option value="Purchaser" {% if current_admin.role == 'Purchaser' %}selected{% endif %}>Purchaser</option>
+                </select>
+                <button class="btn btn-sm btn-outline-primary" type="submit" title="Save role" disabled>
+                  <i class="fas fa-save"></i>
+                </button>
+              </form>
+              {% else %}
+              <span class="badge badge-role badge-{{ current_admin.role | lower }}">
+                <i class="fas fa-{% if current_admin.role == 'SYS-Admin' %}crown{% elif current_admin.role == 'Company-Admin' %}building{% elif current_admin.role == 'WH-Admin' %}warehouse{% elif current_admin.role == 'Purchaser' %}cart-shopping{% else %}user{% endif %}"></i>
+                {{ current_admin.role }}
+              </span>
+              {% endif %}
+            </td>
+            <td>
+              {% if current_admin.email_verified %}
+                <span class="badge badge-verified"><i class="fas fa-check-circle me-1"></i>Verified</span>
+              {% else %}
+                <span class="badge badge-unverified"><i class="fas fa-minus-circle me-1"></i>Unverified</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+              <form method="post" action="{{ url_for('admin.admin_delete_user', user_id=current_admin.id) }}" class="d-inline" onsubmit="return confirm('Delete user {{ current_admin.username }}?');">
+                <button class="btn btn-sm btn-outline-danger" type="submit" title="Delete account" disabled>
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endif %}
+
+          {% for u in users %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="user-avatar">
+                  <span>{{ u.full_name[:1] }}</span>
+                </div>
+                <div class="user-info-text">
+                  <div class="fw-semibold">{{ u.full_name }}</div>
+                  <small class="text-muted">ID #{{ u.id }}</small>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="badge badge-username">{{ u.username }}</span>
+            </td>
+            <td>
+              {% if u.id == current_user.id %}
+                <div class="d-flex align-items-center gap-2">
+                  <span id="email-display-{{ u.id }}">{{ u.email }}</span>
+                  <button class="btn btn-sm btn-outline-secondary email-edit-btn" data-user-id="{{ u.id }}" data-email="{{ u.email }}" title="Edit email">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                </div>
+                <div id="email-edit-{{ u.id }}" class="d-none">
+                  <form method="post" action="{{ url_for('admin.admin_update_email', user_id=u.id) }}" class="d-flex align-items-center gap-2">
+                    <input type="email" name="email" value="{{ u.email }}" class="form-control form-control-sm" required>
+                    <button class="btn btn-sm btn-success" type="submit" title="Save email">
+                      <i class="fas fa-save"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary email-cancel-btn" type="button" data-user-id="{{ u.id }}" data-email="{{ u.email }}" title="Cancel">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </form>
+                </div>
+              {% else %}
+                <span class="text-secondary">{{ u.email }}</span>
+              {% endif %}
+            </td>
+            <td class="text-secondary">{{ u.company.franchise_name if u.company else u.branch or '-' }}</td>
+            <td>
+              {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+              <form method="post" action="{{ url_for('admin.admin_update_role', user_id=u.id) }}" class="d-flex align-items-center gap-2 flex-wrap">
+                <select name="role" class="form-select form-select-sm" {% if u.id == current_user.id %}disabled{% endif %}>
+                  <option value="User" {% if u.role == 'User' %}selected{% endif %}>User</option>
+                  <option value="WH-Admin" {% if u.role == 'WH-Admin' %}selected{% endif %}>WH-Admin</option>
+                  <option value="Company-Admin" {% if u.role == 'Company-Admin' %}selected{% endif %}>Company-Admin</option>
+                  <option value="SYS-Admin" {% if u.role == 'SYS-Admin' %}selected{% endif %}>SYS-Admin</option>
+                  <option value="Purchaser" {% if u.role == 'Purchaser' %}selected{% endif %}>Purchaser</option>
+                </select>
+                <button class="btn btn-sm btn-outline-primary" type="submit" title="Save role" {% if u.id == current_user.id %}disabled{% endif %}>
+                  <i class="fas fa-save"></i>
+                </button>
+              </form>
+              {% else %}
+              <span class="badge badge-role badge-{{ u.role | lower }}">
+                <i class="fas fa-{% if u.role == 'SYS-Admin' %}crown{% elif u.role == 'Company-Admin' %}building{% elif u.role == 'WH-Admin' %}warehouse{% elif u.role == 'Purchaser' %}cart-shopping{% else %}user{% endif %}"></i>
+                {{ u.role }}
+              </span>
+              {% endif %}
+            </td>
+            <td>
+              {% if u.email_verified %}
+                <span class="badge badge-verified"><i class="fas fa-check-circle me-1"></i>Verified</span>
+              {% else %}
+                <span class="badge badge-unverified"><i class="fas fa-minus-circle me-1"></i>Unverified</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+              <form method="post" action="{{ url_for('admin.admin_delete_user', user_id=u.id) }}" class="d-inline" onsubmit="return confirm('Delete user {{ u.username }}?');">
+                <button class="btn btn-sm btn-outline-danger" type="submit" title="Delete account" {% if u.id == current_user.id %}disabled{% endif %}>
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" class="text-center py-5">
+              <div class="admin-empty">
+                <i class="fas fa-users-slash"></i>
+                <h6 class="mb-1">No users found</h6>
+                <p class="mb-0">Try adjusting your search criteria</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if pagination.pages > 1 %}
+      <div class="card-footer border-top admin-pagination">
+        <nav aria-label="User pages">
+          <ul class="pagination justify-content-center mb-0">
+            <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+              <a class="page-link" href="{{ url_for('admin.admin_users', page=pagination.prev_num, q=search) if pagination.has_prev else '#' }}" tabindex="-1">
+                <i class="fas fa-chevron-left"></i>
+              </a>
+            </li>
+
+            {% if pagination.page > 2 %}
+              <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin.admin_users', page=1, q=search) }}">1</a>
+              </li>
+              {% if pagination.page > 3 %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+              {% endif %}
+            {% endif %}
+
+            {% set start = [1, pagination.page - 1]|max %}
+            {% set end = [pagination.pages + 1, pagination.page + 2]|min %}
+            {% for page_num in range(start, end) %}
+              <li class="page-item {{ 'active' if page_num == pagination.page }}">
+                <a class="page-link" href="{{ url_for('admin.admin_users', page=page_num, q=search) }}">{{ page_num }}</a>
+              </li>
+            {% endfor %}
+
+            {% if pagination.page < pagination.pages - 1 %}
+              {% if pagination.page < pagination.pages - 2 %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+              {% endif %}
+              <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin.admin_users', page=pagination.pages, q=search) }}">{{ pagination.pages }}</a>
+              </li>
+            {% endif %}
+
+            <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+              <a class="page-link" href="{{ url_for('admin.admin_users', page=pagination.next_num, q=search) if pagination.has_next else '#' }}">
+                <i class="fas fa-chevron-right"></i>
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal fade admin-modal" id="addUserModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="fas fa-user-plus me-2"></i>Add New User</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('admin.add_user') }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Full Name</label>
+              <input type="text" class="form-control" name="full_name" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Username</label>
+              <input type="text" class="form-control" name="username" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" name="email" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Branch</label>
+              <input type="text" class="form-control" name="branch" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Role</label>
+              <select class="form-select" name="role" required>
+                <option value="User">User</option>
+                <option value="WH-Admin">WH-Admin</option>
+                <option value="Company-Admin">Company-Admin</option>
+                <option value="SYS-Admin">SYS-Admin</option>
+                <option value="Purchaser">Purchaser</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Password</label>
+              <input type="password" class="form-control" name="password" required>
+            </div>
+            {% if current_user.role == 'SYS-Admin' %}
+            <div class="col-12">
+              <label class="form-label">Company (optional — leave blank for SYS-Admin)</label>
+              <select class="form-select" name="company_id">
+                <option value="">-- No company --</option>
+                {% for c in companies %}
+                <option value="{{ c.id }}">{{ c.franchise_name or c.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary px-4"><i class="fas fa-plus me-1"></i>Add User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.email-edit-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.getAttribute('data-user-id');
+            editEmail(userId);
+        });
+    });
+
+    document.querySelectorAll('.email-cancel-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.getAttribute('data-user-id');
+            const email = this.getAttribute('data-email');
+            cancelEditEmail(userId, email);
+        });
+    });
+});
+
+function editEmail(userId) {
+    const displayElement = document.getElementById('email-display-' + userId);
+    const editElement = document.getElementById('email-edit-' + userId);
+    if (displayElement && editElement) {
+        displayElement.parentElement.classList.add('d-none');
+        editElement.classList.remove('d-none');
+    }
+}
+
+function cancelEditEmail(userId, currentEmail) {
+    const displayElement = document.getElementById('email-display-' + userId);
+    const editElement = document.getElementById('email-edit-' + userId);
+    if (displayElement && editElement) {
+        displayElement.parentElement.classList.remove('d-none');
+        editElement.classList.add('d-none');
+    }
+}
+</script>
+{% endblock %}

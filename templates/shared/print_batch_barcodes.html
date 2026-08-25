@@ -1,0 +1,109 @@
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}Print Batch Barcodes - iCount{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-4 gap-3">
+    <div class="d-flex align-items-center mb-2">
+      <div class="feature-icon d-inline-flex align-items-center justify-content-center text-bg-primary bg-gradient fs-4 rounded-3 me-3" style="width: 48px; height: 48px;">
+        <i class="fas fa-barcode"></i>
+      </div>
+      <div>
+        <h4 class="fw-bold mb-1" style="background: linear-gradient(45deg, #0d6efd, #0a58ca); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Print Batch Barcodes</h4>
+        <p class="text-muted mb-0">Search batch by barcode and print specified number of batch barcodes</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="row justify-content-center">
+    <div class="col-lg-6">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+          <form method="POST" action="{{ url_for('misc.print_batch_barcodes') }}" id="printBatchBarcodesForm">
+            <div class="mb-3">
+              <label for="batch_barcode" class="form-label">
+                <i class="fas fa-barcode me-1"></i>Batch Barcode
+              </label>
+              <input type="text" 
+                     class="form-control" 
+                     id="batch_barcode" 
+                     name="batch_barcode" 
+                     placeholder="Enter batch barcode (e.g., 202510030002)"
+                     required>
+              <div class="form-text">Enter the batch barcode you want to print labels for.</div>
+            </div>
+
+            <div class="mb-3">
+              <label for="num_copies" class="form-label">
+                <i class="fas fa-copy me-1"></i>Number of Copies
+              </label>
+              <input type="number" 
+                     class="form-control" 
+                     id="num_copies" 
+                     name="num_copies" 
+                     placeholder="Enter number of copies"
+                     min="1"
+                     max="100"
+                     required>
+              <div class="form-text">Enter how many copies of the batch barcode you want to print.</div>
+            </div>
+
+            <div class="d-grid gap-2 mt-4">
+              <button type="submit" class="btn btn-primary" id="printBarcodesBtn">
+                <i class="fas fa-print me-1"></i>Generate and Download PDF
+              </button>
+              <a href="{{ url_for('misc.misc_dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Misc Dashboard
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.feature-icon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Focus on batch barcode input when page loads
+  document.getElementById('batch_barcode').focus();
+  
+  // Form validation
+  document.getElementById('printBatchBarcodesForm').addEventListener('submit', function(e) {
+    const batchBarcode = document.getElementById('batch_barcode').value.trim();
+    const numCopies = document.getElementById('num_copies').value;
+    
+    if (!batchBarcode) {
+      e.preventDefault();
+      alert('Please enter a batch barcode');
+      return;
+    }
+    
+    if (!numCopies || numCopies <= 0) {
+      e.preventDefault();
+      alert('Please enter a valid number of copies');
+      return;
+    }
+    
+    if (numCopies > 100) {
+      e.preventDefault();
+      alert('Maximum number of copies is 100');
+      return;
+    }
+    
+    // Show loading state
+    const btn = document.getElementById('printBarcodesBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating PDF...';
+    btn.disabled = true;
+  });
+});
+</script>
+{% endblock %}

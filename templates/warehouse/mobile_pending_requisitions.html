@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pending Requisitions</title>
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#6366f1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Iceberg Reqs">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="msapplication-TileColor" content="#4a5da7">
+  <meta name="msapplication-tap-highlight" content="no">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/static/manifest.json">
+  
+  <!-- PWA Icons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-16x16.png">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --wh-primary: #6366f1;
+      --wh-primary-light: #818cf8;
+      --wh-primary-dark: #4f46e5;
+      --wh-bg: #f0f2ff;
+      --wh-card-bg: #ffffff;
+      --wh-text: #1e1b4b;
+      --wh-text-muted: #6b7280;
+      --wh-border: #e0e3f0;
+      --wh-success: #10b981;
+      --wh-warning: #f59e0b;
+      --wh-danger: #ef4444;
+      --wh-shadow: rgba(99, 102, 241, 0.1);
+      --bs-primary: #6366f1;
+      --bs-success: #10b981;
+      --bs-warning: #f59e0b;
+      --bs-danger: #ef4444;
+      --bs-secondary: #6b7280;
+      --bs-dark: #1e1b4b;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--wh-bg);
+      font-family: system-ui, -apple-system, sans-serif;
+      color: var(--wh-text);
+      min-height: 100vh;
+    }
+    .requisitions-wrapper {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 1rem 0.75rem 2rem;
+    }
+    .card { border: none !important; border-radius: 1rem !important; box-shadow: 0 2px 12px var(--wh-shadow) !important; background: var(--wh-card-bg) !important; }
+    .card-body { padding: 1.25rem !important; }
+
+    .page-header { text-align: center; padding-bottom: 1rem; }
+    .page-header h4 { font-size: 1.2rem; font-weight: 700; color: var(--wh-primary-dark); }
+    .page-header h4 i { margin-right: 0.4rem; color: var(--wh-primary); }
+    .page-header small { color: var(--wh-text-muted); font-size: 0.8rem; }
+
+    .mode-toggle { display: flex; gap: 0.4rem; margin-top: 0.75rem; }
+    .mode-toggle .btn { flex: 1; font-size: 0.75rem; padding: 0.5rem 0.3rem; border-radius: 0.6rem; border: 1.5px solid var(--wh-border); background: transparent; color: var(--wh-text-muted); transition: all 0.2s; font-weight: 600; line-height: 1.3; }
+    .mode-toggle .btn i { display: block; font-size: 1rem; margin-bottom: 0.15rem; }
+    .mode-toggle .btn.active { background: var(--wh-primary); color: #fff; border-color: var(--wh-primary); box-shadow: 0 2px 8px rgba(99,102,241,0.3); }
+    .mode-toggle .btn:not(.active):active { background: var(--wh-primary-light); color: #fff; border-color: var(--wh-primary-light); }
+    .mode-toggle .btn .badge { font-size: 0.6rem; padding: 0.15em 0.45em; }
+
+    .requisition-card {
+      border-radius: 0.85rem;
+      overflow: hidden;
+      box-shadow: 0 2px 10px var(--wh-shadow);
+      margin-bottom: 0.85rem;
+      border: 1px solid var(--wh-border);
+      background: var(--wh-card-bg);
+      transition: transform 0.15s;
+    }
+    .requisition-card:active { transform: scale(0.99); }
+    .requisition-header {
+      background: linear-gradient(135deg, #f8f7ff 0%, #eef0ff 100%);
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--wh-border);
+    }
+    .requisition-header h5 { font-size: 0.9rem; font-weight: 700; color: var(--wh-primary-dark); margin-bottom: 0.2rem; }
+    .requisition-header small { color: var(--wh-text-muted); font-size: 0.75rem; }
+
+    .requisition-body { padding: 1rem; }
+    .requisition-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; }
+
+    .requisition-details { font-size: 0.85rem; }
+    .requisition-details p { margin-bottom: 0.25rem; color: var(--wh-text); }
+    .requisition-details .badge { font-size: 0.7rem; font-weight: 600; padding: 0.3em 0.6em; }
+
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.85rem; }
+    .info-section { margin-bottom: 0.5rem; }
+
+    .inline-info { display: inline-block; margin-right: 1rem; font-size: 0.85rem; color: var(--wh-text-muted); }
+    .inline-info:last-child { margin-right: 0; }
+    .inline-info i { font-size: 0.75rem; width: 16px; margin-right: 0.2rem; color: var(--wh-primary-light); }
+
+    .requisition-user-info { font-size: 0.85rem; color: var(--wh-text-muted); }
+
+    .action-buttons { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+    .action-buttons .btn { flex: 1; border-radius: 0.6rem; font-weight: 600; font-size: 0.8rem; padding: 0.55rem; transition: all 0.2s; }
+    .action-buttons .btn:active { transform: scale(0.97); }
+    .action-buttons .btn i { margin-right: 0.3rem; }
+
+    .btn-lg { font-size: 1.1rem; padding: 0.7rem; border-radius: 0.6rem; font-weight: 600; }
+    .btn-primary { background: var(--wh-primary) !important; border-color: var(--wh-primary) !important; }
+    .btn-primary:active { background: var(--wh-primary-dark) !important; }
+    .btn-success { background: var(--wh-success) !important; border-color: var(--wh-success) !important; }
+
+    .notification-toast { position: fixed; top: 20px; right: 20px; z-index: 9999; background: white; border-radius: 10px; padding: 14px 20px; box-shadow: 0 6px 20px rgba(99,102,241,0.15); border-left: 4px solid var(--wh-primary); transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); max-width: 300px; font-size: 0.85rem; }
+    .notification-toast.show { transform: translateX(0); }
+    .notification-toast.notification-success { border-left-color: var(--wh-success); }
+    .notification-toast.notification-error { border-left-color: var(--wh-danger); }
+    .notification-toast.notification-info { border-left-color: var(--wh-primary-light); }
+
+    .empty-state { text-align: center; padding: 3rem 1.5rem; }
+    .empty-state i { font-size: 2.5rem; color: var(--wh-primary-light); opacity: 0.5; margin-bottom: 0.75rem; }
+    .empty-state h5 { font-size: 1rem; font-weight: 700; color: var(--wh-text); }
+    .empty-state p { font-size: 0.85rem; color: var(--wh-text-muted); margin-bottom: 0; }
+
+    .spinner-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(30,27,75,0.4); display: flex; justify-content: center; align-items: center; z-index: 9999; display: none; backdrop-filter: blur(4px); }
+    .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.2); border-radius: 50%; border-top-color: var(--wh-primary-light); animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn-spinner { display: none; width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 0.7s linear infinite; margin-right: 0.5rem; }
+    .btn-spinner.dark { border-top-color: var(--wh-primary); border-color: rgba(99,102,241,0.3); }
+
+    .requisition-details h5 { font-size: 0.95rem; font-weight: 700; color: var(--wh-primary-dark); margin-bottom: 0.4rem; }
+    .requisition-details .badge { font-size: 0.7rem; }
+    .requisition-details p { margin-bottom: 0.2rem; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <!-- Flash Alert -->
+  <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1050">
+    <div id="flashAlert" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <!-- Message will be inserted here -->
+        </div>
+        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Full screen spinner overlay -->
+  <div id="spinnerOverlay" class="spinner-overlay">
+    <div class="spinner"></div>
+  </div>
+
+  <div class="requisitions-wrapper">
+    <div class="card shadow">
+      <div class="card-body">
+        
+        <!-- Header -->
+        <div class="page-header">
+          <h4><i class="fas fa-file-invoice"></i> Pending Requisitions</h4>
+          <small>Manage pending requisitions</small>
+          
+          <!-- Mode Toggle Buttons -->
+          <div class="mode-toggle">
+            <button type="button" class="btn" id="scanner-mode-btn" onclick="switchToScannerMode()">
+              <i class="fas fa-barcode"></i> Stock Management
+            </button>
+            <button type="button" class="btn" id="audit-mode-btn" onclick="switchToAuditMode()">
+              <i class="fas fa-clipboard-check"></i> Stock Audit
+            </button>
+            <button type="button" class="btn active" id="requisitions-mode-btn">
+              <i class="fas fa-file-invoice"></i> Pending <span class="badge bg-warning text-dark" id="pendingCount">0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Pending Requisitions List -->
+        <div id="requisitions-list">
+          <!-- Requisitions will be loaded here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Load pending requisitions when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      loadPendingRequisitions();
+    });
+    
+    async function loadPendingRequisitions() {
+      // Show spinner
+      document.getElementById('spinnerOverlay').style.display = 'flex';
+      
+      try {
+        const response = await fetch('/scanner/api/pending-requisitions');
+        const data = await response.json();
+        
+        if (data.success) {
+          // Update the pending count in the toggle button
+          document.getElementById('pendingCount').textContent = data.count;
+          
+          updateRequisitionsList(data.requisitions);
+        } else {
+          showNotification('Error loading requisitions: ' + data.message, 'error');
+        }
+      } catch (error) {
+        console.error('Error loading pending requisitions:', error);
+        showNotification('Failed to load pending requisitions', 'error');
+      } finally {
+        // Hide spinner
+        document.getElementById('spinnerOverlay').style.display = 'none';
+      }
+    }
+    
+    function updateRequisitionsList(requisitions) {
+      const container = document.getElementById('requisitions-list');
+      
+      if (requisitions.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <h5>No Pending Requisitions</h5>
+            <p class="mb-0">There are currently no pending requisitions to process.</p>
+          </div>
+        `;
+        return;
+      }
+      
+      let html = '';
+      
+      requisitions.forEach(req => {
+        // Format date
+        const date = new Date(req.date_created);
+        const formattedDate = date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+        
+        // Determine validation status
+        const validationStatus = req.validated ? 
+          '<span class="badge bg-success">Validated</span>' : 
+          '<span class="badge bg-secondary">Not Validated</span>';
+        
+        // Action buttons based on validation status
+        let actionButtons = '';
+        if (req.validated) {
+          actionButtons = `
+            <div class="action-buttons">
+              <button class="btn btn-success btn-sm" onclick="approveRequisition(${req.id})">
+                <span class="btn-spinner dark"></span>
+                <i class="fas fa-check"></i> Approve
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="declineRequisition(${req.id})">
+                <span class="btn-spinner dark"></span>
+                <i class="fas fa-times"></i> Decline
+              </button>
+            </div>
+          `;
+        } else {
+          actionButtons = `
+            <div class="action-buttons">
+              <button class="btn btn-primary btn-sm" onclick="validateRequisition(${req.id})">
+                <span class="btn-spinner"></span>
+                <i class="fas fa-shield-alt"></i> Validate
+              </button>
+              <button class="btn btn-success btn-sm" onclick="approveRequisition(${req.id})" disabled>
+                <span class="btn-spinner dark"></span>
+                <i class="fas fa-check"></i> Approve
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="declineRequisition(${req.id})">
+                <span class="btn-spinner dark"></span>
+                <i class="fas fa-times"></i> Decline
+              </button>
+            </div>
+          `;
+        }
+        
+        html += `
+          <div class="requisition-card">
+            <div class="requisition-body">
+              <div class="requisition-details">
+                <div class="requisition-meta">
+                  <strong>Requisition #${req.id}</strong>
+                  <div>
+                    ${validationStatus}
+                    <span class="badge bg-info">${req.items_count} items</span>
+                  </div>
+                </div>
+                
+                <div class="info-section">
+                  <div class="info-row">
+                    <span><i class="fas fa-user"></i> ${req.requested_by}</span>
+                    <span><i class="fas fa-building"></i> ${req.branch}</span>
+                  </div>
+                  <div class="info-row">
+                    <span><i class="fas fa-phone"></i> 09383636367</span>
+                    <span><i class="fas fa-calendar"></i> ${formattedDate}</span>
+                  </div>
+                </div>
+                
+                ${actionButtons}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
+    }
+    
+    function validateRequisition(requisitionId) {
+      // Redirect to the mobile requisition fulfillment page for validation
+      window.location.href = `/scanner/mobile-requisition-fulfillment/${requisitionId}`;
+    }
+    
+    function approveRequisition(requisitionId) {
+      updateRequisitionStatus(requisitionId, 'approve');
+    }
+    
+    function declineRequisition(requisitionId) {
+      if (confirm('Are you sure you want to decline this requisition?')) {
+        updateRequisitionStatus(requisitionId, 'decline');
+      }
+    }
+    
+    async function updateRequisitionStatus(requisitionId, action) {
+      // Get the button that was clicked
+      const buttons = document.querySelectorAll(`.action-buttons button[onclick*="${requisitionId}"]`);
+      let clickedButton = null;
+      
+      // Find the button that triggered this action
+      buttons.forEach(button => {
+        if ((action === 'approve' && button.innerHTML.includes('Approve')) ||
+            (action === 'decline' && button.innerHTML.includes('Decline'))) {
+          clickedButton = button;
+        }
+      });
+      
+      // Show spinner on the button
+      if (clickedButton) {
+        const spinner = clickedButton.querySelector('.btn-spinner');
+        const icon = clickedButton.querySelector('i');
+        const text = clickedButton.childNodes[clickedButton.childNodes.length - 1];
+        
+        if (spinner) spinner.style.display = 'inline-block';
+        if (icon) icon.style.display = 'none';
+        if (text) text.textContent = action === 'approve' ? ' Approving...' : ' Declining...';
+        clickedButton.disabled = true;
+      }
+      
+      try {
+        const response = await fetch('/scanner/api/update-requisition-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            requisition_id: requisitionId,
+            action: action
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showNotification(data.message, 'success');
+          // Reload the requisitions list
+          await loadPendingRequisitions();
+        } else {
+          showNotification('Error: ' + data.message, 'error');
+        }
+      } catch (error) {
+        console.error('Error updating requisition status:', error);
+        showNotification('Failed to update requisition status', 'error');
+      } finally {
+        // Hide spinner on the button and restore original state
+        if (clickedButton) {
+          const spinner = clickedButton.querySelector('.btn-spinner');
+          const icon = clickedButton.querySelector('i');
+          const text = clickedButton.childNodes[clickedButton.childNodes.length - 1];
+          
+          if (spinner) spinner.style.display = 'none';
+          if (icon) icon.style.display = 'inline-block';
+          if (text) text.textContent = action === 'approve' ? ' Approve' : ' Decline';
+          clickedButton.disabled = false;
+        }
+      }
+    }
+    
+    // Mode switching functions
+    function switchToScannerMode() {
+      window.location.href = '/scanner/mobile-scanner';
+    }
+    
+    function switchToAuditMode() {
+      window.location.href = '/scanner/mobile-audit';
+    }
+    
+    // Show notification function
+    function showNotification(message, type = 'info') {
+      // Remove existing notifications
+      const existingNotifications = document.querySelectorAll('.notification-toast');
+      existingNotifications.forEach(notification => notification.remove());
+      
+      const notification = document.createElement('div');
+      notification.className = `notification-toast notification-${type}`;
+      notification.innerHTML = `
+        <div class="d-flex align-items-center">
+          <div class="toast-body">${message}</div>
+          <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+      `;
+      
+      document.body.appendChild(notification);
+      
+      // Show the notification
+      setTimeout(() => {
+        notification.classList.add('show');
+      }, 100);
+      
+      // Auto hide after 5 seconds
+      setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+          if (notification.parentElement) {
+            notification.remove();
+          }
+        }, 300);
+      }, 5000);
+    }
+  </script>
+</body>
+</html>

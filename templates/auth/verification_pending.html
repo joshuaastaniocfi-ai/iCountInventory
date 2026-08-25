@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Email Verification - iCount</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
+  <link href="{{ url_for('static', filename='css/auth.css') }}" rel="stylesheet">
+  
+  <style>
+    .verification-container {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1f1f1f, #2a2a2a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    
+    .verification-card {
+      background-color: var(--card-dark);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      padding: 2rem;
+      max-width: 450px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    .verification-icon {
+      font-size: 3rem;
+      color: #4a5da7;
+      margin-bottom: 1.5rem;
+    }
+    
+    .verification-title {
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: var(--text-light);
+      margin-bottom: 1rem;
+    }
+    
+    .verification-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    
+    .email-highlight {
+      color: var(--primary-color);
+      font-weight: 600;
+    }
+    
+    .instructions-card {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      text-align: left;
+    }
+    
+    .instructions-title {
+      color: var(--primary-color);
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .instructions-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .instructions-list li {
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      padding-left: 1.5rem;
+      position: relative;
+      line-height: 1.4;
+      font-size: 0.85rem;
+    }
+    
+    .instructions-list li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--primary-color);
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    
+    .instructions-list li:last-child {
+      margin-bottom: 0;
+    }
+    
+    .resend-link {
+      color: var(--primary-color);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    
+    .resend-link:hover {
+      text-decoration: underline;
+    }
+    
+    .btn-back {
+      background-color: var(--primary-color);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-weight: 600;
+      width: 100%;
+      margin-top: 1rem;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .btn-back:hover {
+      background-color: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+    
+    @media (max-width: 576px) {
+      .verification-container {
+        padding: 1rem;
+      }
+      
+      .verification-card {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="verification-container">
+    <div class="verification-card">
+      <i class="fas fa-envelope-open verification-icon"></i>
+      <h1 class="verification-title">Check Your Email</h1>
+      <p class="verification-subtitle">
+        We've sent a verification link to <span class="email-highlight">{{ email }}</span>
+      </p>
+      
+      <div class="instructions-card">
+        <h5 class="instructions-title">
+          <i class="fas fa-info-circle"></i>
+          Next Steps
+        </h5>
+        <ul class="instructions-list">
+          <li>Check your email inbox (and spam folder)</li>
+          <li>Click the verification link in the email</li>
+          <li>You'll be redirected to login once verified</li>
+        </ul>
+      </div>
+      
+      <p class="verification-subtitle">
+        Didn't receive the email? 
+        <a href="{{ url_for('auth.resend_verification', email=email) }}" class="resend-link">
+          Resend verification link
+        </a>
+      </p>
+      
+      <a href="{{ url_for('auth.login') }}" class="btn btn-back">
+        <i class="fas fa-arrow-left"></i>
+        Back to Login
+      </a>
+    </div>
+  </div>
+
+  <!-- Bootstrap Bundle JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

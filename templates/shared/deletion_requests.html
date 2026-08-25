@@ -1,0 +1,262 @@
+{% extends 'layouts/base-sidebar.html' %}
+
+{% block title %}Deletion Requests - iCount{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+  <!-- Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-2">
+    <div>
+      <h4 class="fw-bold mb-1"><i class="fas fa-trash-alt text-danger me-2"></i>Deletion Requests</h4>
+      <p class="text-muted small mb-0">Review and approve/reject transaction deletion requests from warehouse staff</p>
+    </div>
+    <div class="d-flex gap-2">
+      <select class="form-select form-select-sm" id="statusFilter" style="min-width:130px" onchange="loadRequests()">
+        <option value="all">All Requests</option>
+        <option value="Pending" selected>Pending</option>
+        <option value="Approved">Approved</option>
+        <option value="Rejected">Rejected</option>
+      </select>
+      <button class="btn btn-sm btn-outline-primary" onclick="loadRequests()"><i class="fas fa-sync-alt"></i></button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center py-3">
+        <div class="fw-bold fs-4" id="statPending" style="color:var(--accent)">0</div>
+        <div class="text-muted small">Pending</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center py-3">
+        <div class="fw-bold fs-4 text-success" id="statApproved">0</div>
+        <div class="text-muted small">Approved</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center py-3">
+        <div class="fw-bold fs-4 text-danger" id="statRejected">0</div>
+        <div class="text-muted small">Rejected</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center py-3">
+        <div class="fw-bold fs-4 text-muted" id="statTotal">0</div>
+        <div class="text-muted small">Total</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Desktop Table -->
+  <div class="card border-0 shadow-sm d-none d-md-block">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" id="reqTable">
+        <thead>
+          <tr>
+            <th style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">Requested</th>
+            <th style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">Product</th>
+            <th style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">Type</th>
+            <th class="text-end" style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">Qty In</th>
+            <th class="text-end" style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">Qty Out</th>
+            <th class="text-end" style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">Net Change</th>
+            <th style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">Reason</th>
+            <th style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">Requested By</th>
+            <th style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">Status</th>
+            <th class="text-center" style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em">Action</th>
+          </tr>
+        </thead>
+        <tbody id="reqTableBody">
+          <tr><td colspan="10" class="text-center text-muted py-4">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Mobile Cards -->
+  <div class="d-md-none" id="reqCards"></div>
+</div>
+
+<!-- Review Modal -->
+<div class="modal fade" id="reviewModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h6 class="modal-title fw-bold" id="reviewModalTitle">Review Deletion Request</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="reviewInfo" class="mb-3"></div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Remarks (optional)</label>
+          <textarea class="form-control" id="reviewRemarks" rows="2" placeholder="Add a note..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="rejectBtn" onclick="reviewDecision('reject')">
+          <i class="fas fa-times me-1"></i>Reject
+        </button>
+        <button type="button" class="btn btn-success" id="approveBtn" onclick="reviewDecision('approve')">
+          <i class="fas fa-check me-1"></i>Approve
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+#reqTable thead th { font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 2px solid var(--border); white-space: nowrap; background: var(--table-header-bg, #f3f4f6); color: var(--text-primary); }
+html.dark-mode #reqTable thead th { color: #fff !important; background: rgba(255,255,255,0.08) !important; border-bottom-color: rgba(255,255,255,0.12) !important; }
+html.dark-mode #reqTable tbody td { color: #fff !important; }
+html.dark-mode #reqTable tbody tr:hover { background: rgba(255,255,255,0.05) !important; }
+html.dark-mode .modal-content { background: #1e293b !important; }
+html.dark-mode #reviewInfo { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); color: #fff; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', loadRequests);
+
+let _reviewId = null;
+
+function loadRequests() {
+  const status = document.getElementById('statusFilter').value;
+  fetch('/products/api/deletion_requests?status=' + status)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) return;
+      updateStats(data.rows);
+      renderDesktop(data.rows);
+      renderMobile(data.rows);
+    });
+}
+
+function updateStats(rows) {
+  const pending = rows.filter(r => r.status === 'Pending').length;
+  const approved = rows.filter(r => r.status === 'Approved').length;
+  const rejected = rows.filter(r => r.status === 'Rejected').length;
+  document.getElementById('statPending').textContent = pending;
+  document.getElementById('statApproved').textContent = approved;
+  document.getElementById('statRejected').textContent = rejected;
+  document.getElementById('statTotal').textContent = rows.length;
+}
+
+function renderDesktop(rows) {
+  const tbody = document.getElementById('reqTableBody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">No requests found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const badge = r.status === 'Pending' ? 'bg-warning text-dark' :
+                  r.status === 'Approved' ? 'bg-success' : 'bg-danger';
+    const netClass = r.net_change >= 0 ? 'text-success' : 'text-danger';
+    const sign = r.net_change >= 0 ? '+' : '';
+    const actionBtn = r.status === 'Pending'
+      ? `<button class="btn btn-sm btn-outline-primary" onclick='openReview(${JSON.stringify(r)})'><i class="fas fa-gavel me-1"></i>Review</button>`
+      : `<small class="text-muted">${esc(r.reviewed_by || '')}<br>${esc(r.reviewed_at || '')}</small>`;
+    return `<tr>
+      <td class="small">${r.requested_at}</td>
+      <td class="fw-semibold">${esc(r.product_name)}</td>
+      <td><span class="badge ${r.trxn_code === 'TRANS IN' ? 'bg-success' : 'bg-danger'}">${r.trxn_code}</span></td>
+      <td class="text-end">${r.quantity_in > 0 ? r.quantity_in : '<span class="text-muted">-</span>'}</td>
+      <td class="text-end">${r.quantity_out > 0 ? r.quantity_out : '<span class="text-muted">-</span>'}</td>
+      <td class="text-end fw-bold ${netClass}">${sign}${r.net_change}</td>
+      <td class="small" style="max-width:200px">${esc(r.reason)}</td>
+      <td class="small">${esc(r.requested_by)}</td>
+      <td><span class="badge ${badge}">${r.status}</span></td>
+      <td class="text-center">${actionBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderMobile(rows) {
+  const c = document.getElementById('reqCards');
+  if (!rows.length) {
+    c.innerHTML = '<div class="text-center text-muted py-5"><i class="fas fa-trash-alt fa-2x mb-2 opacity-50"></i><p class="mb-0">No requests found</p></div>';
+    return;
+  }
+  c.innerHTML = rows.map(r => {
+    const badge = r.status === 'Pending' ? 'bg-warning text-dark' :
+                  r.status === 'Approved' ? 'bg-success' : 'bg-danger';
+    const sign = r.net_change >= 0 ? '+' : '';
+    const actionBtn = r.status === 'Pending'
+      ? `<button class="btn btn-sm btn-primary mt-2 w-100" onclick='openReview(${JSON.stringify(r)})'><i class="fas fa-gavel me-1"></i>Review Request</button>`
+      : `<div class="small text-muted mt-2">Reviewed by ${esc(r.reviewed_by || '')} on ${esc(r.reviewed_at || '')}</div>`;
+    return `<div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div class="fw-semibold">${esc(r.product_name)}</div>
+          <span class="badge ${badge}">${r.status}</span>
+        </div>
+        <div class="small mb-1">
+          <span class="badge ${r.trxn_code === 'TRANS IN' ? 'bg-success' : 'bg-danger'}">${r.trxn_code}</span>
+          <span class="ms-2">Net: <strong class="${r.net_change >= 0 ? 'text-success' : 'text-danger'}">${sign}${r.net_change}</strong></span>
+        </div>
+        <div class="small text-muted mb-1"><strong>Reason:</strong> ${esc(r.reason)}</div>
+        <div class="small text-muted mb-1">By ${esc(r.requested_by)} &middot; ${r.requested_at}</div>
+        ${actionBtn}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openReview(row) {
+  _reviewId = row.id;
+  const sign = row.net_change >= 0 ? '+' : '';
+  document.getElementById('reviewModalTitle').textContent = 'Review: ' + row.trxn_code + ' — ' + row.product_name;
+  document.getElementById('reviewInfo').innerHTML =
+    '<div class="p-3 rounded" style="background:var(--bg,#f8f9fa)">' +
+    '<div class="mb-1"><strong>Product:</strong> ' + esc(row.product_name) + '</div>' +
+    '<div class="mb-1"><strong>Type:</strong> <span class="badge ' + (row.trxn_code === 'TRANS IN' ? 'bg-success' : 'bg-danger') + '">' + row.trxn_code + '</span></div>' +
+    '<div class="mb-1"><strong>Qty In:</strong> ' + (row.quantity_in || '-') + ' &nbsp; <strong>Qty Out:</strong> ' + (row.quantity_out || '-') + '</div>' +
+    '<div class="mb-1"><strong>Net Change:</strong> <span class="' + (row.net_change >= 0 ? 'text-success' : 'text-danger') + ' fw-bold">' + sign + row.net_change + '</span></div>' +
+    '<div class="mb-1"><strong>Reason:</strong> ' + esc(row.reason) + '</div>' +
+    '<div><strong>Requested by:</strong> ' + esc(row.requested_by) + ' on ' + esc(row.requested_at) + '</div>' +
+    '</div>';
+  document.getElementById('reviewRemarks').value = '';
+  new bootstrap.Modal(document.getElementById('reviewModal')).show();
+}
+
+function reviewDecision(action) {
+  if (!_reviewId) return;
+  const remarks = document.getElementById('reviewRemarks').value.trim();
+  const url = action === 'approve'
+    ? '/products/api/deletion_requests/' + _reviewId + '/approve'
+    : '/products/api/deletion_requests/' + _reviewId + '/reject';
+
+  const btn = action === 'approve' ? document.getElementById('approveBtn') : document.getElementById('rejectBtn');
+  btn.disabled = true;
+
+  fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({remarks: remarks})
+  })
+  .then(r => r.json())
+  .then(data => {
+    bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
+    if (data.success) {
+      showToast(data.message, 'success');
+      loadRequests();
+    } else {
+      showToast(data.message || 'Error', 'danger');
+    }
+  })
+  .catch(() => showToast('Network error', 'danger'))
+  .finally(() => { btn.disabled = false; });
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+function showToast(msg, type) {
+  const c = document.createElement('div');
+  c.className = 'position-fixed top-0 end-0 p-3';
+  c.style.zIndex = '9999';
+  c.innerHTML = '<div class="alert alert-' + type + ' shadow-sm mb-0">' + msg + '</div>';
+  document.body.appendChild(c);
+  setTimeout(() => c.remove(), 4000);
+}
+</script>
+{% endblock %}

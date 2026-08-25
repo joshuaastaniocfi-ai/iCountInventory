@@ -1,0 +1,65 @@
+This is my project proposal, i want you to create the days i spent
+to create this system and rate per day. Also enhance my project
+propodsal to be clear.
+
+
+PROPOSAL TO IMPLEMENT ICOUNT MODERN INVENTORY MANAGEMENT SYSTEM
+
+Prepared By:
+Ma Lucy L. Opalia
+Cluster Manager
+CHITS
+Sept 01, 2025
+
+1. Proposal Summary
+	
+The proposal seeks approval for the adoption and implementation of an iCount Inventory System to improve inventory accuracy, streamline operations, and enhance data visibility across the supply chain. The system will address the current challenges of manual tracking stock discrepancies in inventory control.
+
+2. Objectives
+
+•	Automate stock monitoring and reduce human error
+•	Provide real-time data on inventory levels, movement, and location
+•	Improved purchasing and reordering processes
+•	Implement multi-tenant/branch support
+•	Generate accurate inventory and financial support
+
+3. Current Challenges
+
+•	Manual tracking leads to errors and inefficiencies
+•	Lack of real-time visibility across locations
+•	No proper audit trail for compliance
+•	Difficulty managing expiration dates and supplier information
+•	Time-consuming reporting and reconciliation processes
+•	Inefficient requisition and approval workflows
+
+4. Our Solution
+
+•	Real-time inventory tracking across multiple locations
+•	Automated audit trails and compliance reporting
+•	Mobile-friendly interface for on-the-go management
+•	Advanced expiration date and supplier tracking
+•	Streamlined requisition and approval workflows
+
+5. Proposed Solution
+
+	We proposed iCount Inventory Management System – a digital platform designed to monitor, manage, and optimize warehouse inventory system operation. This system will do;
+
+	Product Management: Barcode scanning, UOM tracking, and low stock alert.
+	Stock Auditing: Regular inventory checks with discrepancy resolution
+	Multi-Location Support: Manage multiple branches with centralized control
+	Batch Tracking: FIFO/LIFO methods with expiration date management
+	Supplier Management: Track supplier information and purchase history
+	Email Notifications: Automated alerts and confirmations
+	Requisition System: Streamlined request and approval workflows
+
+
+
+
+
+6. Benefits
+
+ 	Efficiency - reduces time on manual counts and reconciliation
+ 	Accuracy - Minimizes data entry errors
+ 	Cost Saving - Prevents inventory waste and unnecessary purchases
+ 	Scalability - Supports business growth with more branch locations available to manage
+ 	Control - Offers different controls for each roles in the company

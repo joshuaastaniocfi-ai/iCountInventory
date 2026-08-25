@@ -1,0 +1,463 @@
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}Batch Audit Pending List - iCount{% endblock %}
+
+{% block content %}
+<style>
+  /* Product name header styles */
+  .product-name-header {
+    background-color: var(--light-bg);
+    font-weight: bold;
+    padding: 0.5rem; /* Reduced padding */
+    border-bottom: 1px solid var(--border);
+    margin: 0; /* Removed margin top and bottom */
+    font-size: 0.9rem; /* Smaller font size */
+  }
+  
+  /* Product table styles */
+  .product-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-size: 0.85rem; /* Smaller font size for table */
+    table-layout: fixed; /* Fixed table layout for better control */
+    margin-bottom: 1rem;
+  }
+  
+  .product-table th,
+  .product-table td {
+    padding: 0.5rem; /* Reduced padding */
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap; /* Prevent text wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .product-table th {
+    background-color: var(--light-bg);
+    font-weight: 600;
+    text-align: center;
+    font-size: 0.9rem; /* Smaller header font size */
+  }
+  
+  /* Adjust column widths for better fit to match mobile design */
+  .product-table th:nth-child(1),
+  .product-table td:nth-child(1) { width: 10%; } /* # column */
+  .product-table th:nth-child(2),
+  .product-table td:nth-child(2) { width: 25%; } /* Exp Date column */
+  .product-table th:nth-child(3),
+  .product-table td:nth-child(3) { width: 20%; } /* System Qty column */
+  .product-table th:nth-child(4),
+  .product-table td:nth-child(4) { width: 20%; } /* Actual Qty column */
+  .product-table th:nth-child(5),
+  .product-table td:nth-child(5) { width: 25%; } /* Discrepancy column */
+  .product-table th:nth-child(6),
+  .product-table td:nth-child(6) { width: 30%; } /* Batch Barcode column */
+  
+  /* Discrepancy cell styling - using pill style to match mobile design */
+  .discrepancy-cell {
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.85rem;
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 1rem; /* Pill shape */
+    min-width: 80px; /* Minimum width for consistent pill size */
+  }
+  
+  .discrepancy-cell.positive {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+  }
+  
+  .discrepancy-cell.negative {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+  }
+  
+  .discrepancy-cell.zero {
+    background-color: #fff3cd;
+    color: #664d03;
+    border: 1px solid #ffe69c;
+  }
+  
+:where(.dark-mode) .discrepancy-cell.positive {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+:where(.dark-mode) .discrepancy-cell.negative {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+:where(.dark-mode) .discrepancy-cell.zero {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+:where(.dark-mode) .status-pending {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+}
+:where(.dark-mode) .status-settled {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+}
+  
+  /* Batch group header */
+  .batch-group-header {
+    background-color: var(--light-bg);
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+    font-weight: bold;
+  }
+  
+  /* Back button style */
+  .back-btn {
+    margin-bottom: 1rem;
+  }
+  
+  /* Modal Styles - Fix for proper z-index layering */
+  .modal {
+    /* Above header (1100) and backdrop */
+    z-index: 1205 !important;
+  }
+
+  .modal-backdrop {
+    /* Below modal content, above header */
+    z-index: 1200 !important;
+  }
+  
+  /* Make modal width more compact */
+  .modal-dialog {
+    max-width: 800px;
+    margin: 1.75rem auto;
+  }
+
+  .modal-content {
+    max-height: calc(100vh - 3.5rem);
+  }
+
+  .modal-body {
+    overflow-y: auto;
+    padding: 1rem;
+  }
+  
+  /* Stats cards in modal */
+  .stat-card {
+    min-width: 100px;
+  }
+  
+  /* Modal header styling */
+  .modal-header {
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+  }
+  
+  .modal-footer {
+    border-top: 1px solid rgba(0,0,0,0.1);
+  }
+  
+  /* Modal header info */
+  .modal-header-info {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+  
+  .modal-header-info span {
+    margin-right: 1rem;
+  }
+</style>
+
+<div class="container-fluid px-4">
+  <!-- Page Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-4 gap-3">
+    <div>
+      <div class="d-flex align-items-center mb-2">
+        <div class="feature-icon d-inline-flex align-items-center justify-content-center text-bg-primary bg-gradient fs-4 rounded-3 me-3" style="width: 48px; height: 48px;">
+          <i class="fas fa-list"></i>
+        </div>
+        <div>
+          <h4 class="fw-bold mb-1" style="background: linear-gradient(45deg, #0d6efd, #0a58ca); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            Batch Audit Pending List
+          </h4>
+          <p class="text-muted mb-0">
+            List of pending batch audits grouped by submission
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Back Button -->
+  <div class="back-btn">
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-primary">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+  </div>
+
+  <!-- Pending List -->
+  <div id="pending-list-section">
+    <h5><i class="fas fa-clock"></i> Pending Audit Groups</h5>
+    {% if batch_summary %}
+      {% for session in batch_summary %}
+        <div class="batch-group mb-4">
+          <div class="batch-group-header">
+            <div class="d-flex justify-content-between align-items-center">
+              <span>{{ session.batch_label }}</span>
+              <div>
+                <span class="badge bg-primary me-2">{{ session.total_audits }} items</span>
+                <button class="btn btn-outline-primary btn-sm" onclick="showAuditDetails('{{ session.batch_label }}')">
+                  <i class="fas fa-eye"></i> View
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+      
+      <!-- Pagination -->
+      {% if pagination.pages > 1 %}
+        <nav aria-label="Audit sessions pages" class="mt-4">
+          <ul class="pagination justify-content-center">
+            <!-- Previous Page -->
+            <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+              <a class="page-link" href="{{ url_for('api.batch_audit_pending', page=pagination.prev_num) if pagination.has_prev else '#' }}" tabindex="-1">
+                <i class="fas fa-chevron-left"></i>
+              </a>
+            </li>
+
+            <!-- First Page -->
+            {% if pagination.page > 2 %}
+              <li class="page-item">
+                <a class="page-link" href="{{ url_for('api.batch_audit_pending', page=1) }}">1</a>
+              </li>
+              {% if pagination.page > 3 %}
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              {% endif %}
+            {% endif %}
+
+            <!-- Page Numbers -->
+            {% set start = [1, pagination.page - 1]|max %}
+            {% set end = [pagination.pages + 1, pagination.page + 2]|min %}
+            {% for page_num in range(start, end) %}
+              <li class="page-item {{ 'active' if page_num == pagination.page }}">
+                <a class="page-link" href="{{ url_for('api.batch_audit_pending', page=page_num) }}">{{ page_num }}</a>
+              </li>
+            {% endfor %}
+
+            <!-- Last Page -->
+            {% if pagination.page < pagination.pages - 1 %}
+              {% if pagination.page < pagination.pages - 2 %}
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              {% endif %}
+              <li class="page-item">
+                <a class="page-link" href="{{ url_for('api.batch_audit_pending', page=pagination.pages) }}">{{ pagination.pages }}</a>
+              </li>
+            {% endif %}
+
+            <!-- Next Page -->
+            <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+              <a class="page-link" href="{{ url_for('api.batch_audit_pending', page=pagination.next_num) if pagination.has_next else '#' }}">
+                <i class="fas fa-chevron-right"></i>
+              </a>
+            </li>
+          </ul>
+        </nav>
+      {% endif %}
+    {% else %}
+      <div class="text-center py-5">
+        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+        <h5>No pending batch audits</h5>
+        <p class="text-muted">All batch audits have been processed.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal for Audit Details -->
+<div class="modal fade" id="auditDetailsModal" tabindex="-1" aria-labelledby="auditDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="auditDetailsModalLabel">Audit Details</h5>
+          <div class="modal-header-info">
+            <span id="modalVerifiedBy">Verified by: </span>
+            <span id="modalTimestamp">Timestamp: </span>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-content-between align-items-start mb-4 gap-3">
+          <div>
+            <h4 class="fw-bold mb-1" id="modalBatchLabel">Audit Session: </h4>
+            <p class="text-muted mb-0">Review and manage audit details for this session</p>
+          </div>
+          
+          <!-- Quick Stats for Selected Session -->
+          <div class="d-flex gap-2">
+            <div class="stat-card bg-success-subtle border-success p-2 rounded-2">
+              <div class="d-flex align-items-center gap-2">
+                <div class="stat-icon bg-success rounded-circle p-1">
+                  <i class="fas fa-arrow-up text-white small"></i>
+                </div>
+                <div>
+                  <div class="fw-bold text-success h6 mb-0" id="positiveCount">0</div>
+                  <div class="small text-success-emphasis">Over</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card bg-danger-subtle border-danger p-2 rounded-2">
+              <div class="d-flex align-items-center gap-2">
+                <div class="stat-icon bg-danger rounded-circle p-1">
+                  <i class="fas fa-arrow-down text-white small"></i>
+                </div>
+                <div>
+                  <div class="fw-bold text-danger h6 mb-0" id="negativeCount">0</div>
+                  <div class="small text-danger-emphasis">Short</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card bg-info-subtle border-info p-2 rounded-2">
+              <div class="d-flex align-items-center gap-2">
+                <div class="stat-icon bg-info rounded-circle p-1">
+                  <i class="fas fa-equals text-white small"></i>
+                </div>
+                <div>
+                  <div class="fw-bold text-info h6 mb-0" id="matchedCount">0</div>
+                  <div class="small text-info-emphasis">Matched</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Audit List Container -->
+        <div id="modalAuditList">
+          <!-- Audit details will be loaded here via AJAX -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+        <form method="POST" action="{{ url_for('api.settle_batch_audit_pending', batch_label='PLACEHOLDER') }}" 
+              class="d-inline" id="settleForm" onsubmit="return confirmSettle();">
+          <button type="submit" class="btn btn-success" id="settleButton">
+            <i class="fas fa-check-circle"></i> Settle
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Store current batch label for settle action
+  let currentBatchLabel = '';
+  let currentAudits = [];
+  
+  // Function to settle the audit (static for now)
+  function settleAudit() {
+    alert('Audit settled for batch: ' + currentBatchLabel + '. This is a static implementation for now.');
+    // Close the modal
+    bootstrap.Modal.getInstance(document.getElementById('auditDetailsModal')).hide();
+  }
+  
+  // Updated function to handle settle action
+  function confirmSettle() {
+    if (confirm('⚠️ Are you sure you want to settle all discrepancies for this batch?\\n\\n' +
+                'This will:\\n' +
+                '• Update product quantities to match actual audit quantities\\n' +
+                '• Add excess quantities to batches with quantity > 0 and earliest expiry (FEFO)\\n' +
+                '• Remove shortage quantities from batches according to FEFO\\n' +
+                '• Update product initial quantities to match current quantities\\n' +
+                '• Create transaction history records for all adjustments\\n' +
+                '• Mark all audits in this batch as settled\\n\\n' +
+                'This action cannot be undone!')) {
+      // Update the form action with the current batch label
+      const form = document.getElementById('settleForm');
+      form.action = form.action.replace('PLACEHOLDER', encodeURIComponent(currentBatchLabel));
+      return true;
+    }
+    return false;
+  }
+  
+  // Function to show audit details in modal
+  function showAuditDetails(batchLabel) {
+    // Store the batch label for settle action
+    currentBatchLabel = batchLabel;
+    
+    // Set the batch label in the modal header
+    document.getElementById('modalBatchLabel').textContent = 'Audit Session: ' + batchLabel;
+    
+    // Show loading state
+    document.getElementById('modalAuditList').innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+    
+    // Show the modal
+    var modal = new bootstrap.Modal(document.getElementById('auditDetailsModal'));
+    modal.show();
+    
+    // Fetch audit details via AJAX
+    fetch('/api/batch_audit_pending_details/' + encodeURIComponent(batchLabel), {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+      .then(response => response.text())
+      .then(html => {
+        // Parse the HTML response to extract the audit table content and metadata
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Extract the audit list section
+        const auditListSection = doc.querySelector('#pending-list-section');
+        if (auditListSection) {
+          document.getElementById('modalAuditList').innerHTML = auditListSection.innerHTML;
+          
+          // Update stats
+          const positiveCount = doc.getElementById('positiveCount')?.textContent || '0';
+          const negativeCount = doc.getElementById('negativeCount')?.textContent || '0';
+          const matchedCount = doc.getElementById('matchedCount')?.textContent || '0';
+          
+          document.getElementById('positiveCount').textContent = positiveCount;
+          document.getElementById('negativeCount').textContent = negativeCount;
+          document.getElementById('matchedCount').textContent = matchedCount;
+          
+          // Update verified by and timestamp in modal header
+          const verifiedBy = doc.getElementById('verifiedBy')?.textContent || '';
+          const auditTimestamp = doc.getElementById('auditTimestamp')?.textContent || '';
+          
+          document.getElementById('modalVerifiedBy').textContent = 'Verified by: ' + verifiedBy;
+          document.getElementById('modalTimestamp').textContent = 'Timestamp: ' + auditTimestamp;
+          
+          // Update the settle form action with the current batch label
+          const form = document.getElementById('settleForm');
+          if (form) {
+            form.action = form.action.replace('PLACEHOLDER', encodeURIComponent(currentBatchLabel));
+          }
+        } else {
+          document.getElementById('modalAuditList').innerHTML = '<p>Error loading audit details.</p>';
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('modalAuditList').innerHTML = '<p>Error loading audit details.</p>';
+      });
+  }
+</script>
+{% endblock %}

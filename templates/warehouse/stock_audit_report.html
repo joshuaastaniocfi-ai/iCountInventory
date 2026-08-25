@@ -1,0 +1,912 @@
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}Audit Report - iCount{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+<!-- Page Header -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-4 gap-3">
+  <div>
+    <div class="d-flex align-items-center mb-2">
+      <div class="feature-icon d-inline-flex align-items-center justify-content-center text-bg-primary bg-gradient fs-4 rounded-3 me-3" style="width: 48px; height: 48px;">
+        <i class="fas fa-clipboard-list"></i>
+      </div>
+      <div>
+        <h4 class="fw-bold mb-1" style="background: linear-gradient(45deg, var(--accent), var(--accent-hover)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+          {% if selected_batch %}Audit Session: {{ selected_batch }}{% else %}Stock Audit Reports{% endif %}
+        </h4>
+        <p class="text-muted mb-0">
+          {% if selected_batch %}Review and manage audit details for this session{% else %}Review and manage audit sessions{% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+  
+  {% if selected_batch and audits %}
+  <!-- Quick Stats for Selected Session -->
+  <div class="d-flex gap-2">
+    {% set positive_count = audits|selectattr('discrepancy', 'gt', 0)|list|length %}
+    {% set negative_count = audits|selectattr('discrepancy', 'lt', 0)|list|length %}
+    {% set matched_count = audits|selectattr('discrepancy', 'eq', 0)|list|length %}
+    {% set total_count = audits|length %}
+    
+    <div class="stat-card bg-success-subtle border-success p-2 rounded-2">
+      <div class="d-flex align-items-center gap-2">
+        <div class="stat-icon bg-success rounded-circle p-1">
+          <i class="fas fa-arrow-up text-white small"></i>
+        </div>
+        <div>
+          <div class="fw-bold text-success h6 mb-0">{{ positive_count }}</div>
+          <div class="small text-success-emphasis">Over</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-card bg-danger-subtle border-danger p-2 rounded-2">
+      <div class="d-flex align-items-center gap-2">
+        <div class="stat-icon bg-danger rounded-circle p-1">
+          <i class="fas fa-arrow-down text-white small"></i>
+        </div>
+        <div>
+          <div class="fw-bold text-danger h6 mb-0">{{ negative_count }}</div>
+          <div class="small text-danger-emphasis">Short</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-card bg-info-subtle border-info p-2 rounded-2">
+      <div class="d-flex align-items-center gap-2">
+        <div class="stat-icon bg-info rounded-circle p-1">
+          <i class="fas fa-equals text-white small"></i>
+        </div>
+        <div>
+          <div class="fw-bold text-info h6 mb-0">{{ matched_count }}</div>
+          <div class="small text-info-emphasis">Matched</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% if not selected_batch %}
+<!-- Filters -->
+<div class="card filter-card shadow-sm border mb-4">
+  <div class="card-body">
+    <form class="row g-3 align-items-end" method="get" action="">
+      <div class="col-md-4">
+        <div class="input-group">
+          <span class="input-group-text bg-transparent border">
+            <i class="fas fa-calendar text-muted"></i>
+          </span>
+          <input type="date" name="start_date" id="start_date" class="form-control filter-input border" 
+                 value="{{ request.args.get('start_date', '') }}">
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="input-group">
+          <span class="input-group-text bg-transparent border">
+            <i class="fas fa-calendar text-muted"></i>
+          </span>
+          <input type="date" name="end_date" id="end_date" class="form-control filter-input border" 
+                 value="{{ request.args.get('end_date', '') }}">
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <select name="status" class="form-select filter-input border">
+          <option value="">All Status</option>
+          <option value="settled" {{ 'selected' if status_filter == 'settled' }}>Settled</option>
+          <option value="pending" {{ 'selected' if status_filter == 'pending' }}>Pending</option>
+        </select>
+      </div>
+
+      <div class="col-md-2 d-flex justify-content-end gap-2">
+        <button type="submit" class="btn btn-primary" title="Filter" onclick="return filterSessions();">
+          <i class="fas fa-filter"></i>
+        </button>
+        <a href="{{ url_for('api.stock_audit_report') }}" class="btn btn-primary" title="Reset">
+          <i class="fas fa-undo-alt me-1"></i>Reset
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Audit Sessions List -->
+  <div class="card">
+    <div class="card-header border-0 bg-dark text-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+          <i class="fas fa-list text-light me-2"></i>Audit Sessions
+        </h5>
+        <div class="d-flex align-items-center gap-3">
+          <span class="badge bg-secondary">
+            {% if pagination.pages > 1 %}
+              Page {{ pagination.page }} of {{ pagination.pages }}
+            {% else %}
+              {{ batch_summary|length }} sessions
+            {% endif %}
+          </span>
+          {% if current_user.role == 'SYS-Admin' %}
+          <div class="d-flex align-items-center gap-2" id="deleteActions" style="display: none;">
+            <button type="button" class="btn btn-danger btn-sm" id="deleteAuditSessionsBtn">
+              <i class="fas fa-trash me-1"></i>Delete
+            </button>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  <div class="card-body p-0">
+    {% if batch_summary %}
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr class="bg-subtle">
+              <th class="border-0 py-3 px-4 fw-semibold">Session ID</th>
+              <th class="border-0 py-3 px-4 fw-semibold">Date & Time</th>
+              <th class="border-0 py-3 px-4 fw-semibold text-center">Total</th>
+              <th class="border-0 py-3 px-4 fw-semibold text-center">Over</th>
+              <th class="border-0 py-3 px-4 fw-semibold text-center">Short</th>
+              <th class="border-0 py-3 px-4 fw-semibold text-center">Matched</th>
+              <th class="border-0 py-3 px-4 fw-semibold text-center">Status</th>
+              <th class="border-0 py-3 px-4 fw-semibold text-center">Actions</th>
+              {% if current_user.role == 'SYS-Admin' %}
+              <th class="border-0 py-3 px-4 fw-semibold text-muted text-center">
+                <div class="form-check d-flex justify-content-center">
+                  <input class="form-check-input" type="checkbox" id="selectAllCheckbox" title="Select All">
+                </div>
+              </th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for session in batch_summary %}
+              <tr>
+                <td class="px-4 py-3">
+                  <span class="fw-semibold">{{ session.batch_label }}</span>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="d-flex flex-column">
+                    <span class="fw-medium">
+                      {{ session.latest_ts.strftime("%b %d, %Y") if session.latest_ts else 'N/A' }}
+                    </span>
+                    <small class="text-muted">
+                      {{ session.latest_ts.strftime("%I:%M %p") if session.latest_ts else '' }}
+                    </small>
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <span class="fw-semibold">{{ session.total_audits }}</span>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <div class="d-flex align-items-center justify-content-center gap-1">
+                    <i class="fas fa-arrow-up text-success"></i>
+                    <span class="text-success fw-semibold">{{ session.over_count or 0 }}</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <div class="d-flex align-items-center justify-content-center gap-1">
+                    <i class="fas fa-arrow-down text-danger"></i>
+                    <span class="text-danger fw-semibold">{{ session.short_count or 0 }}</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <div class="d-flex align-items-center justify-content-center gap-1">
+                    <i class="fas fa-equals text-info"></i>
+                    <span class="text-info fw-semibold">{{ session.matched_count or 0 }}</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  {% if session.settled_count == session.total_audits %}
+                    <span class="badge bg-success rounded-pill px-3 py-2">Settled</span>
+                  {% else %}
+                    <span class="badge bg-warning rounded-pill px-3 py-2">Pending</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <a href="{{ url_for('api.stock_audit_report', batch=session.batch_label) }}" 
+                     class="btn btn-primary btn-sm">
+                    <i class="fas fa-eye me-1"></i>View
+                  </a>
+                </td>
+                {% if current_user.role == 'SYS-Admin' %}
+                <td class="px-4 py-3 text-center">
+                  <div class="form-check d-flex justify-content-center">
+                    <input class="form-check-input audit-checkbox" type="checkbox" value="{{ session.batch_label }}" id="audit_{{ session.batch_label }}">
+                  </div>
+                </td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Pagination -->
+      {% if pagination.pages > 1 %}
+        <nav aria-label="Audit sessions pages" class="mt-4">
+          <ul class="pagination justify-content-center">
+            <!-- Previous Page -->
+            <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+              <a class="page-link" href="{{ url_for('api.stock_audit_report', page=pagination.prev_num, **current_filters) if pagination.has_prev else '#' }}" tabindex="-1">
+                <i class="fas fa-chevron-left"></i>
+              </a>
+            </li>
+
+            <!-- First Page -->
+            {% if pagination.page > 2 %}
+              <li class="page-item">
+                <a class="page-link" href="{{ url_for('api.stock_audit_report', page=1, **current_filters) }}">1</a>
+              </li>
+              {% if pagination.page > 3 %}
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              {% endif %}
+            {% endif %}
+
+            <!-- Page Numbers -->
+            {% set start = [1, pagination.page - 1]|max %}
+            {% set end = [pagination.pages + 1, pagination.page + 2]|min %}
+            {% for page_num in range(start, end) %}
+              <li class="page-item {{ 'active' if page_num == pagination.page }}">
+                <a class="page-link" href="{{ url_for('api.stock_audit_report', page=page_num, **current_filters) }}">{{ page_num }}</a>
+              </li>
+            {% endfor %}
+
+            <!-- Last Page -->
+            {% if pagination.page < pagination.pages - 1 %}
+              {% if pagination.page < pagination.pages - 2 %}
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              {% endif %}
+              <li class="page-item">
+                <a class="page-link" href="{{ url_for('api.stock_audit_report', page=pagination.pages, **current_filters) }}">{{ pagination.pages }}</a>
+              </li>
+            {% endif %}
+
+            <!-- Next Page -->
+            <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+              <a class="page-link" href="{{ url_for('api.stock_audit_report', page=pagination.next_num, **current_filters) if pagination.has_next else '#' }}">
+                <i class="fas fa-chevron-right"></i>
+              </a>
+            </li>
+          </ul>
+        </nav>
+      {% endif %}
+    {% else %}
+      <div class="text-center py-5">
+        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+        <h5 class="fw-medium mb-2">No Audit Sessions Found</h5>
+        <p class="text-muted mb-4">There are no audit records yet. Start by creating your first audit session.</p>
+        <a href="{{ url_for('api.stock_audit') }}" class="btn btn-primary">
+          <i class="fas fa-plus me-2"></i>Start New Audit
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% else %}
+  <!-- Session Actions -->
+<div class="card border mb-4">
+  <div class="card-body">
+    <div class="row g-3 align-items-center">
+      <div class="col-md-6">
+        <div class="input-group">
+          <span class="input-group-text bg-transparent border">
+            <i class="fas fa-search text-muted"></i>
+          </span>
+          <input type="text" id="searchBox" class="form-control border" 
+                 placeholder="Search products..." value="">
+        </div>
+      </div>
+      <div class="col-md-6 d-flex justify-content-end gap-2">
+        {% if audits %}
+          <a href="{{ url_for('api.stock_audit_report') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Back
+          </a>
+
+          <a href="{{ url_for('api.export_audit_csv', batch=selected_batch) }}" 
+             class="btn btn-success"
+             onclick="exportCSV(); return false;"
+             title="Export current session to CSV&#10;• Full product details with verification info&#10;• Filename: Audit_Report_[Month]_[Day]_[Year].csv">
+            <i class="fas fa-file-export me-1"></i>Export CSV
+          </a>
+          <form method="POST" action="{{ url_for('api.settle_discrepancy', batch=selected_batch) }}" 
+                class="d-inline" onsubmit="return confirmSettle();">
+            <button type="submit" class="btn btn-warning" 
+                    {% if is_settled or current_user.role == 'WH-Admin' %}disabled{% endif %}
+                    {% if current_user.role == 'WH-Admin' %}title="Only sys-admin can settle discrepancies"{% endif %}>
+              <i class="fas fa-check-circle me-2"></i>Settle
+            </button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+  {% if audits %}
+  <!-- Audit Table -->
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" id="auditTable">
+        <thead
+          <tr>
+            <th class="fw-semibold">Product Info</th>
+            <th class="text-center fw-semibold">System Qty</th>
+            <th class="text-center fw-semibold">Actual Qty</th>
+            <th class="text-center fw-semibold">Discrepancy</th>
+            <th class="fw-semibold">Audit Info</th>
+
+          </tr>
+        </thead>
+        <tbody>
+          {% for audit in audits %}
+            <tr class="audit-row">
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="product-info">
+                    <h6 class="mb-0">{{ audit.product.name }}</h6>
+                    <small class="text-muted d-block">{{ audit.product.barcode }}</small>
+                  </div>
+                </td>
+                <td class="text-center">
+                  <span class="fw-semibold">{{ audit.recorded_quantity }}</span>
+                  <small class="text-muted d-block">{{ audit.product.uom }}</small>
+                </td>
+                <td class="text-center">
+                  <span class="fw-semibold">{{ audit.actual_quantity }}</span>
+                  <small class="text-muted d-block">{{ audit.product.uom }}</small>
+                </td>
+                <td class="text-center">
+                  {% if audit.discrepancy > 0 %}
+                    <span class="badge bg-success">+{{ audit.discrepancy }}</span>
+                    <small class="text-success d-block">Over</small>
+                  {% elif audit.discrepancy < 0 %}
+                    <span class="badge bg-danger">{{ audit.discrepancy }}</span>
+                    <small class="text-danger d-block">Short</small>
+                  {% else %}
+                    <span class="badge bg-info">0</span>
+                    <small class="text-info d-block">Matched</small>
+                  {% endif %}
+                </td>
+                <td>
+                  <div>
+                    <div class="fw-semibold">{{ audit.verified_by }}</div>
+                    <small class="text-muted">
+                      <i class="fas fa-clock me-1"></i>
+                      {{ audit.timestamp.strftime("%Y-%m-%d %H:%M") }}
+                    </small>
+                  </div>
+                </td>
+
+              </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <!-- Empty State - No Audits in Selected Session -->
+  <div class="card">
+    <div class="card-body py-5">
+      <div class="text-center">
+        <div class="mb-3">
+          <i class="fas fa-clipboard-check fa-3x text-muted"></i>
+        </div>
+        <h5 class="fw-medium mb-1">No Audits Found in This Session</h5>
+        <p class="text-muted mb-3">There are no audit records for the selected session.</p>
+        <a href="{{ url_for('api.stock_audit_report') }}" class="btn btn-primary">
+          <i class="fas fa-arrow-left me-2"></i>Back to Sessions
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+<style>
+
+/* Disabled Settle Button Styles */
+.btn-warning:disabled[title*="Only sys-admin"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.btn-warning:disabled[title*="Only sys-admin"]:hover {
+  opacity: 0.6;
+  background-color: #ffc107;
+  border-color: #ffc107;
+}
+
+/* Pagination Styles */
+.pagination {
+  margin: 1rem 0 0;
+}
+
+.page-link {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.page-link:hover {
+  transform: translateY(-1px);
+}
+
+.page-item.active .page-link {
+  font-weight: 600;
+}
+
+.page-item.disabled .page-link {
+  cursor: not-allowed;
+}
+</style>
+
+<script>
+// Toast Notification Function
+function showToast(message, type = 'success') {
+  const toastContainer = document.querySelector('.toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type} show`;
+  toast.setAttribute('role', 'alert');
+  toast.innerHTML = `
+    <div class="toast-header">
+      <i class="fas fa-${type === 'success' ? 'check-circle text-success' : 'exclamation-circle text-danger'} me-2"></i>
+      <strong class="me-auto">${type === 'success' ? 'Success' : 'Error'}</strong>
+      <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body">${message}</div>
+  `;
+  toastContainer.appendChild(toast);
+  setTimeout(() => {
+    toast.remove();
+  }, 5000);
+}
+
+// Search Function
+const searchBox = document.getElementById('searchBox');
+if (searchBox) {
+  searchBox.addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase();
+    document.querySelectorAll('.audit-row').forEach(row => {
+      const productName = row.querySelector('h6').textContent.toLowerCase();
+      const barcode = row.querySelector('small').textContent.toLowerCase();
+      const isMatch = productName.includes(searchTerm) || barcode.includes(searchTerm);
+      row.style.display = isMatch ? '' : 'none';
+    });
+  });
+}
+
+// Export CSV Function
+function exportCSV() {
+  const exportBtn = document.querySelector('a[href*="export_audit_csv"]');
+  const originalText = exportBtn.innerHTML;
+  
+  // Show loading state
+  exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Exporting...';
+  exportBtn.classList.add('disabled');
+  
+  // Trigger download
+  window.location.href = exportBtn.href;
+  
+  // Show success message with filename info
+  setTimeout(() => {
+    const currentDate = new Date();
+    const monthName = currentDate.toLocaleString('en-US', { month: 'long' });
+    const day = currentDate.getDate();
+    const year = currentDate.getFullYear();
+    const filename = `Audit_Report_${monthName}_${day}_${year}.csv`;
+    showToast(`CSV export completed successfully!<br><small>Filename: ${filename}</small><br><small>Format: Full audit report with product details</small>`, 'success');
+  }, 1000);
+  
+  // Reset button after a short delay
+  setTimeout(() => {
+    exportBtn.innerHTML = originalText;
+    exportBtn.classList.remove('disabled');
+  }, 2000);
+}
+
+// Date validation
+function validateDates() {
+  const startDate = document.getElementById('start_date').value;
+  const endDate = document.getElementById('end_date').value;
+  
+  if (startDate && endDate && startDate > endDate) {
+    showToast('Start date cannot be after end date', 'error');
+    return false;
+  }
+  return true;
+}
+
+// Filter sessions by date range
+function filterSessions() {
+  const startDate = document.getElementById('start_date').value;
+  const endDate = document.getElementById('end_date').value;
+  
+  if (startDate && endDate && startDate > endDate) {
+    showToast('Start date cannot be after end date', 'error');
+    return;
+  }
+  
+  let url = "{{ url_for('api.stock_audit_report') }}";
+  const params = new URLSearchParams();
+  
+  if (startDate) params.append('start_date', startDate);
+  if (endDate) params.append('end_date', endDate);
+  
+  if (params.toString()) {
+    url += '?' + params.toString();
+  }
+  
+  window.location.href = url;
+}
+
+// Settle Confirmation
+async function confirmSettle() {
+  return confirm(
+    '⚠️ Are you sure you want to settle all discrepancies for this session?\n\n' +
+    'This will:\n' +
+    '• Update product quantities to match actual audit quantities\n' +
+    '• Add excess quantities to batches with quantity > 0 and earliest expiry (FEFO)\n' +
+    '• Keep all other batches unchanged\n' +
+    '• Mark discrepancies as settled\n\n' +
+    'This action cannot be undone!'
+  );
+}
+</script>
+
+<style>
+/* Stat Card Styles */
+.stat-card {
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Filter Card Styles */
+.filter-card {
+  border-radius: 12px;
+}
+
+.filter-input {
+  transition: all 0.2s ease;
+}
+
+/* Table Styles */
+.table th {
+  font-weight: 600;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+/* Card border */
+.card {
+  border: 1px solid var(--border);
+}
+
+/* Checkbox styling */
+.form-check-input {
+  border-radius: 4px !important;
+  width: 18px !important;
+  height: 18px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.form-check-input:hover {
+  transform: scale(1.05) !important;
+}
+
+/* Select all checkbox */
+#selectAllCheckbox:checked {
+  background-color: #198754 !important;
+  border-color: #198754 !important;
+}
+
+/* Individual audit checkboxes */
+.audit-checkbox:checked {
+  background-color: #dc3545 !important;
+  border-color: #dc3545 !important;
+}
+
+/* Form check container */
+.form-check {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Empty state text */
+.text-dark {
+  color: var(--text-primary) !important;
+}
+
+/* Override bg-white for dark mode compatibility */
+.bg-white {
+  background-color: var(--card-bg) !important;
+}
+</style>
+
+<script>
+// Toast Notification Function
+function showToast(message, type = 'success') {
+  const toastContainer = document.querySelector('.toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type} show`;
+  toast.setAttribute('role', 'alert');
+  toast.innerHTML = `
+    <div class="toast-header">
+      <i class="fas fa-${type === 'success' ? 'check-circle text-success' : 'exclamation-circle text-danger'} me-2"></i>
+      <strong class="me-auto">${type === 'success' ? 'Success' : 'Error'}</strong>
+      <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body">${message}</div>
+  `;
+  toastContainer.appendChild(toast);
+  setTimeout(() => {
+    toast.remove();
+  }, 5000);
+}
+
+// Search Function
+const searchBox2 = document.getElementById('searchBox');
+if (searchBox2) {
+  searchBox2.addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase();
+    document.querySelectorAll('.audit-row').forEach(row => {
+      const productName = row.querySelector('h6').textContent.toLowerCase();
+      const barcode = row.querySelector('small').textContent.toLowerCase();
+      const isMatch = productName.includes(searchTerm) || barcode.includes(searchTerm);
+      row.style.display = isMatch ? '' : 'none';
+    });
+  });
+}
+
+// Export CSV Function
+function exportCSV() {
+  const exportBtn = document.querySelector('a[href*="export_audit_csv"]');
+  const originalText = exportBtn.innerHTML;
+  
+  // Show loading state
+  exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Exporting...';
+  exportBtn.classList.add('disabled');
+  
+  // Trigger download
+  window.location.href = exportBtn.href;
+  
+  // Show success message
+  setTimeout(() => {
+    showToast('CSV export completed successfully!', 'success');
+  }, 1000);
+  
+  // Reset button after a short delay
+  setTimeout(() => {
+    exportBtn.innerHTML = originalText;
+    exportBtn.classList.remove('disabled');
+  }, 2000);
+}
+
+// Settle Confirmation
+async function confirmSettle() {
+  return confirm(
+    '⚠️ Are you sure you want to settle all discrepancies for this session?\n\n' +
+    'This will:\n' +
+    '• Update product quantities to match actual audit quantities\n' +
+    '• Add excess quantities to batches with quantity > 0 and earliest expiry (FEFO)\n' +
+    '• Keep all other batches unchanged\n' +
+    '• Mark discrepancies as settled\n\n' +
+    'This action cannot be undone!'
+  );
+}
+
+
+
+// Delete functionality for audit sessions
+(function() {
+    'use strict';
+    
+    try {
+        console.log('Audit delete script starting...');
+        
+        // Wait for DOM to be ready
+        function initAuditDelete() {
+            try {
+                console.log('Initializing audit delete functionality...');
+                
+                const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+                const auditCheckboxes = document.querySelectorAll('.audit-checkbox');
+                const deleteActions = document.getElementById('deleteActions');
+                
+                console.log('Elements found:', {
+                    selectAllCheckbox: !!selectAllCheckbox,
+                    auditCheckboxes: auditCheckboxes.length,
+                    deleteActions: !!deleteActions
+                });
+                
+                // Exit early if user doesn't have SYS-Admin privileges or elements don't exist
+                if (!selectAllCheckbox || !deleteActions || auditCheckboxes.length === 0) {
+                    console.log('Required elements not found, exiting...');
+                    console.log('This might be because:');
+                    console.log('- User is not SYS-Admin');
+                    console.log('- No audit sessions exist');
+                    console.log('- Elements are not rendered yet');
+                    return;
+                }
+                
+                let selectedAuditBatches = [];
+                
+                // Handle select all checkbox
+                selectAllCheckbox.addEventListener('change', function() {
+                    try {
+                        console.log('Select all checkbox changed:', this.checked);
+                        auditCheckboxes.forEach(checkbox => {
+                            checkbox.checked = this.checked;
+                        });
+                        updateSelectedAuditBatches();
+                    } catch (error) {
+                        console.error('Error in select all handler:', error);
+                    }
+                });
+                
+                // Handle individual checkboxes
+                auditCheckboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        try {
+                            console.log('Individual checkbox changed:', this.value, this.checked);
+                            updateSelectedAuditBatches();
+                            updateSelectAllCheckbox();
+                        } catch (error) {
+                            console.error('Error in individual checkbox handler:', error);
+                        }
+                    });
+                });
+                
+                // Update selected audit batches array
+                function updateSelectedAuditBatches() {
+                    try {
+                        selectedAuditBatches = Array.from(auditCheckboxes)
+                            .filter(cb => cb.checked)
+                            .map(cb => cb.value);
+                        
+                        console.log('Selected batches:', selectedAuditBatches);
+                        
+                        if (selectedAuditBatches.length > 0) {
+                            deleteActions.style.display = 'flex';
+                        } else {
+                            deleteActions.style.display = 'none';
+                        }
+                    } catch (error) {
+                        console.error('Error in updateSelectedAuditBatches:', error);
+                    }
+                }
+                
+                // Update select all checkbox state
+                function updateSelectAllCheckbox() {
+                    try {
+                        const checkedCount = auditCheckboxes.length;
+                        const selectedCount = selectedAuditBatches.length;
+                        
+                        if (selectedCount === 0) {
+                            selectAllCheckbox.checked = false;
+                            selectAllCheckbox.indeterminate = false;
+                        } else if (selectedCount === checkedCount) {
+                            selectAllCheckbox.checked = true;
+                            selectAllCheckbox.indeterminate = false;
+                        } else {
+                            selectAllCheckbox.checked = false;
+                            selectAllCheckbox.indeterminate = true;
+                        }
+                    } catch (error) {
+                        console.error('Error in updateSelectAllCheckbox:', error);
+                    }
+                }
+                
+                // Delete selected audit sessions when delete button is clicked
+                if (deleteActions) {
+                    deleteActions.addEventListener('click', function(e) {
+                        try {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('Delete button clicked');
+                            
+                            if (selectedAuditBatches.length === 0) {
+                                alert('Please select audit sessions to delete');
+                                return;
+                            }
+                            
+                            const userInput = prompt(`Are you sure you want to delete ${selectedAuditBatches.length} selected audit session(s)?\n\nThis action cannot be undone.\n\nType "delete" to confirm:`, '');
+                            
+                            if (userInput && userInput.toLowerCase() === 'delete') {
+                                deleteSelectedAuditSessions();
+                            } else if (userInput !== null) {
+                                alert('Incorrect confirmation text. Deletion cancelled.');
+                            }
+                        } catch (error) {
+                            console.error('Error in delete button handler:', error);
+                        }
+                    });
+                }
+                
+                // Function to delete selected audit sessions
+                function deleteSelectedAuditSessions() {
+                    try {
+                        console.log('Starting deletion of batches:', selectedAuditBatches);
+                        
+                        let deletedCount = 0;
+                        let totalToDelete = selectedAuditBatches.length;
+                        
+                        selectedAuditBatches.forEach((batchLabel, index) => {
+                            console.log('Deleting batch:', batchLabel);
+                            
+                            fetch(`{{ url_for("api.delete_audit_batch", batch_label="") }}${batchLabel}`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                console.log('Delete response for', batchLabel, ':', data);
+                                if (data.success) {
+                                    deletedCount++;
+                                    // Remove the row from the table
+                                    const row = document.querySelector(`#audit_${batchLabel}`).closest('tr');
+                                    if (row) row.remove();
+                                }
+                                
+                                // If this is the last one, reload the page
+                                if (deletedCount === totalToDelete) {
+                                    console.log('All deletions complete, reloading page...');
+                                    location.reload();
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error deleting batch', batchLabel, ':', error);
+                                deletedCount++;
+                                if (deletedCount === totalToDelete) {
+                                    location.reload();
+                                }
+                            });
+                        });
+                    } catch (error) {
+                        console.error('Error in deleteSelectedAuditSessions:', error);
+                    }
+                }
+                
+                console.log('Audit delete functionality initialized successfully');
+            } catch (error) {
+                console.error('Error in initAuditDelete:', error);
+            }
+        }
+        
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAuditDelete);
+        } else {
+            initAuditDelete();
+        }
+    } catch (error) {
+        console.error('Error in audit delete script:', error);
+    }
+})();
+
+{% endblock %}

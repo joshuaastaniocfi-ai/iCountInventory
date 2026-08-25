@@ -1,0 +1,68 @@
+<!-- This partial template contains only the audit list content for use in modals -->
+<div id="pending-list-section">
+  {% if audits %}
+    <!-- Hidden stats elements for JavaScript access -->
+    <div style="display: none;">
+      <span id="positiveCount">{{ audits|selectattr('discrepancy', 'gt', 0)|list|length }}</span>
+      <span id="negativeCount">{{ audits|selectattr('discrepancy', 'lt', 0)|list|length }}</span>
+      <span id="matchedCount">{{ audits|selectattr('discrepancy', 'eq', 0)|list|length }}</span>
+      <!-- Hidden elements for verified by and timestamp -->
+      <span id="verifiedBy">{{ audits[0].verified_by if audits else '' }}</span>
+      <span id="auditTimestamp">{{ audits[0].audit_timestamp.strftime('%Y-%m-%d %H:%M:%S') if audits and audits[0].audit_timestamp else '' }}</span>
+    </div>
+    
+    <!-- Group audits by product -->
+    {% set grouped_audits = {} %}
+    {% for audit in audits %}
+      {% if audit.product_name not in grouped_audits %}
+        {% set _ = grouped_audits.update({audit.product_name: []}) %}
+      {% endif %}
+      {% set _ = grouped_audits[audit.product_name].append(audit) %}
+    {% endfor %}
+    
+    <!-- Display products and their batches -->
+    {% for product_name, product_audits in grouped_audits.items() %}
+      <!-- Product Header -->
+      <div class="product-name-header">
+        <h6 class="mb-0">{{ product_name }}</h6>
+      </div>
+      
+      <!-- Product Table -->
+      <table class="product-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Exp Date</th>
+            <th>System Qty</th>
+            <th>Actual Qty</th>
+            <th>Discrepancy</th>
+            <th>Batch Barcode</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for audit in product_audits %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>{{ audit.exp_date.strftime('%Y-%m-%d') if audit.exp_date else 'N/A' }}</td>
+              <td>{{ audit.recorded_quantity }}</td>
+              <td>{{ audit.actual_quantity }}</td>
+              <td>
+                <span class="discrepancy-cell 
+                  {% if audit.discrepancy > 0 %}positive{% elif audit.discrepancy < 0 %}negative{% else %}zero{% endif %}">
+                  {{ '+' if audit.discrepancy > 0 else '' }}{{ audit.discrepancy }}
+                </span>
+              </td>
+              <td>{{ audit.batch_barcode }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endfor %}
+  {% else %}
+    <div class="text-center py-5">
+      <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+      <h5>No pending batch audits</h5>
+      <p class="text-muted">All batch audits have been processed.</p>
+    </div>
+  {% endif %}
+</div>

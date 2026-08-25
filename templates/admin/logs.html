@@ -1,0 +1,372 @@
+{% extends 'layouts/base-sidebar.html' %}
+
+{% block title %}Activity Logs - iCount{% endblock %}
+
+{% block styles %}
+<link href="{{ url_for('static', filename='css/admin.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+
+  <!-- Page Header -->
+  <div class="admin-page-header">
+    <div class="header-left">
+      <div class="admin-header-icon sky">
+        <i class="fas fa-history"></i>
+      </div>
+      <div>
+        <h4 class="admin-page-title">Activity Logs</h4>
+        <p class="admin-page-subtitle">Track and monitor all inventory activities</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="admin-filter-card logs-filter">
+    <div class="card-body">
+      <form class="row g-3 align-items-end" method="get" action="" id="filterForm">
+        <div class="col-md-4">
+          <div class="input-group">
+            <span class="input-group-text bg-transparent">
+              <i class="fas fa-search text-muted"></i>
+            </span>
+            <input type="text" name="q" class="form-control"
+                   placeholder="Search by details..." value="{{ request.args.get('q','') }}">
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <select name="action" class="form-select">
+            <option value="">All Actions</option>
+            <option value="Add Stock" {{ 'selected' if request.args.get('action') == 'Add Stock' }}>Add Stock</option>
+            <option value="Remove Stock" {{ 'selected' if request.args.get('action') == 'Remove Stock' }}>Remove Stock</option>
+            <option value="Add Product" {{ 'selected' if request.args.get('action') == 'Add Product' }}>Add Product</option>
+            <option value="Add Batch" {{ 'selected' if request.args.get('action') == 'Add Batch' }}>Add Batch</option>
+            <option value="Delete Batch" {{ 'selected' if request.args.get('action') == 'Delete Batch' }}>Delete Batch</option>
+            <option value="Approved Requisition" {{ 'selected' if request.args.get('action') == 'Approved Requisition' }}>Approved Requisition</option>
+            <option value="Declined Requisition" {{ 'selected' if request.args.get('action') == 'Declined Requisition' }}>Declined Requisition</option>
+            <option value="Change User Role" {{ 'selected' if request.args.get('action') == 'Change User Role' }}>Change User Role</option>
+            <option value="Delete User" {{ 'selected' if request.args.get('action') == 'Delete User' }}>Delete User</option>
+            <option value="Export Audit CSV" {{ 'selected' if request.args.get('action') == 'Export Audit CSV' }}>Export Audit CSV</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <input type="date" name="date" class="form-control"
+                 value="{{ request.args.get('date', '') }}">
+        </div>
+
+        <!-- Company filter for SYS-Admin -->
+        {% if current_user.role == 'SYS-Admin' %}
+        <div class="col-md-3">
+          <select name="company" class="form-select">
+            <option value="">All Companies</option>
+            {% for company in companies %}
+            <option value="{{ company.id }}" {{ 'selected' if request.args.get('company')|int == company.id }}>
+              {{ company.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <div class="col-md-2 d-flex justify-content-end gap-2">
+          <button type="submit" class="btn btn-primary" title="Filter">
+            <i class="fas fa-filter"></i>
+          </button>
+          <a href="{{ url_for('logs.view_logs') }}" class="btn btn-outline-secondary" title="Reset">
+            <i class="fas fa-undo-alt me-1"></i>Reset
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if logs %}
+    <!-- Logs Table -->
+    <div class="admin-card">
+      <div class="card-header">
+        <h5 class="card-title">
+          <i class="fas fa-list"></i> Activity Logs
+          <span class="admin-count-badge"><i class="fas fa-file-lines"></i>{{ logs|length }} entries</span>
+        </h5>
+        {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+        <div class="d-flex align-items-center gap-2" id="deleteActions" style="display: none;">
+          <button class="btn btn-danger btn-sm">
+            <i class="fas fa-trash me-1"></i>Delete Selected
+          </button>
+        </div>
+        {% endif %}
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Details</th>
+              <th>Time</th>
+              {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+              <th class="text-center">
+                <div class="form-check d-flex justify-content-center">
+                  <input class="form-check-input" type="checkbox" id="selectAllCheckbox" title="Select All">
+                </div>
+              </th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in logs %}
+              {% if 'Add Stock' in log.action or 'Approved' in log.action %}
+                {% set type = 'success' %}
+                {% set icon = 'fa-plus' if 'Add Stock' in log.action else 'fa-check-circle' %}
+              {% elif 'Remove Stock' in log.action or 'Declined' in log.action or 'Delete User' in log.action %}
+                {% set type = 'danger' %}
+                {% set icon = 'fa-minus' if 'Remove Stock' in log.action else ('fa-times-circle' if 'Declined' in log.action else 'fa-user-times') %}
+              {% elif 'Delete Batch' in log.action %}
+                {% set type = 'warning' %}
+                {% set icon = 'fa-trash' %}
+              {% elif 'Add Batch' in log.action or 'Change User Role' in log.action %}
+                {% set type = 'info' %}
+                {% set icon = 'fa-layer-group' if 'Add Batch' in log.action else 'fa-user-edit' %}
+              {% elif 'Add Product' in log.action %}
+                {% set type = 'primary' %}
+                {% set icon = 'fa-box' %}
+              {% elif 'Export Audit CSV' in log.action %}
+                {% set type = 'secondary' %}
+                {% set icon = 'fa-download' %}
+              {% else %}
+                {% set type = 'primary' %}
+                {% set icon = 'fa-info' %}
+              {% endif %}
+              <tr>
+                <td>
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="admin-log-icon {{ type }}">
+                      <i class="fas {{ icon }}"></i>
+                    </div>
+                    <p class="admin-log-action mb-0">{{ log.action }}</p>
+                  </div>
+                </td>
+                <td>
+                  <div class="admin-log-details">{{ log.details | safe }}</div>
+                </td>
+                <td>
+                  <div class="admin-log-time">
+                    <span>{{ log.timestamp|relative_time }}</span>
+                    <small>{{ log.timestamp.strftime('%b %d, %Y') }}</small>
+                  </div>
+                </td>
+                {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+                <td class="text-center">
+                  <div class="form-check d-flex justify-content-center">
+                    <input class="form-check-input log-checkbox" type="checkbox" value="{{ log.id }}" id="log_{{ log.id }}">
+                  </div>
+                </td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      {% if pagination.pages > 1 %}
+        <div class="card-footer border-top admin-pagination">
+          <nav aria-label="Activity log pages">
+            <ul class="pagination justify-content-center mb-0">
+              <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+                <a class="page-link" href="{{ url_for('logs.view_logs', page=pagination.prev_num, **current_filters) if pagination.has_prev else '#' }}" tabindex="-1">
+                  <i class="fas fa-chevron-left"></i>
+                </a>
+              </li>
+
+              {% if pagination.page > 2 %}
+                <li class="page-item">
+                  <a class="page-link" href="{{ url_for('logs.view_logs', page=1, **current_filters) }}">1</a>
+                </li>
+                {% if pagination.page > 3 %}
+                  <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                  </li>
+                {% endif %}
+              {% endif %}
+
+              {% set start = [1, pagination.page - 1]|max %}
+              {% set end = [pagination.pages + 1, pagination.page + 2]|min %}
+              {% for page_num in range(start, end) %}
+                <li class="page-item {{ 'active' if page_num == pagination.page }}">
+                  <a class="page-link" href="{{ url_for('logs.view_logs', page=page_num, **current_filters) }}">{{ page_num }}</a>
+                </li>
+              {% endfor %}
+
+              {% if pagination.page < pagination.pages - 1 %}
+                {% if pagination.page < pagination.pages - 2 %}
+                  <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                  </li>
+                {% endif %}
+                <li class="page-item">
+                  <a class="page-link" href="{{ url_for('logs.view_logs', page=pagination.pages, **current_filters) }}">{{ pagination.pages }}</a>
+                </li>
+              {% endif %}
+
+              <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+                <a class="page-link" href="{{ url_for('logs.view_logs', page=pagination.next_num, **current_filters) if pagination.has_next else '#' }}">
+                  <i class="fas fa-chevron-right"></i>
+                </a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="admin-card">
+      <div class="card-body">
+        <div class="admin-empty">
+          <i class="fas fa-history"></i>
+          <h6 class="mb-1">No Activity Logs</h6>
+          <p class="mb-0">There are no activity logs to display at this time.</p>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const logCheckboxes = document.querySelectorAll('.log-checkbox');
+    const deleteActions = document.getElementById('deleteActions');
+
+    // Exit early if user doesn't have required privileges
+    if (!selectAllCheckbox || !deleteActions) return;
+
+    let selectedLogIds = [];
+
+    // Handle select all checkbox
+    selectAllCheckbox.addEventListener('change', function() {
+        logCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateSelectedLogs();
+    });
+
+    // Handle individual checkboxes
+    logCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSelectedLogs();
+            updateSelectAllCheckbox();
+        });
+    });
+
+    // Update selected logs array
+    function updateSelectedLogs() {
+        selectedLogIds = Array.from(logCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => parseInt(cb.value));
+
+        if (selectedLogIds.length > 0) {
+            deleteActions.style.display = 'flex';
+        } else {
+            deleteActions.style.display = 'none';
+        }
+    }
+
+    // Update select all checkbox state
+    function updateSelectAllCheckbox() {
+        const checkedCount = logCheckboxes.length;
+        const selectedCount = selectedLogIds.length;
+
+        if (selectedCount === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (selectedCount === checkedCount) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+
+    // Delete selected logs when delete icon is clicked
+    deleteActions.addEventListener('click', function() {
+        if (selectedLogIds.length === 0) {
+            alert('Please select logs to delete');
+            return;
+        }
+
+        const userInput = prompt(`Are you sure you want to delete ${selectedLogIds.length} selected activity log(s)?\n\nThis action cannot be undone.\n\nType "delete" to confirm:`, '');
+
+        if (userInput && userInput.toLowerCase() === 'delete') {
+            deleteSelectedLogs();
+        } else if (userInput !== null) {
+            alert('Incorrect confirmation text. Deletion cancelled.');
+        }
+    });
+
+    // Function to delete selected logs
+    function deleteSelectedLogs() {
+        fetch('{{ url_for("logs.delete_logs") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                log_ids: selectedLogIds
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove deleted rows from table
+                selectedLogIds.forEach(id => {
+                    const row = document.querySelector(`#log_${id}`).closest('tr');
+                    if (row) row.remove();
+                });
+
+                // Reset checkboxes
+                logCheckboxes.forEach(cb => cb.checked = false);
+                selectedLogIds = [];
+                deleteActions.style.display = 'none';
+                updateSelectAllCheckbox();
+
+                // Reload page to show flash message
+                location.reload();
+            } else {
+                showAlert(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('An error occurred while deleting logs', 'error');
+        });
+    }
+
+    // Function to show alerts
+    function showAlert(message, type) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 350px; max-width: 500px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+        alertDiv.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas ${type === 'success' ? 'fa-check-circle text-success' : 'fa-exclamation-triangle text-danger'} me-2"></i>
+                <span class="fw-medium">${message}</span>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+
+        document.body.appendChild(alertDiv);
+
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+});
+</script>
+{% endblock %}

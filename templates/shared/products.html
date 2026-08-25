@@ -1,0 +1,2183 @@
+{% extends 'layouts/base-sidebar.html' %}
+
+{% block title %}Products - iCount{% endblock %}
+
+{% block content %}
+{% set account_codes = {
+  "COS-Beverages": 201, "COS-Ice Cream": 202, "COS-Desserts": 203, "COS-Food": 204,
+  "COS-Chicken": 205, "COS-Condiments": 206, "COS-Rice": 207,
+  "Supplies-Kitchen": 300, "Supplies-Packaging": 301, "Supplies-Store Dining": 302,
+  "Supplies-Store Office": 303, "Supplies-Utility": 304
+} %}
+
+<div class="container-fluid py-3">
+  <!-- Header & Actions -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-3 gap-2">
+    <div class="d-flex align-items-center gap-3">
+      <div class="d-flex align-items-center justify-content-center rounded-3 shadow-sm" style="width:42px;height:42px;background:linear-gradient(135deg,var(--accent),#818cf8);color:#fff">
+        <i class="fas fa-cubes"></i>
+      </div>
+      <div>
+        <h5 class="fw-bold mb-0" style="letter-spacing:-0.02em">Inventory</h5>
+        <small class="text-muted">{{ pagination.total if pagination and pagination.total else products|length }} products</small>
+      </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      {% if current_user.role != 'Purchaser' %}
+      <button class="btn btn-success btn-sm shadow-sm" onclick="openDailyCount()" title="Open today's inventory count form for all products">
+        <i class="fas fa-clipboard-check me-1"></i> Count for Today
+      </button>
+      {% endif %}
+      <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true">
+        <i class="fas fa-filter me-1"></i> Filters
+      </button>
+      {% if current_user.role != 'Purchaser' %}
+      <button class="btn btn-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#addProductModal">
+        <i class="fas fa-plus me-1"></i>Add Product
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Filters (collapsible) -->
+  <div class="collapse show" id="filterCollapse">
+    <div class="card border-0 shadow-sm mb-3" style="border-radius:10px;background:var(--card-bg)">
+      <div class="card-body py-2 px-3">
+        <form method="get" action="{{ url_for('products.view_products') }}" class="row g-2 align-items-end">
+          <div class="col-md-4">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
+              <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by name or barcode..." value="{{ request.args.get('q', '') }}">
+            </div>
+          </div>
+          <div class="col-md-2">
+            <select name="account_type" class="form-select form-select-sm">
+              <option value="">All Account</option>
+              {% for title in account_titles %}
+                <option value="{{ title }}" {{ 'selected' if request.args.get('account_type') == title }}>{{ title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <select name="status" class="form-select form-select-sm">
+              <option value="">All Status</option>
+              <option value="OK" {{ 'selected' if request.args.get('status') == 'OK' }}>In Stock</option>
+              <option value="Low Stock" {{ 'selected' if request.args.get('status') == 'Low Stock' }}>Low Stock</option>
+              <option value="No Stock" {{ 'selected' if request.args.get('status') == 'No Stock' }}>Out of Stock</option>
+              <option value="Expired" {{ 'selected' if request.args.get('status') == 'Expired' }}>Expired</option>
+              <option value="Favorites" {{ 'selected' if request.args.get('status') == 'Favorites' }}>Favorites</option>
+            </select>
+          </div>
+          {% if current_user.role == 'SYS-Admin' and current_user.company_id is none and companies %}
+          <div class="col-md-2">
+            <select name="company_id" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="">All Companies</option>
+              {% for company in companies %}
+                <option value="{{ company.id }}" {{ 'selected' if request.args.get('company_id') == company.id|string }}>{{ company.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+          <div class="col-md-auto d-flex gap-1">
+            <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter"></i></button>
+            <a href="{{ url_for('products.view_products') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-rotate-left"></i></a>
+            <a href="{{ url_for('products.export_inventory_xlsx') }}" class="btn btn-success btn-sm" title="Export to Excel" onclick="exportInventoryExcel(); return false;"><i class="fas fa-file-excel"></i></a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="card border-0 shadow-sm" style="border-radius:12px;overflow:hidden">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0" id="productTable" style="border-collapse:separate;border-spacing:0">
+        <thead>
+            <tr style="background:var(--card-bg);border-bottom:2px solid var(--border)">
+            <th class="text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Product Info</th>
+            <th class="text-center text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Account Title</th>
+            <th class="text-center text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Warehouse</th>
+            <th class="text-center text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Store</th>
+            <th class="text-center text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Total</th>
+            <th class="text-center text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Stock Health</th>
+            <th class="text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Nearest Expiry</th>
+            <th class="text-center text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Status</th>
+            <th class="text-end text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in products %}
+            {% set qty = product.quantity %}
+            {% set init_qty = product.initial_quantity if product.initial_quantity is defined else qty %}
+            {% set threshold = product.low_stock_threshold if product.low_stock_threshold is defined else 10 %}
+            {% set is_low = product.is_low_stock %}
+
+            <tr class="product-row" data-product-id="{{ product.id }}" style="border-bottom:1px solid var(--border);transition:background 0.15s">
+              <td>
+                <div class="d-flex align-items-center gap-2 px-1">
+                  <div style="width:6px;height:6px;border-radius:50%;background:{% if qty == 0 %}var(--bs-danger){% elif is_low %}var(--bs-warning){% else %}var(--bs-success){% endif %};flex-shrink:0"></div>
+                  <div class="product-info">
+                    <h6 class="mb-0" style="font-size:0.9rem">{{ product.name }}</h6>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="text-center">
+                  <div style="font-size:0.8rem;font-weight:500;color:var(--text-primary);line-height:1.3">{{ product.account_title }}</div>
+                  <div style="display:inline-block;font-size:0.6rem;color:var(--text-muted);background:var(--light-bg);border:1px solid var(--border);border-radius:3px;padding:0.1em 0.5em;margin-top:2px;line-height:1.5">FS{{ account_codes.get(product.account_title, '-') }}</div>
+                </div>
+              </td>
+              <td class="text-center">
+                <span class="fw-bold text-info" style="font-size:0.95rem">
+                  {{ product.warehouse_qty|default(0)|decimal_format(2) }}
+                </span>
+                <small class="text-muted d-block" style="font-size:0.7rem">
+                  {{ product.warehouse_initial_qty|default(0)|decimal_format(2) }} {{ product.uom }}
+                </small>
+              </td>
+              <td class="text-center">
+                <span class="fw-bold text-success" style="font-size:0.95rem">
+                  {{ product.store_qty|default(0)|decimal_format(2) }}
+                </span>
+                <small class="text-muted d-block" style="font-size:0.7rem">
+                  {{ product.store_initial_qty|default(0)|decimal_format(2) }} {{ product.uom }}
+                </small>
+              </td>
+              <td class="text-center">
+                <span class="fw-bold {% if qty == 0 %}text-danger{% elif is_low %}text-warning{% else %}text-success{% endif %}" style="font-size:0.95rem">
+                  {{ qty|decimal_format(2) }}
+                </span>
+                <small class="text-muted d-block" style="font-size:0.7rem">{{ product.uom }}</small>
+              </td>
+              <td class="text-center">
+                {% set stock_percentage = (qty / init_qty * 100) if init_qty > 0 else 0 %}
+                {% set progress_color = 'bg-danger' if qty == 0 else ('bg-warning' if is_low else 'bg-success') %}
+                {% set progress_width = 100 if qty == 0 else (stock_percentage if stock_percentage <= 100 else 100) %}
+
+                <div class="d-flex flex-column align-items-center" style="min-width:80px"
+                     data-bs-toggle="tooltip"
+                     data-bs-placement="top"
+                     title="Stock Level: {{ qty }}/{{ init_qty }} {{ product.uom }} ({{ stock_percentage|round(1) }}%)">
+                  <div class="progress w-100" style="height:6px;border-radius:3px;background:var(--border)">
+                    <div class="progress-bar {{ progress_color }}"
+                         role="progressbar"
+                         style="width:{{ progress_width }}%;border-radius:3px"
+                         aria-valuenow="{{ stock_percentage|round(1) }}"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                    </div>
+                  </div>
+                  <small class="{% if qty == 0 %}text-danger fw-semibold{% else %}text-muted{% endif %} d-block mt-1" style="font-size:0.7rem">{{ stock_percentage|round(1) }}%</small>
+                </div>
+              </td>
+              <td>
+                {% set nearest_batch = product.batches|sort(attribute='exp_date')|first %}
+                {% if nearest_batch %}
+                  {% if nearest_batch.exp_date.year >= 2099 %}
+                    <span class="text-muted" style="font-size:0.85rem">—</span>
+                    <small class="d-block text-muted" style="font-size:0.7rem">Non-expiring</small>
+                  {% else %}
+                    {% if now is defined %}
+                      {% set days_until = (nearest_batch.exp_date - now.date()).days %}
+                    {% else %}
+                      {% set days_until = 0 %}
+                    {% endif %}
+                    <span class="fw-semibold {% if days_until <= 0 %}text-danger{% elif days_until <= 30 %}text-warning{% else %}text-success{% endif %}" style="font-size:0.85rem">
+                      {{ nearest_batch.exp_date.strftime('%b %d') }}
+                    </span>
+                    <small class="d-block text-muted" style="font-size:0.7rem">
+                      {% if days_until <= 0 %}
+                        <i class="fas fa-exclamation-circle text-danger"></i> Expired
+                      {% else %}
+                        <i class="fas fa-clock text-{% if days_until <= 30 %}warning{% else %}success{% endif %}"></i> {{ days_until }}d
+                      {% endif %}
+                    </small>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted" style="font-size:0.85rem">—</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% set nearest_batch = product.batches|sort(attribute='exp_date')|first %}
+                {% if nearest_batch %}
+                  {% if now is defined %}
+                    {% set days_until = (nearest_batch.exp_date - now.date()).days %}
+                  {% else %}
+                    {% set days_until = 0 %}
+                  {% endif %}
+                  {% if days_until <= 0 %}
+                    <span class="badge rounded-pill bg-danger">Expired</span>
+                  {% elif qty == 0 %}
+                    <span class="badge rounded-pill bg-danger">Out of Stock</span>
+                  {% elif is_low %}
+                    <span class="badge rounded-pill bg-warning text-dark">Low Stock</span>
+                  {% else %}
+                    <span class="badge rounded-pill bg-success">In Stock</span>
+                  {% endif %}
+                {% else %}
+                  {% if qty == 0 %}
+                    <span class="badge rounded-pill bg-danger">Out of Stock</span>
+                  {% elif is_low %}
+                    <span class="badge rounded-pill bg-warning text-dark">Low Stock</span>
+                  {% else %}
+                    <span class="badge rounded-pill bg-success">In Stock</span>
+                  {% endif %}
+                {% endif %}
+              </td>
+              <td class="text-end" style="white-space:nowrap">
+                <div class="d-flex gap-1 justify-content-end">
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#viewProductModal{{ product.id }}" title="View Details">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <a href="{{ url_for('products.product_history', product_id=product.id) }}"
+                   class="btn btn-sm btn-outline-secondary"
+                   title="View Transaction History">
+                  <i class="fas fa-clock-rotate-left"></i>
+                </a>
+                {% if current_user.role != 'Purchaser' %}
+
+                {% endif %}
+                <button class="btn btn-sm btn-outline-success"
+                        onclick="addBatch({{ product.id }})"
+                        title="Add Stock">
+                  <i class="fas fa-circle-plus"></i>
+                </button>
+                <button class="btn btn-sm {{ 'btn-warning' if product.is_favorite else 'btn-outline-warning' }}"
+                        onclick="toggleFavorite({{ product.id }})"
+                        id="favoriteBtn{{ product.id }}"
+                        data-toggle-url="{{ url_for('products.toggle_product_favorite', product_id=0) }}"
+                        title="{{ 'Remove from favorites' if product.is_favorite else 'Add to favorites' }}">
+                  <i class="{{ 'fas' if product.is_favorite else 'far' }} fa-star"></i>
+                </button>
+                {% if current_user.role == 'SYS-Admin' or current_user.role == 'Company-Admin' %}
+                <button class="btn btn-sm btn-outline-danger" 
+                        onclick="deleteProduct({{ product.id }}, '{{ product.name|e }}')"
+                        title="Delete Product">
+                  <i class="fas fa-trash"></i>
+                </button>
+                {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="9" class="text-center py-4 text-muted">
+                <i class="fas fa-cubes fa-2x mb-3"></i>
+                <p class="mb-0">No products found. Start by adding your first product.</p>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  {% if pagination.pages > 1 %}
+    <nav aria-label="Product pages" class="mt-4">
+      <ul class="pagination justify-content-center">
+        <!-- Previous Page -->
+        <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+          <a class="page-link" href="{{ url_for('products.view_products', page=pagination.prev_num) }}{% if query_string %}&{{ query_string }}{% endif %}" tabindex="-1">
+            <i class="fas fa-chevron-left"></i>
+          </a>
+        </li>
+
+        <!-- First Page -->
+        {% if pagination.page > 2 %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('products.view_products', page=1) }}{% if query_string %}&{{ query_string }}{% endif %}">1</a>
+          </li>
+          {% if pagination.page > 3 %}
+            <li class="page-item disabled">
+              <span class="page-link">...</span>
+            </li>
+          {% endif %}
+        {% endif %}
+
+        <!-- Page Numbers -->
+        {% set start = [1, pagination.page - 1]|max %}
+        {% set end = [pagination.pages + 1, pagination.page + 2]|min %}
+        {% for page_num in range(start, end) %}
+          <li class="page-item {{ 'active' if page_num == pagination.page }}">
+            <a class="page-link" href="{{ url_for('products.view_products', page=page_num) }}{% if query_string %}&{{ query_string }}{% endif %}">{{ page_num }}</a>
+          </li>
+        {% endfor %}
+
+        <!-- Last Page -->
+        {% if pagination.page < pagination.pages - 1 %}
+          {% if pagination.page < pagination.pages - 2 %}
+            <li class="page-item disabled">
+              <span class="page-link">...</span>
+            </li>
+          {% endif %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('products.view_products', page=pagination.pages) }}{% if query_string %}&{{ query_string }}{% endif %}">{{ pagination.pages }}</a>
+          </li>
+        {% endif %}
+
+        <!-- Next Page -->
+        <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+          <a class="page-link" href="{{ url_for('products.view_products', page=pagination.next_num) }}{% if query_string %}&{{ query_string }}{% endif %}">
+            <i class="fas fa-chevron-right"></i>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  {% endif %}
+
+  <!-- Product Details Modal -->
+  {% for product in products %}
+    <div class="modal fade" id="viewProductModal{{ product.id }}" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-header">
+            <div>
+              <h5 class="modal-title fw-bold mb-1">{{ product.name }}</h5>
+              <small class="text-muted">
+                <i class="fas fa-barcode me-1"></i>{{ product.barcode }}
+              </small>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body p-4">
+            <div class="row g-4">
+              <!-- Product Overview -->
+              <div class="col-12">
+                <div class="row g-3">
+                  <div class="col-sm-6 col-lg-3">
+                    <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
+                      <i class="fas fa-warehouse fa-lg text-info"></i>
+                      <div>
+                        <div class="text-muted small">Warehouse Stock</div>
+                        <div class="fw-bold text-info">
+                          {{ product.warehouse_qty|default(0) }} {{ product.uom }}
+                        </div>
+                        <div class="text-muted" style="font-size:0.7rem">Initial: {{ product.warehouse_initial_qty|default(0) }} {{ product.uom }}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-sm-6 col-lg-3">
+                    <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
+                      <i class="fas fa-store fa-lg text-success"></i>
+                      <div>
+                        <div class="text-muted small">Store Stock</div>
+                        <div class="fw-bold text-success">
+                          {{ product.store_qty|default(0) }} {{ product.uom }}
+                        </div>
+                        <div class="text-muted" style="font-size:0.7rem">Initial: {{ product.store_initial_qty|default(0) }} {{ product.uom }}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-sm-6 col-lg-3">
+                    <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
+                      <i class="fas fa-cube fa-lg {% if product.quantity == 0 %}text-danger{% elif product.is_low_stock %}text-warning{% else %}text-success{% endif %}"></i>
+                      <div>
+                        <div class="text-muted small">Total Stock</div>
+                        <div class="fw-bold {% if product.quantity == 0 %}text-danger{% elif product.is_low_stock %}text-warning{% else %}text-success{% endif %}">
+                          {{ product.quantity }} {{ product.uom }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-sm-6 col-lg-3">
+                    <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
+                      <i class="fas fa-tag fa-lg text-info"></i>
+                      <div>
+                        <div class="text-muted small">Account</div>
+                        <div class="fw-bold">FS #{{ account_codes.get(product.account_title, '-') }}</div>
+                        <div class="small text-muted">{{ product.account_title }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Product Details -->
+              <div class="col-md-6">
+                <h6 class="fw-bold mb-3">Product Details</h6>
+                <table class="table table-sm">
+                  <tr>
+                    <td class="text-muted">Description</td>
+                    <td class="fw-semibold">{{ product.item_uom_desc or '-' }}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">UOM</td>
+                    <td class="fw-semibold">{{ product.uom }}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">Conversion</td>
+                    <td class="fw-semibold">{{ product.uom_conversion or '-' }}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">Purchase Order Place</td>
+                    <td class="fw-semibold">{{ product.purchase_order_place or '-' }}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted"><i class="fas fa-warehouse me-1 text-info"></i>Warehouse Initial Qty</td>
+                    <td class="fw-semibold text-info">{{ product.warehouse_initial_qty|default(0)|decimal_format(2) }} {{ product.uom }}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted"><i class="fas fa-store me-1 text-success"></i>Store Initial Qty</td>
+                    <td class="fw-semibold text-success">{{ product.store_initial_qty|default(0)|decimal_format(2) }} {{ product.uom }}</td>
+                  </tr>
+                </table>
+    </div>
+
+              <!-- Barcode -->
+              <div class="col-md-6">
+                <h6 class="fw-bold mb-3">Barcode</h6>
+                <div class="text-center p-3 bg-subtle rounded">
+                  {% if product.barcode %}
+                    <img src="{{ url_for('static', filename='product_barcodes/company_' + product.company_id|string + '/' + product.barcode + '.png') }}"
+                         alt="barcode" class="img-fluid" style="max-height: 60px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
+                  {% else %}
+                    <span class="text-muted">No barcode available</span>
+                  {% endif %}
+  </div>
+</div>
+
+              <!-- Product Batches -->
+              <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h6 class="fw-bold mb-0">Product Batches</h6>
+                  <div>
+                    <a href="{{ url_for('products.product_history', product_id=product.id) }}"
+                       class="btn btn-sm btn-outline-info me-2">
+                      <i class="fas fa-clock-rotate-left me-1"></i>View History
+                    </a>
+                    {% if current_user.role != 'Purchaser' %}
+                    <button class="btn btn-sm btn-outline-primary" onclick="addBatch('{{ product.id }}')">
+                      <i class="fas fa-circle-plus me-1"></i>Add Stock
+                    </button>
+                    {% endif %}
+                  </div>
+                </div>
+
+
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle batch-table">
+                    <thead>
+                      <tr>
+                        <th class="text-muted small text-center" style="width: 60px;">Batch</th>
+                        <th class="text-muted small">Supplier Name</th>
+                        <th class="text-muted small">Location</th>
+                        <th class="text-muted small">Quantity</th>
+                        <th class="text-muted small">Sub-barcode</th>
+                        <th class="text-muted small">Expiry</th>
+                        <th class="text-end text-muted small">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for batch in product.batches|sort(attribute='exp_date') %}
+                        {% set qty = batch.quantity or 0 %}
+                        {% set int_qty = batch.int_quantity if batch.int_quantity is not none else 0 %}
+                        {% set pct = (qty / int_qty * 100) if int_qty > 0 else 0 %}
+                        {% set is_low = product.is_low_stock %}
+                        {% set threshold = product.low_stock_threshold if product.low_stock_threshold is defined else 10 %}
+                        {% set pct_class = 'bg-danger' if qty == 0 else ('bg-warning' if is_low else 'bg-success') %}
+                        {% if now is defined %}
+                          {% set days_until = (batch.exp_date - now.date()).days if batch.exp_date else 0 %}
+                        {% else %}
+                          {% set days_until = 0 %}
+                        {% endif %}
+                        <tr>
+                          <td class="text-muted text-center" style="width: 60px;">#{{ loop.index }}</td>
+                          <td>
+                            <span class="badge bg-light text-dark border" style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">{{ batch.supplier_name or '-' }}</span>
+                          </td>
+                          <td>
+                            {% if batch.location %}
+                              <span class="badge bg-secondary"><i class="fas fa-location-dot me-1"></i>{{ batch.location }}</span>
+                            {% else %}
+                              <span class="text-muted">-</span>
+                            {% endif %}
+                          </td>
+                          <td style="min-width: 180px;">
+                            <div class="d-flex align-items-center justify-content-between">
+                              <div class="qty fw-semibold">{{ qty|decimal_format(2) }}/{{ int_qty|decimal_format(2) if int_qty > 0 else qty|decimal_format(2) }} {{ product.uom }}</div>
+                              <span class="badge {% if qty == 0 %}bg-danger text-white{% else %}bg-light text-dark{% endif %}">{{ pct|round(0) }}%</span>
+                            </div>
+                            <div class="progress mt-1" style="height: 6px;">
+                              <div class="progress-bar {{ pct_class }}"
+                                   role="progressbar"
+                                   style="width: {% if qty == 0 %}100{% else %}{{ pct if pct <= 100 else 100 }}{% endif %}%"
+                                   aria-valuenow="{{ pct|round(1) }}"
+                                   aria-valuemin="0"
+                                   aria-valuemax="100">
+                              </div>
+                            </div>
+                          </td>
+                          <!-- Add new column for sub-barcode -->
+                          <td class="text-muted" style="min-width: 160px;">
+                            {% if batch.sub_barcode %}
+                              <div class="d-flex align-items-center">
+                                <i class="fas fa-barcode me-2"></i>
+                                <span>{{ batch.sub_barcode }}</span>
+                              </div>
+                              <!-- Display barcode image -->
+                              <div class="mt-2">
+                                <img src="{{ url_for('static', filename='batch_barcodes/company_' + product.company_id|string + '/' + batch.sub_barcode + '.png') }}"
+                                     alt="Batch barcode" class="img-fluid" style="max-height: 40px;" 
+                                     onerror="this.onerror=null;this.parentElement.innerHTML='<small class=text-muted>Barcode not generated</small>';">
+                              </div>
+                            {% else %}
+                              <span class="text-muted">No sub-barcode</span>
+                            {% endif %}
+                          </td>
+                          <td style="min-width: 150px;">
+                            <div class="d-flex flex-column">
+                              {% if batch.exp_date.year >= 2099 %}
+                                <span class="text-muted">N/A</span>
+                                <small class="text-muted">Non-expiring</small>
+                              {% else %}
+                                <span class="{% if days_until <= 0 %}text-danger{% elif days_until <= 30 %}text-warning{% else %}text-success{% endif %}">{{ batch.exp_date.strftime('%Y-%m-%d') }}</span>
+                                <small class="text-muted">
+                                  {% if days_until <= 0 %}
+                                    <i class="fas fa-exclamation-circle text-danger"></i> Expired
+                                  {% else %}
+                                    <i class="fas fa-clock text-{% if days_until <= 30 %}warning{% else %}success{% endif %}"></i> {{ days_until }} days left
+                                  {% endif %}
+                                </small>
+                              {% endif %}
+                            </div>
+                          </td>
+                          <td class="text-end" style="width: 1%; white-space: nowrap;">
+                            {% if current_user.role == 'SYS-Admin' or current_user.role == 'Company-Admin' %}
+                            <button class="btn btn-sm btn-outline-secondary me-1"
+                                    title="Edit batch"
+                                    onclick='openEditBatch({{ product.id }}, {{ batch.id }}, {{ (batch.supplier_name or "")|tojson }}, {{ batch.exp_date.strftime("%Y-%m-%d")|tojson }}, this)'
+                                    data-location="{{ batch.location or '' }}"
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="top">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger"
+                                    title="Delete batch"
+                                    onclick="deleteBatch('{{ product.id }}', '{{ batch.id }}')"
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="top">
+                              <i class="fas fa-trash-alt"></i>
+                            </button>
+                            {% endif %}
+                          </td>
+                        </tr>
+                      {% else %}
+                        <tr>
+                          <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="fas fa-cubes mb-2"></i>
+                            <p class="mb-0">No batch information available</p>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+
+  <!-- Add Product Modal -->
+  <div class="modal fade" id="addProductModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header text-white rounded-top" style="background: linear-gradient(135deg, var(--accent), var(--accent-hover));">
+          <h5 class="modal-title fw-bold mb-0">
+            <i class="fas fa-circle-plus me-2"></i>Add New Product
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <form method="POST" action="{{ url_for('products.add_product') }}" id="addProductForm">
+            <div class="row g-4">
+              <!-- Product Information Section -->
+              <div class="col-12">
+                <h6 class="fw-bold text-primary mb-3">
+                  <i class="fas fa-cube me-2"></i>Product Information
+                </h6>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold">
+                      <i class="fas fa-tag me-1"></i>Item Name
+                    </label>
+                    <input type="text"
+                           class="form-control form-control-lg"
+                           name="name"
+                           required
+                           placeholder="Enter product name">
+                    <div class="form-text">Enter the name of the product</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold">
+                      <i class="fas fa-layer-group me-1"></i>Account Title
+                    </label>
+                    <select class="form-select form-select-lg" name="account_title" required>
+                      <option value="" disabled selected>Select account title</option>
+                      {% for title in account_titles %}
+                        <option value="{{ title }}">{{ title }}</option>
+                      {% endfor %}
+                    </select>
+                    <div class="form-text">Choose the account category for this product</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Description & UOM Section -->
+              <div class="col-12 mt-4">
+                <h6 class="fw-bold text-primary mb-3">
+                  <i class="fas fa-scale-balanced me-2"></i>Unit of Measure & Description
+                </h6>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label fw-semibold">
+                      <i class="fas fa-align-left me-1"></i>Item / UOM Description
+                    </label>
+                    <input type="text"
+                           class="form-control form-control-lg"
+                           name="item_uom_desc"
+                           placeholder="e.g. Plain rice (11 orders/1kg)">
+                    <div class="form-text">Provide a detailed description of the product and its units</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold">
+                      <i class="fas fa-arrows-rotate me-1"></i>UOM Conversion
+                    </label>
+                    <input type="text"
+                           class="form-control form-control-lg"
+                           name="uom_conversion"
+                           placeholder="e.g. 1 pack = 5000 grams">
+                    <div class="form-text">Define conversion rates if applicable</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold">
+                      <i class="fas fa-ruler me-1"></i>UOM
+                    </label>
+                    <select class="form-select form-select-lg" name="uom" required>
+                      <option value="" disabled selected>Select UOM</option>
+                      {% for uom in [
+                        "gram/s", "kilogram/s", "pack/s", "liter/s", "piece/s", "gallon/s",
+                        "tray", "dozen/s", "ream/s", "roll/s", "sack/s", "jug/s", "can/s",
+                        "bottle/s", "bundle/s", "box", "mL"
+                      ] %}
+                        <option value="{{ uom }}">{{ uom }}</option>
+                      {% endfor %}
+                    </select>
+                    <div class="form-text">Select the unit of measure for this product</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Optional Product Details Section -->
+              <div class="col-12 mt-4">
+                  <h6 class="fw-bold text-primary mb-3">
+                      <i class="fas fa-circle-info me-2"></i>Additional Information (Optional)
+                  </h6>
+                  <div class="row g-3">
+                      <div class="col-md-6">
+                          <label class="form-label fw-semibold">
+                              <i class="fas fa-truck me-1"></i>Supplier Name
+                          </label>
+                          <input type="text"
+                                 class="form-control form-control-lg"
+                                 name="supplier_name"
+                                 placeholder="Enter supplier name">
+                          <div class="form-text">Optional: Name of the product supplier</div>
+                      </div>
+                      <div class="col-md-6">
+                          <label class="form-label fw-semibold">
+                              <i class="fas fa-location-dot me-1"></i>Purchase Order Place
+                          </label>
+                          <input type="text"
+                                 class="form-control form-control-lg"
+                                 name="purchase_order_place"
+                                 placeholder="Enter purchase order place">
+                          <div class="form-text">Optional: Location where the purchase order was placed</div>
+                      </div>
+                  </div>
+              </div>
+
+              <!-- Stock & Threshold Section -->
+              <div class="col-12 mt-4">
+                <h6 class="fw-bold text-primary mb-3">
+                  <i class="fas fa-cubes me-2"></i>Stock & Threshold
+                </h6>
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold">
+                      <i class="fas fa-boxes me-1"></i>Initial Stock Quantity
+                    </label>
+                    <input type="number"
+                           class="form-control form-control-lg"
+                           name="quantity"
+                           min="0.01"
+                           step="0.01"
+                           required
+                           placeholder="0.00">
+                    <div class="form-text">Starting stock quantity</div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold">
+                      <i class="fas fa-triangle-exclamation me-1"></i>Low Stock Threshold (%)
+                    </label>
+                    <input type="number"
+                           class="form-control form-control-lg"
+                           name="low_stock_threshold"
+                           value="10"
+                           min="1"
+                           max="100"
+                           required>
+                    <div class="form-text">Percentage of initial stock to trigger low stock alert</div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold">
+                      <i class="fas fa-arrow-up-wide-short me-1"></i>Reorder Level
+                    </label>
+                    <input type="number"
+                           class="form-control form-control-lg"
+                           name="reorder_level"
+                           value="0"
+                           min="0"
+                           step="1">
+                    <div class="form-text">Minimum stock level that triggers reorder alert (0 = disabled)</div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold">
+                  <i class="fas fa-calendar-days me-1"></i>Expiry Date
+                    </label>
+                    <input type="date"
+                           class="form-control form-control-lg"
+                           name="exp_date"
+                           id="expDate">
+                    <div class="form-text">Select the expiry date for initial stock</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+            <i class="fas fa-xmark me-1"></i>Cancel
+          </button>
+          <button type="submit" form="addProductForm" class="btn btn-primary" id="saveProductBtn">
+            <i class="fas fa-save me-1"></i>Save Product
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Stock Modal -->
+  <div class="modal fade" id="addBatchModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <!-- Header -->
+        <div class="modal-header text-white rounded-top" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);padding:1.25rem 1.5rem;border:0">
+          <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center justify-content-center rounded-circle" style="width:42px;height:42px;background:rgba(255,255,255,0.15);font-size:1.15rem">
+              <i class="fas fa-circle-plus"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold mb-0" style="font-size:1.05rem">Add Stock</h5>
+              <small style="opacity:0.75;font-size:0.78rem" id="batchProductLabel">Select a product to add stock</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" style="opacity:0.8"></button>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body p-4">
+          <form id="addBatchForm" method="POST" action="{{ url_for('products.add_stock') }}">
+            <input type="hidden" id="batchProductId" name="product_id">
+
+            <!-- Quantity -->
+            <div class="mb-3">
+              <label for="batchQuantity" class="form-label fw-semibold" style="font-size:0.82rem;color:var(--text-primary)">
+                <i class="fas fa-cubes me-1" style="color:var(--accent)"></i>Quantity
+              </label>
+              <div class="position-relative">
+                <input type="number"
+                       class="form-control form-control-lg"
+                       id="batchQuantity"
+                       name="quantity"
+                       min="0.01" step="0.01" required
+                       placeholder="0.00"
+                       style="padding-left:2.75rem;border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
+                <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" style="font-size:0.85rem;pointer-events:none">
+                  <i class="fas fa-hashtag"></i>
+                </span>
+              </div>
+              <div class="form-text mt-1" style="font-size:0.75rem">Enter the quantity to add to current stock</div>
+            </div>
+
+            <!-- Expiry Date -->
+            <div class="mb-3">
+              <label for="batchExpDate" class="form-label fw-semibold" style="font-size:0.82rem;color:var(--text-primary)">
+                <i class="fas fa-calendar-alt me-1" style="color:var(--accent)"></i>Expiry Date
+              </label>
+              <div class="position-relative">
+                <input type="date"
+                       class="form-control form-control-lg"
+                       id="batchExpDate"
+                       name="exp_date" required
+                       style="padding-left:2.75rem;border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
+                <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" style="font-size:0.85rem;pointer-events:none">
+                  <i class="fas fa-calendar"></i>
+                </span>
+              </div>
+              <div class="form-text mt-1" style="font-size:0.75rem" id="batchExpHelp">Select the expiry date for this batch</div>
+            </div>
+
+            <!-- Separator -->
+            <hr class="my-3" style="border-color:var(--border);opacity:0.4">
+
+            <!-- Supplier Name -->
+            <div class="mb-3">
+              <label for="batchSupplierName" class="form-label fw-semibold" style="font-size:0.82rem;color:var(--text-primary)">
+                <i class="fas fa-truck me-1" style="color:var(--accent)"></i>Supplier Name
+                <span class="text-muted fw-normal" style="font-size:0.7rem">(optional)</span>
+              </label>
+              <div class="position-relative">
+                <input type="text"
+                       class="form-control form-control-lg"
+                       id="batchSupplierName"
+                       name="supplier_name"
+                       placeholder="e.g. Manila Distributors Inc."
+                       style="padding-left:2.75rem;border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
+                <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" style="font-size:0.85rem;pointer-events:none">
+                  <i class="fas fa-building"></i>
+                </span>
+              </div>
+            </div>
+
+            <!-- Warehouse Location -->
+            <div class="mb-0">
+              <label for="batchLocation" class="form-label fw-semibold" style="font-size:0.82rem;color:var(--text-primary)">
+                <i class="fas fa-location-dot me-1" style="color:var(--accent)"></i>Location
+                <span class="text-muted fw-normal" style="font-size:0.7rem">(optional)</span>
+              </label>
+              <div class="position-relative">
+                <input type="text"
+                       class="form-control form-control-lg"
+                       id="batchLocation"
+                       name="location"
+                       placeholder="e.g. Aisle 3, Shelf B2"
+                       style="padding-left:2.75rem;border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
+                <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" style="font-size:0.85rem;pointer-events:none">
+                  <i class="fas fa-warehouse"></i>
+                </span>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer border-0 pt-0 pb-4 px-4" style="gap:0.5rem">
+          <button type="button" class="btn px-4 py-2" data-bs-dismiss="modal"
+                  style="border-radius:10px;border:1.5px solid var(--border);font-weight:500;font-size:0.85rem;color:var(--text-primary);background:transparent">
+            <i class="fas fa-xmark me-1"></i> Cancel
+          </button>
+          <button type="submit" form="addBatchForm" class="btn px-4 py-2 text-white"
+                  style="border-radius:10px;border:0;font-weight:600;font-size:0.85rem;background:linear-gradient(135deg,#2563eb,#1d4ed8)">
+            <i class="fas fa-check me-1"></i> Add Stock
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daily Inventory Count Modal -->
+  <div class="modal fade" id="dailyCountModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content border-0 shadow" style="border-radius:16px;overflow:hidden">
+        <!-- Header -->
+        <div class="modal-header text-white" style="background:linear-gradient(135deg,#0f766e,#059669);padding:1.25rem 1.5rem;border:0">
+          <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center justify-content-center rounded-circle" style="width:44px;height:44px;background:rgba(255,255,255,0.15);font-size:1.15rem">
+              <i class="fas fa-clipboard-check"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold mb-0" style="font-size:1.1rem">Daily Inventory Count</h5>
+              <small style="opacity:0.75;font-size:0.78rem">Enter the actual quantity you physically counted for each product</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" style="opacity:0.8"></button>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="px-4 py-3 d-flex flex-wrap gap-3 align-items-center" style="background:var(--light-bg);border-bottom:1px solid var(--border)">
+          <div class="d-flex align-items-center gap-2">
+            <span class="fw-semibold small" style="color:var(--text-primary)" id="countTotalProducts">0</span>
+            <span class="text-muted small">products</span>
+          </div>
+          <div class="vr" style="height:18px"></div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="fw-semibold small" style="color:#10b981" id="countMatched">0</span>
+            <span class="text-muted small">matched</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="fw-semibold small" style="color:#f59e0b" id="countOver">0</span>
+            <span class="text-muted small">over</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="fw-semibold small" style="color:#ef4444" id="countShort">0</span>
+            <span class="text-muted small">short</span>
+          </div>
+          <div class="ms-auto">
+            <div class="input-group input-group-sm" style="width:220px">
+              <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
+              <input type="text" class="form-control border-start-0 ps-0" id="countSearchInput" placeholder="Search products..." oninput="filterCountRows()">
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="countLoadingState" class="text-center py-5">
+          <i class="fas fa-spinner fa-spin fa-2x mb-3" style="color:var(--accent)"></i>
+          <p class="text-muted mb-0">Loading inventory...</p>
+        </div>
+
+        <!-- Count Table -->
+        <div id="countTableWrap" class="d-none" style="max-height:55vh;overflow-y:auto">
+          <table class="table align-middle mb-0" id="dailyCountTable" style="border-collapse:separate;border-spacing:0">
+            <thead class="sticky-top" style="z-index:5;background:var(--card-bg);top:0">
+              <tr style="border-bottom:2px solid var(--border)">
+                <th class="text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:var(--text-muted);width:40px">#</th>
+                <th class="text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:var(--text-muted)">Product Name</th>
+                <th class="text-center text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:var(--text-muted);width:130px">System Qty</th>
+                <th class="text-center text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:var(--text-muted);width:180px">Actual Count</th>
+                <th class="text-center text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:var(--text-muted);width:130px">Variance</th>
+              </tr>
+            </thead>
+            <tbody id="dailyCountBody">
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer border-0 px-4 py-3" style="background:var(--light-bg);border-top:1px solid var(--border);gap:0.75rem">
+          <div class="d-flex align-items-center gap-2 me-auto">
+            <label class="form-label fw-semibold mb-0 small" style="color:var(--text-primary)">Counted By:</label>
+            <input type="text" class="form-control form-control-sm" id="dailyCountVerifiedBy" value="{{ current_user.full_name }}" style="width:200px;border-radius:8px;border:1.5px solid var(--border);background:var(--input-bg)">
+          </div>
+          <button type="button" class="btn px-4 py-2" data-bs-dismiss="modal"
+                  style="border-radius:10px;border:1.5px solid var(--border);font-weight:500;font-size:0.85rem;color:var(--text-primary);background:transparent">
+            <i class="fas fa-xmark me-1"></i> Cancel
+          </button>
+          <button type="button" onclick="submitDailyCount()" id="dailyCountSubmitBtn" class="btn px-4 py-2 text-white"
+                  style="border-radius:10px;border:0;font-weight:600;font-size:0.85rem;background:linear-gradient(135deg,#059669,#0f766e)">
+            <i class="fas fa-paper-plane me-1"></i> Submit Count
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Batch Modal (SYS-Admin) -->
+  <div class="modal fade" id="editBatchModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold mb-0"><i class="fas fa-edit me-2"></i>Edit Batch</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <form id="editBatchForm">
+            <input type="hidden" id="editBatchProductId" name="product_id">
+            <input type="hidden" id="editBatchId" name="batch_id">
+            <div class="mb-3">
+              <label class="form-label fw-semibold"><i class="fas fa-boxes me-1"></i>Quantity</label>
+              <input type="number" class="form-control" id="editBatchQuantity" name="quantity" min="0" step="0.01" placeholder="Enter batch quantity">
+              <div class="form-text">Set the batch's current quantity. Total product stock will be recalculated.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold"><i class="fas fa-truck me-1"></i>Supplier Name</label>
+              <input type="text" class="form-control" id="editBatchSupplier" name="supplier_name" placeholder="Enter supplier name (Optional)">
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold"><i class="fas fa-location-dot me-1"></i>Warehouse Location</label>
+              <input type="text" class="form-control" id="editBatchLocation" name="location" placeholder="e.g. Aisle 3, Shelf B2">
+            </div>
+            <div class="mb-0">
+              <label class="form-label fw-semibold"><i class="fas fa-calendar-alt me-1"></i>Expiry Date</label>
+              <input type="date" class="form-control" id="editBatchExpDate" name="exp_date">
+              <div class="form-text" id="editBatchExpHelp">Set the correct expiry date. Required for non-Supplies products.</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="submitEditBatch()">
+            <i class="fas fa-save me-1"></i>Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JS Filtering -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOM loaded, initializing...');
+
+  try {
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    console.log('Tooltips initialized');
+
+    // Set minimum date for expiry date inputs
+    const today = new Date().toISOString().split('T')[0];
+    const expDateInput = document.getElementById("expDate");
+    if (expDateInput) {
+      expDateInput.min = today;
+      console.log('Expiry date input min set to:', today);
+    }
+
+    // Handle form submission for add stock
+    const addBatchForm = document.getElementById('addBatchForm');
+    console.log('Add batch form found:', addBatchForm);
+
+    if (addBatchForm) {
+      addBatchForm.addEventListener('submit', function(e) {
+        console.log('Form submission event triggered');
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const productId = formData.get('product_id');
+        const quantity = formData.get('quantity');
+        const expDate = formData.get('exp_date');
+
+        console.log('Form data:', { productId, quantity, expDate });
+
+        // Validation
+        if (!quantity || isNaN(quantity) || parseFloat(quantity) <= 0) {
+          showNotification('❌ Please enter a valid quantity greater than 0', 'error');
+          return;
+        }
+
+        // Check if this is a Supplies product
+        const productRow = document.querySelector(`tr[data-product-id="${productId}"]`);
+        const accountTitleCell = productRow ? productRow.querySelector('td:nth-child(2) .badge') : null;
+        const accountTitle = accountTitleCell ? accountTitleCell.textContent.trim() : '';
+        const isSuppliesProduct = accountTitle.toLowerCase().startsWith('supplies');
+
+        if (!isSuppliesProduct) {
+          if (!expDate) {
+            showNotification('❌ Please select an expiry date', 'error');
+            return;
+          }
+
+          // Validate date is not in the past
+          const inputDate = new Date(expDate);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          if (inputDate < today) {
+            showNotification('❌ Expiry date cannot be in the past', 'error');
+            return;
+          }
+        }
+
+        // Show loading state
+        showNotification('⏳ Adding stock...', 'info');
+
+        // Submit form data to add_stock endpoint
+        console.log('Submitting to /products/add_stock');
+        fetch('{{ url_for("products.add_stock") }}', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => {
+          console.log('Response received:', response);
+          if (response.ok) {
+            showNotification('✅ Stock added successfully!', 'success');
+
+            // Hide the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addBatchModal'));
+            if (modal) {
+              modal.hide();
+            }
+
+            // Reload after a short delay to show the new stock
+            setTimeout(() => location.reload(), 1500);
+          } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+        })
+        .catch(error => {
+          console.error('Error adding stock:', error);
+          showNotification(`❌ Failed to add stock: ${error.message}`, 'error');
+        });
+      });
+      console.log('Form submission listener added');
+    } else {
+      console.warn('Add batch form not found in DOM');
+    }
+  } catch (error) {
+    console.error('Error during initialization:', error);
+  }
+});
+
+// JS Filtering - Removed as filtering is now handled server-side
+
+// Batch Management Functions
+function addBatch(productId) {
+  try {
+    console.log('Opening add stock modal for product:', productId);
+
+    // Set the product ID in the modal
+    const productIdInput = document.getElementById('batchProductId');
+    if (!productIdInput) {
+      console.error('Product ID input not found');
+      return;
+    }
+    productIdInput.value = productId;
+
+    // Update header with product name
+    const productLabel = document.getElementById('batchProductLabel');
+    const productRow = document.querySelector(`tr[data-product-id="${productId}"]`);
+    if (productLabel && productRow) {
+      const nameCell = productRow.querySelector('td:first-child .fw-semibold');
+      if (nameCell) productLabel.textContent = nameCell.textContent.trim();
+    }
+    const accountTitleCell = productRow ? productRow.querySelector('td:nth-child(2) .badge') : null;
+    const accountTitle = accountTitleCell ? accountTitleCell.textContent.trim() : '';
+
+    // Set minimum date to today for expiry date
+    const today = new Date().toISOString().split('T')[0];
+    const expDateInput = document.getElementById('batchExpDate');
+    if (expDateInput) {
+      expDateInput.min = today;
+      console.log('Set expiry date min to:', today);
+
+      // Disable expiry date field for Supplies products
+      if (accountTitle.toLowerCase().startsWith('supplies')) {
+        expDateInput.disabled = true;
+        expDateInput.value = '';
+        expDateInput.required = false;
+        expDateInput.style.setProperty('background-color', 'var(--light-bg)');
+        expDateInput.style.cursor = 'not-allowed';
+
+        // Update help text
+        const helpText = expDateInput.parentElement.querySelector('.form-text');
+        if (helpText) {
+          helpText.textContent = 'Expiry date is disabled for Supplies products';
+          helpText.style.color = 'var(--text-muted)';
+        }
+      } else {
+        expDateInput.disabled = false;
+        expDateInput.required = true;
+        expDateInput.style.backgroundColor = '';
+        expDateInput.style.cursor = '';
+
+        // Restore original help text
+        const helpText = expDateInput.parentElement.querySelector('.form-text');
+        if (helpText) {
+          helpText.textContent = 'Select the expiry date for this stock';
+          helpText.style.color = 'var(--text-muted)';
+        }
+      }
+    } else {
+      console.error('Expiry date input not found');
+    }
+
+    // Reset form
+    const form = document.getElementById('addBatchForm');
+    if (form) {
+      form.reset();
+      console.log('Form reset');
+    } else {
+      console.error('Add batch form not found');
+      return;
+    }
+
+    // Show the modal
+    const modalElement = document.getElementById('addBatchModal');
+    if (modalElement) {
+      const modal = new bootstrap.Modal(modalElement);
+      modal.show();
+      
+      console.log('Modal shown');
+    } else {
+      console.error('Modal element not found');
+    }
+  } catch (error) {
+    console.error('Error in addBatch function:', error);
+  }
+}
+
+// ── Daily Inventory Count ──────────────────────────────────
+let dailyCountProducts = [];
+
+function openDailyCount() {
+  const loading = document.getElementById('countLoadingState');
+  const tableWrap = document.getElementById('countTableWrap');
+  loading.classList.remove('d-none');
+  tableWrap.classList.add('d-none');
+
+  const modalEl = document.getElementById('dailyCountModal');
+  let modal = bootstrap.Modal.getInstance(modalEl);
+  if (!modal) modal = new bootstrap.Modal(modalEl, { backdrop: 'static' });
+  modal.show();
+
+  fetch('{{ url_for("api.count_inventory_data") }}')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) throw new Error(data.message || 'Failed to load products');
+      dailyCountProducts = data.products;
+      renderDailyCountTable(data.products);
+      loading.classList.add('d-none');
+      tableWrap.classList.remove('d-none');
+    })
+    .catch(err => {
+      console.error('Error loading count data:', err);
+      showNotification('❌ Failed to load inventory: ' + err.message, 'error');
+      modal.hide();
+    });
+}
+
+function renderDailyCountTable(products) {
+  const tbody = document.getElementById('dailyCountBody');
+  tbody.innerHTML = '';
+  products.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    tr.className = 'count-row';
+    tr.dataset.name = p.name.toLowerCase();
+    tr.dataset.productId = p.id;
+    tr.innerHTML = `
+      <td class="px-3 text-muted small" style="vertical-align:middle">${i + 1}</td>
+      <td class="px-3">
+        <div class="fw-semibold" style="font-size:0.9rem;color:var(--text-primary)">${escapeHtml(p.name)}</div>
+        <small class="text-muted" style="font-size:0.72rem">${escapeHtml(p.account_title || '')} · ${escapeHtml(p.uom)}</small>
+      </td>
+      <td class="text-center px-3" style="vertical-align:middle">
+        <span class="fw-bold" style="font-size:1rem;color:var(--text-primary)">${p.system_qty}</span>
+      </td>
+      <td class="text-center px-3" style="vertical-align:middle">
+        <input type="number" min="0" step="0.01" placeholder="—"
+               class="form-control form-control-sm count-actual-input"
+               data-product-id="${p.id}"
+               data-system-qty="${p.system_qty}"
+               oninput="updateCountVariance(this)"
+               style="width:110px;display:inline-block;border-radius:8px;border:1.5px solid var(--border);background:var(--input-bg);text-align:center;font-weight:600">
+      </td>
+      <td class="text-center px-3 count-variance-cell" style="vertical-align:middle">
+        <span class="count-variance badge rounded-pill" style="font-size:0.82rem;padding:0.35em 0.75em;background:var(--light-bg);color:var(--text-muted)">—</span>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  updateCountStats();
+}
+
+function updateCountVariance(input) {
+  const systemQty = parseFloat(input.dataset.systemQty) || 0;
+  const actualQty = input.value === '' ? null : parseFloat(input.value);
+  const row = input.closest('tr');
+  const varianceSpan = row.querySelector('.count-variance');
+
+  // Style the input based on whether it's been filled
+  if (input.value === '') {
+    input.style.borderColor = 'var(--border)';
+    input.style.boxShadow = 'none';
+    varianceSpan.textContent = '—';
+    varianceSpan.style.background = 'var(--light-bg)';
+    varianceSpan.style.color = 'var(--text-muted)';
+  } else if (actualQty === null || isNaN(actualQty)) {
+    input.style.borderColor = 'var(--border)';
+    input.style.boxShadow = 'none';
+    varianceSpan.textContent = '—';
+    varianceSpan.style.background = 'var(--light-bg)';
+    varianceSpan.style.color = 'var(--text-muted)';
+  } else {
+    const diff = actualQty - systemQty;
+    if (diff === 0) {
+      varianceSpan.textContent = '0 (Match)';
+      varianceSpan.style.background = 'rgba(16,185,129,0.12)';
+      varianceSpan.style.color = '#10b981';
+      input.style.borderColor = '#10b981';
+      input.style.boxShadow = '0 0 0 2px rgba(16,185,129,0.15)';
+    } else if (diff > 0) {
+      varianceSpan.textContent = '+' + diff + ' (Over)';
+      varianceSpan.style.background = 'rgba(245,158,11,0.12)';
+      varianceSpan.style.color = '#f59e0b';
+      input.style.borderColor = '#f59e0b';
+      input.style.boxShadow = '0 0 0 2px rgba(245,158,11,0.15)';
+    } else {
+      varianceSpan.textContent = diff + ' (Short)';
+      varianceSpan.style.background = 'rgba(239,68,68,0.12)';
+      varianceSpan.style.color = '#ef4444';
+      input.style.borderColor = '#ef4444';
+      input.style.boxShadow = '0 0 0 2px rgba(239,68,68,0.15)';
+    }
+  }
+  updateCountStats();
+}
+
+function updateCountStats() {
+  const inputs = document.querySelectorAll('.count-actual-input');
+  let filled = 0, matched = 0, over = 0, short = 0;
+  inputs.forEach(input => {
+    const systemQty = parseFloat(input.dataset.systemQty) || 0;
+    if (input.value !== '' && !isNaN(parseFloat(input.value))) {
+      filled++;
+      const diff = parseFloat(input.value) - systemQty;
+      if (diff === 0) matched++;
+      else if (diff > 0) over++;
+      else short++;
+    }
+  });
+  document.getElementById('countTotalProducts').textContent = inputs.length;
+  document.getElementById('countMatched').textContent = matched;
+  document.getElementById('countOver').textContent = over;
+  document.getElementById('countShort').textContent = short;
+}
+
+function filterCountRows() {
+  const q = document.getElementById('countSearchInput').value.toLowerCase().trim();
+  document.querySelectorAll('#dailyCountBody .count-row').forEach(row => {
+    row.style.display = (!q || row.dataset.name.includes(q)) ? '' : 'none';
+  });
+}
+
+function submitDailyCount() {
+  const verifiedBy = document.getElementById('dailyCountVerifiedBy').value.trim();
+  if (!verifiedBy) {
+    showNotification('❌ Please enter who counted the inventory', 'error');
+    return;
+  }
+
+  const audits = [];
+  document.querySelectorAll('.count-actual-input').forEach(input => {
+    if (input.value !== '' && !isNaN(parseFloat(input.value))) {
+      audits.push({
+        product_id: parseInt(input.dataset.productId),
+        recorded_quantity: parseFloat(input.dataset.systemQty),
+        actual_quantity: parseFloat(input.value)
+      });
+    }
+  });
+
+  if (audits.length === 0) {
+    showNotification('❌ Please enter at least one actual count', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('dailyCountSubmitBtn');
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Submitting...';
+
+  fetch('{{ url_for("api.submit_audit") }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ audits: audits, verified_by: verifiedBy })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      const overCount = audits.filter(a => a.actual_quantity > a.recorded_quantity).length;
+      const shortCount = audits.filter(a => a.actual_quantity < a.recorded_quantity).length;
+      const matchCount = audits.filter(a => a.actual_quantity === a.recorded_quantity).length;
+      let msg = '✅ Inventory count submitted! ' + audits.length + ' products counted.';
+      if (overCount) msg += ' (' + overCount + ' over, ' + shortCount + ' short, ' + matchCount + ' matched)';
+      showNotification(msg, 'success');
+      const modal = bootstrap.Modal.getInstance(document.getElementById('dailyCountModal'));
+      if (modal) modal.hide();
+    } else {
+      throw new Error(data.message || 'Failed to submit count');
+    }
+  })
+  .catch(err => {
+    console.error('Error submitting count:', err);
+    showNotification('❌ Failed to submit count: ' + err.message, 'error');
+  })
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
+
+function deleteBatch(productId, batchId) {
+  // Enhanced confirmation dialog
+  if (!confirm('⚠️ Are you sure you want to delete this batch?\n\nThis action cannot be undone and will reduce the product stock.')) return;
+
+  // Get the delete button and show loading state
+  const deleteBtn = event.target.closest('button');
+  const originalContent = deleteBtn.innerHTML;
+  deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  deleteBtn.disabled = true;
+  deleteBtn.classList.remove('btn-outline-danger');
+  deleteBtn.classList.add('btn-secondary');
+
+  const requestData = {
+    product_id: productId,
+    batch_id: batchId
+  };
+
+  fetch('{{ url_for("products.delete_batch") }}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestData)
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
+  })
+  .then(data => {
+    if (data.status === 'success') {
+      // Show success message
+      showNotification('✅ Batch deleted successfully!', 'success');
+
+      // Remove the batch row from the table
+      const batchRow = deleteBtn.closest('tr');
+      if (batchRow) {
+        batchRow.style.animation = 'fadeOut 0.3s ease-out';
+        setTimeout(() => {
+          batchRow.remove();
+          // Update product stock display if needed
+          updateProductStockDisplay(productId);
+        }, 300);
+      } else {
+        // Fallback to page reload if row removal fails
+        setTimeout(() => location.reload(), 1000);
+      }
+    } else {
+      throw new Error(data.message || 'Unknown error occurred');
+    }
+  })
+  .catch(error => {
+    console.error('Error deleting batch:', error);
+    showNotification(`❌ Failed to delete batch: ${error.message}`, 'error');
+
+    // Restore button state
+    deleteBtn.innerHTML = originalContent;
+    deleteBtn.disabled = false;
+    deleteBtn.classList.remove('btn-secondary');
+    deleteBtn.classList.add('btn-outline-danger');
+  });
+}
+
+// Open Edit Batch modal (SYS-Admin)
+function openEditBatch(productId, batchId, supplierName, expDate, btnEl) {
+  try {
+    // Populate hidden fields
+    document.getElementById('editBatchProductId').value = productId;
+    document.getElementById('editBatchId').value = batchId;
+
+    // Set supplier, location, and date
+    const supplierInput = document.getElementById('editBatchSupplier');
+    const locationInput = document.getElementById('editBatchLocation');
+    const qtyInput = document.getElementById('editBatchQuantity');
+    const expInput = document.getElementById('editBatchExpDate');
+    const help = document.getElementById('editBatchExpHelp');
+
+    supplierInput.value = supplierName || '';
+    locationInput.value = btnEl ? btnEl.getAttribute('data-location') || '' : '';
+    expInput.value = expDate || '';
+    
+    // Prefill current quantity from table if available
+    qtyInput.value = '';
+    try {
+      const row = btnEl && btnEl.closest ? btnEl.closest('tr') : null;
+      if (row) {
+        const qtyEl = row.querySelector('.qty');
+        if (qtyEl && qtyEl.textContent) {
+          const qtyText = qtyEl.textContent;
+          const beforeSlash = qtyText.split('/')[0] || '';
+          const numeric = beforeSlash.replace(/[^0-9.\-]/g, '').trim();
+          if (numeric) qtyInput.value = numeric;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not prefill quantity:', e);
+    }
+
+    // Enforce min date today by default
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todayStr = new Date(today.getTime() - today.getTimezoneOffset()*60000).toISOString().split('T')[0];
+    expInput.min = todayStr;
+
+    // Determine if product is Supplies to allow blank date
+    const productRow = document.querySelector('tr[data-product-id="' + productId + '"]');
+    const accountTitleEl = productRow ? productRow.querySelector('td:nth-child(2) .badge') : null;
+    const accountTitle = accountTitleEl ? accountTitleEl.textContent.trim() : '';
+    const isSupplies = accountTitle.toLowerCase().startsWith('supplies');
+
+    if (isSupplies) {
+      help.textContent = 'Expiry can be left blank for Supplies products (will be set to non-expiring).';
+      expInput.required = false;
+    } else {
+      help.textContent = 'Expiry date is required for non-Supplies products.';
+      expInput.required = true;
+    }
+
+    // Show modal
+    const modalEl = document.getElementById('editBatchModal');
+    if (modalEl) {
+      // Use existing modal instance or create new one
+      let modal = bootstrap.Modal.getInstance(modalEl);
+      if (!modal) {
+        modal = new bootstrap.Modal(modalEl, {
+          backdrop: true,
+          keyboard: true
+        });
+      }
+      modal.show();
+    }
+  } catch (e) {
+    console.error('openEditBatch error:', e);
+    showNotification('Failed to open edit dialog', 'error');
+  }
+}
+
+// Submit Edit Batch changes
+function submitEditBatch() {
+  const productId = document.getElementById('editBatchProductId').value;
+  const batchId = document.getElementById('editBatchId').value;
+  const quantity = document.getElementById('editBatchQuantity').value;
+  const supplierName = document.getElementById('editBatchSupplier').value;
+  const expDate = document.getElementById('editBatchExpDate').value;
+
+  // Validate for non-supplies
+  const productRow = document.querySelector('tr[data-product-id="' + productId + '"]');
+  const accountTitleEl = productRow ? productRow.querySelector('td:nth-child(2) .badge') : null;
+  const accountTitle = accountTitleEl ? accountTitleEl.textContent.trim() : '';
+  const isSupplies = accountTitle.toLowerCase().startsWith('supplies');
+
+  if (!isSupplies) {
+    if (!expDate) {
+      showNotification('❌ Expiry date is required for this product', 'error');
+      return;
+    }
+    // Prevent past date
+    const inputDate = new Date(expDate);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    if (inputDate < today) {
+      showNotification('❌ Expiry date cannot be in the past', 'error');
+      return;
+    }
+  }
+
+  const location = document.getElementById('editBatchLocation').value;
+
+  const payload = {
+    product_id: productId,
+    batch_id: batchId,
+    quantity: quantity,
+    supplier_name: supplierName,
+    location: location,
+    exp_date: expDate
+  };
+
+  showNotification('⏳ Saving changes...', 'info');
+
+  fetch('{{ url_for("products.update_batch") }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  })
+  .then(data => {
+    if (data.status === 'success') {
+      showNotification('✅ Batch updated successfully', 'success');
+      // Close modal and refresh UI
+      const modal = bootstrap.Modal.getInstance(document.getElementById('editBatchModal'));
+      if (modal) modal.hide();
+      
+      // After closing edit modal
+      
+      setTimeout(() => location.reload(), 800);
+    } else {
+      throw new Error(data.message || 'Update failed');
+    }
+  })
+  .catch(err => {
+    console.error('submitEditBatch error:', err);
+    showNotification(`❌ Failed to update batch: ${err.message}`, 'error');
+  });
+}
+
+// Helper function to show notifications
+function showNotification(message, type = 'info') {
+  // Remove existing notifications
+  const existingNotifications = document.querySelectorAll('.notification-toast');
+  existingNotifications.forEach(notification => notification.remove());
+
+  const notification = document.createElement('div');
+  notification.className = `notification-toast notification-${type}`;
+  notification.innerHTML = `
+    <div class="d-flex align-items-center">
+      <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+      <span>${message}</span>
+    </div>
+  `;
+
+  document.body.appendChild(notification);
+
+  // Show notification
+  setTimeout(() => notification.classList.add('show'), 100);
+
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    notification.classList.remove('show');
+    setTimeout(() => notification.remove(), 300);
+  }, 5000);
+}
+
+// Helper function to update product stock display
+function updateProductStockDisplay(productId) {
+  // Find the product row and update stock information
+  const productRow = document.querySelector(`tr[data-product-id="${productId}"]`);
+  if (productRow) {
+    // You can add logic here to update the stock display without reloading
+    // For now, we'll just show a small indicator
+    const stockCell = productRow.querySelector('td:nth-child(3)');
+    if (stockCell) {
+      const currentStock = stockCell.querySelector('.fw-semibold');
+      if (currentStock) {
+        currentStock.style.animation = 'pulse 0.5s ease-in-out';
+      }
+    }
+  }
+}
+
+// Ensure modals are properly initialized
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize all modals and register with modal manager
+  var modals = document.querySelectorAll('.modal');
+  modals.forEach(function(modal) {
+    new bootstrap.Modal(modal, {
+      backdrop: true,
+      keyboard: true
+    });
+  });
+  
+  // Handle modal backdrop click to close
+  document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', function(event) {
+      if (event.target === modal) {
+        bootstrap.Modal.getInstance(modal).hide();
+      }
+    });
+  });
+  
+  // Specific fix for view product modals
+  document.querySelectorAll('[id^="viewProductModal"]').forEach(modal => {
+    // Ensure backdrop is properly handled
+    modal.addEventListener('shown.bs.modal', function() {
+      // Make sure backdrop is visible
+      const backdrop = document.querySelector('.modal-backdrop');
+      if (backdrop) {
+        backdrop.style.opacity = '0.5';
+      }
+    });
+    
+    // Handle escape key properly
+    modal.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        bootstrap.Modal.getInstance(modal).hide();
+      }
+    });
+  });
+});
+
+// Add Product Form Validation
+document.addEventListener('DOMContentLoaded', function() {
+  const addProductForm = document.getElementById('addProductForm');
+  const saveProductBtn = document.getElementById('saveProductBtn');
+
+  if (addProductForm) {
+    addProductForm.addEventListener('submit', function(e) {
+      const accountSelect = this.querySelector('select[name="account_title"]');
+      const expDateInput = this.querySelector('input[name="exp_date"]');
+
+      if (accountSelect && expDateInput) {
+        const accountTitle = accountSelect.value;
+        const expDate = expDateInput.value;
+
+        // Check if it's a COS product and expiry date is missing
+        if ((accountTitle.toLowerCase().startsWith('cos')) && !expDate) {
+          e.preventDefault();
+          showNotification('❌ Expiry date is required for COS products', 'error');
+          expDateInput.focus();
+          return false;
+        }
+      }
+    });
+  }
+});
+</script>
+
+<script>
+// Export Inventory Excel Function
+function exportInventoryExcel() {
+  const exportBtn = document.querySelector('a[href*="export_inventory_xlsx"]');
+  const originalText = exportBtn.innerHTML;
+
+  // Show loading state
+  exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Exporting...';
+  exportBtn.classList.add('disabled');
+
+  // Create a temporary link to trigger download without page navigation
+  const link = document.createElement('a');
+  link.href = exportBtn.href;
+  link.download = 'inventory_export.xlsx';
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  // Show success message
+  setTimeout(() => {
+    showNotification('Excel export completed successfully!', 'success');
+  }, 1000);
+
+  // Reset button after a short delay
+  setTimeout(() => {
+    exportBtn.innerHTML = originalText;
+    exportBtn.classList.remove('disabled');
+  }, 2000);
+}
+
+// Handle modal show events
+document.addEventListener('DOMContentLoaded', function() {
+  // Handle all modals
+  document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('show.bs.modal', function() {
+      // Modal will be handled by CSS z-index
+    });
+    
+    modal.addEventListener('hidden.bs.modal', function() {
+      // Modal will be handled by CSS z-index
+    });
+  });
+  
+  // Handle modal backdrop click to close
+  document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', function(event) {
+      if (event.target === modal) {
+        bootstrap.Modal.getInstance(modal).hide();
+      }
+    });
+  });
+  
+  // Specific fix for view product modals
+  document.querySelectorAll('[id^="viewProductModal"]').forEach(modal => {
+    // Handle escape key properly
+    modal.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        bootstrap.Modal.getInstance(modal).hide();
+      }
+    });
+  });
+  
+  // Specific handler for edit batch modal
+  const editBatchModal = document.getElementById('editBatchModal');
+  if (editBatchModal) {
+    // When edit batch modal is hidden
+    editBatchModal.addEventListener('hidden.bs.modal', function() {
+      // Modal cleanup
+    });
+  }
+  
+  // Specific handler for add batch modal
+  const addBatchModal = document.getElementById('addBatchModal');
+  if (addBatchModal) {
+    // When add batch modal is hidden
+    addBatchModal.addEventListener('hidden.bs.modal', function() {
+      // Modal cleanup
+    });
+  }
+});
+
+// Toggle favorite function
+function toggleFavorite(productId) {
+  const btn = document.getElementById(`favoriteBtn${productId}`);
+  const originalTitle = btn.title;
+  const originalInnerHTML = btn.innerHTML;
+
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+  // Generate the URL using the base URL from a data attribute
+  const baseUrl = btn.getAttribute('data-toggle-url');
+  const url = baseUrl.replace('0', productId);
+
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Update button appearance and icon
+      if (data.is_favorite) {
+        btn.className = 'btn btn-sm btn-warning';
+        btn.title = 'Remove from favorites';
+        btn.innerHTML = '<i class="fas fa-star"></i>';
+      } else {
+        btn.className = 'btn btn-sm btn-outline-warning';
+        btn.title = 'Add to favorites';
+        btn.innerHTML = '<i class="far fa-star"></i>';
+      }
+
+      // Show success notification
+      showNotification(data.message, 'success');
+    } else {
+      showNotification(data.message || 'Failed to toggle favorite', 'error');
+      btn.title = originalTitle;
+      btn.innerHTML = originalInnerHTML;
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showNotification('An error occurred while toggling favorite', 'error');
+    btn.title = originalTitle;
+    btn.innerHTML = originalInnerHTML;
+  })
+  .finally(() => {
+    // Only restore button state
+    btn.disabled = false;
+  });
+}
+</script>
+
+<style>
+/* ── Tables ── */
+.product-row:hover { background: rgba(99,102,241,0.03); }
+.dark-mode .product-row:hover { background: rgba(255,255,255,0.03); }
+
+/* ── Pagination ── */
+.pagination { margin: 1rem 0 0; }
+.page-link {
+  padding: 0.5rem 0.75rem; font-size: 0.85rem;
+  color: var(--text-primary) !important; background: var(--card-bg);
+  border: 1px solid var(--border); font-weight: 500;
+  transition: all 0.15s;
+}
+.page-link:hover {
+  color: var(--text-primary) !important; background: var(--light-bg);
+  border-color: var(--border);
+}
+.page-item.active .page-link {
+  background: var(--accent) !important; border-color: var(--accent) !important;
+  color: #fff !important; font-weight: 600;
+}
+.page-item.disabled .page-link {
+  color: var(--text-muted) !important; background: var(--card-bg); border-color: var(--border); cursor: not-allowed;
+}
+
+/* ── Modal z-index stacking ── */
+.modal { z-index: 1050 !important; }
+.modal-backdrop { z-index: 1040 !important; background-color: #000 !important; }
+.modal-backdrop.show { opacity: 0.5; }
+.modal[id^="viewProductModal"] { z-index: 1155 !important; }
+.modal[id^="viewProductModal"] + .modal-backdrop { z-index: 1150 !important; }
+.modal[id="editBatchModal"], .modal[id="addBatchModal"] { z-index: 1165 !important; }
+.modal[id="editBatchModal"] + .modal-backdrop, .modal[id="addBatchModal"] + .modal-backdrop { z-index: 1160 !important; }
+.modal-backdrop + .modal-backdrop { z-index: 1060 !important; }
+.modal-backdrop:not(.show) { display: none; }
+.modal.show { z-index: 1170 !important; }
+.modal-backdrop.show:last-child { z-index: 1165 !important; }
+.modal-dialog { margin: 1.75rem auto; }
+.modal-content { max-height: calc(100vh - 3.5rem); }
+.modal-body { overflow-y: auto; padding: 1.5rem; }
+.modal-header { border-bottom: 1px solid rgba(0,0,0,0.08); }
+.modal-footer { border-top: 1px solid rgba(0,0,0,0.08); }
+
+/* ── Buttons ── */
+.btn-outline-secondary { border-color: var(--border); color: var(--text-muted); }
+.btn-outline-secondary:hover { background: var(--light-bg); border-color: var(--border); color: var(--text-primary); }
+.btn-outline-success { border-color: var(--border); color: #10b981; }
+.btn-outline-success:hover { background: #10b981; border-color: #10b981; color: #fff; }
+.btn-outline-danger { border-color: var(--border); color: #ef4444; }
+.btn-outline-danger:hover { background: #ef4444; border-color: #ef4444; color: #fff; }
+
+/* ── Notification Toast ── */
+.notification-toast {
+  position: fixed; top: 20px; right: 20px; z-index: 9999;
+  background: var(--card-bg); border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+  padding: 14px 18px; min-width: 280px;
+  transform: translateX(400px); transition: transform 0.3s ease-out;
+  border-left: 4px solid var(--text-muted);
+}
+.notification-toast.show { transform: translateX(0); }
+.notification-toast.notification-success { border-left-color: #10b981; }
+.notification-toast.notification-error { border-left-color: #ef4444; }
+.notification-toast.notification-info { border-left-color: #3b82f6; }
+.notification-success i { color: #10b981; }
+.notification-error i { color: #ef4444; }
+.notification-info i { color: #3b82f6; }
+
+/* ── Animations ── */
+@keyframes fadeOut { from { opacity:1; transform:translateX(0); } to { opacity:0; transform:translateX(-100%); } }
+.fa-spinner { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+
+/* ── Stock Health ── */
+.progress-bar.bg-success { background: linear-gradient(45deg, #10b981, #34d399); }
+.progress-bar.bg-warning { background: linear-gradient(45deg, #f59e0b, #fbbf24); }
+.progress-bar.bg-danger { background: linear-gradient(45deg, #ef4444, #f87171); }
+
+/* ── Dark theme overrides for this page ── */
+.dark-mode .card { background: var(--card-bg); }
+.dark-mode .table { color: var(--text-primary); }
+.dark-mode .modal-content { background: var(--card-bg); }
+.dark-mode .modal-header,
+.dark-mode .modal-footer { border-color: var(--border); }
+
+/* ── Daily Count Modal ── */
+#dailyCountModal .modal-content { border-radius: 16px; }
+#dailyCountModal .table { border-collapse: separate; border-spacing: 0; }
+#dailyCountModal .count-row { border-bottom: 1px solid var(--border); transition: background 0.12s; }
+#dailyCountModal .count-row:hover { background: rgba(99,102,241,0.04); }
+.dark-mode #dailyCountModal .count-row:hover { background: rgba(255,255,255,0.04); }
+#dailyCountModal .count-actual-input { font-size: 0.92rem; padding: 0.35rem 0.5rem; max-width: 120px; }
+#dailyCountModal .count-actual-input:focus { transform: scale(1.02); transition: all 0.15s; }
+#dailyCountModal .count-variance { font-size: 0.78rem; font-weight: 600; }
+#dailyCountModal .sticky-top { box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.dark-mode #dailyCountModal .sticky-top { box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+
+/* Add Stock Modal Styles */
+#addBatchModal .modal-content {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+#addBatchModal .modal-header {
+  border-bottom: none;
+  padding: 1.25rem 1.5rem;
+}
+
+#addBatchModal .modal-title {
+  font-size: 1.05rem;
+}
+
+#addBatchModal .modal-body {
+  padding: 1.5rem;
+}
+
+#addBatchModal .form-control-lg {
+  font-size: 0.9rem;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+#addBatchModal .form-control-lg:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.15) !important;
+  transform: translateY(-1px);
+}
+
+#addBatchModal .form-label {
+  margin-bottom: 0.35rem;
+}
+
+#addBatchModal .form-text {
+  font-size: 0.75rem;
+  margin-top: 0.2rem;
+}
+
+#addBatchModal .btn:active {
+  transform: scale(0.97);
+}
+
+/* Dark mode refinements */
+[data-bs-theme="dark"] #addBatchModal .modal-content {
+  background: #1a1d29;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+[data-bs-theme="dark"] #addBatchModal .form-control-lg {
+  background: rgba(255,255,255,0.04) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  color: #e5e7eb;
+}
+[data-bs-theme="dark"] #addBatchModal .form-control-lg:focus {
+  background: rgba(255,255,255,0.06) !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.2) !important;
+}
+[data-bs-theme="dark"] #addBatchModal .form-control-lg::placeholder {
+  color: rgba(255,255,255,0.25);
+}
+[data-bs-theme="dark"] #addBatchModal hr {
+  border-color: rgba(255,255,255,0.06) !important;
+}
+[data-bs-theme="dark"] #addBatchModal .btn-outline-secondary {
+  border-color: rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.65);
+}
+[data-bs-theme="dark"] #addBatchModal .btn-outline-secondary:hover {
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+}
+
+/* Add Product Modal Styles */
+#addProductModal .modal-content {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+#addProductModal .modal-header {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  border-bottom: none;
+  padding: 1.5rem;
+}
+
+#addProductModal .modal-title {
+  font-size: 1.25rem;
+}
+
+#addProductModal .modal-body {
+  padding: 1rem;
+}
+
+#addProductModal .form-control-lg,
+#addProductModal .form-select-lg {
+  font-size: 0.95rem;
+  padding: 0.5rem 1rem;
+}
+
+#addProductModal .form-control-lg:focus,
+#addProductModal .form-select-lg:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+  transform: translateY(-1px);
+}
+
+#addProductModal .form-label {
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  font-size: 0.92rem;
+}
+
+#addProductModal .form-text {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+#addProductModal .btn-lg {
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+#addProductModal .btn-lg:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+#addProductModal .btn-close-white {
+  filter: brightness(0) invert(1);
+}
+
+/* Section headers styling */
+#addProductModal h6.fw-bold.text-primary {
+  font-size: 1rem;
+  padding-bottom: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+#addProductModal h6.fw-bold.text-primary i {
+  color: var(--accent);
+}
+
+/* Enhanced form spacing */
+#addProductModal .row.g-4 > .col-12 {
+  margin-bottom: 0.75rem;
+}
+
+#addProductModal .row.g-3 {
+  margin-bottom: 0.25rem;
+}
+
+/* Date input styling for Add Product Modal */
+#addProductModal input[type="date"] {
+  position: relative;
+}
+
+#addProductModal input[type="date"]::-webkit-calendar-picker-indicator {
+  background: transparent;
+  bottom: 0;
+  color: transparent;
+  cursor: pointer;
+  height: auto;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: auto;
+}
+
+#addProductModal input[type="date"]::-webkit-datetime-edit {
+  padding: 0;
+}
+
+#addProductModal input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+#addProductModal input[type="date"]::-webkit-datetime-edit-text {
+  padding: 0 2px;
+}
+
+#addProductModal input[type="date"]::-webkit-datetime-edit-month-field,
+#addProductModal input[type="date"]::-webkit-datetime-edit-day-field,
+#addProductModal input[type="date"]::-webkit-datetime-edit-year-field {
+  padding: 0 2px;
+}
+</style>
+<script>
+function deleteProduct(productId, productName) {
+    // Show confirmation dialog
+    if (!confirm(`Are you sure you want to delete the product "${productName}"?\n\nThis action cannot be undone and will permanently delete the product and all associated data including batches, transaction history, and requisition records.`)) {
+        return;
+    }
+    
+    // Create a form element to submit the delete request
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/products/delete_product/${productId}`;
+    
+    // Add CSRF token if needed (you might need to adjust this based on your implementation)
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (csrfToken) {
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'csrf_token';
+        tokenInput.value = csrfToken.content;
+        form.appendChild(tokenInput);
+    }
+    
+    // Submit the form
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
+{% endblock %}

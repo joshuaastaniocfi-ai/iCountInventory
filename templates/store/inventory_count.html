@@ -1,0 +1,422 @@
+{% extends 'layouts/base-sidebar.html' %}
+
+{% block title %}Inventory Count - iCount{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <!-- Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-3 gap-2">
+    <div class="d-flex align-items-center gap-3">
+      <div class="d-flex align-items-center justify-content-center rounded-3 shadow-sm" style="width:42px;height:42px;background:linear-gradient(135deg,#059669,#10b981);color:#fff">
+        <i class="fas fa-clipboard-check"></i>
+      </div>
+      <div>
+        <h5 class="fw-bold mb-0" style="letter-spacing:-0.02em">{% if user_role == 'User' %}Daily Inventory Count{% else %}Current Inventory{% endif %}</h5>
+        <small class="text-muted">{{ now.strftime('%B %d, %Y') }} — {% if user_role == 'User' %}Count actual stock for all products{% else %}View current warehouse and store inventory{% endif %}</small>
+      </div>
+    </div>
+  </div>
+
+  {% if user_role == 'User' %}
+  <!-- Instructions Card -->
+  <div class="card border-0 shadow-sm mb-3" style="border-radius:12px;background:var(--card-bg)">
+    <div class="card-body py-3 px-4">
+      <div class="d-flex align-items-start gap-3">
+        <div class="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0" style="width:36px;height:36px;background:rgba(16,185,129,0.1);color:#10b981">
+          <i class="fas fa-info-circle"></i>
+        </div>
+        <div>
+          <h6 class="fw-bold mb-1" style="font-size:0.9rem;color:var(--text-primary)">How to count inventory</h6>
+          <p class="mb-0 text-muted" style="font-size:0.82rem;line-height:1.5">
+            Enter the <strong>actual quantity</strong> you physically counted for each product. The system will automatically calculate the variance (difference between system and actual count). Products with overages will show <span style="color:#f59e0b;font-weight:600">Over</span> and shortages will show <span style="color:#ef4444;font-weight:600">Short</span>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Stats Bar -->
+  <div class="card border-0 shadow-sm mb-3" style="border-radius:12px;background:var(--card-bg)">
+    <div class="card-body py-2 px-4 d-flex flex-wrap gap-3 align-items-center">
+      <div class="d-flex align-items-center gap-2">
+        <i class="fas fa-cubes text-muted"></i>
+        <span class="fw-semibold" style="color:var(--text-primary)" id="countTotalProducts">0</span>
+        <span class="text-muted small">products</span>
+      </div>
+      <div class="vr" style="height:18px"></div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fw-semibold" style="color:#10b981" id="countMatched">0</span>
+        <span class="text-muted small">matched</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fw-semibold" style="color:#f59e0b" id="countOver">0</span>
+        <span class="text-muted small">over</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fw-semibold" style="color:#ef4444" id="countShort">0</span>
+        <span class="text-muted small">short</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fw-semibold" style="color:var(--accent)" id="countFilled">0</span>
+        <span class="text-muted small">counted</span>
+      </div>
+      <div class="ms-auto">
+        <div class="input-group input-group-sm" style="width:240px">
+          <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
+          <input type="text" class="form-control border-start-0 ps-0" id="countSearchInput" placeholder="Search products..." oninput="filterCountRows()" style="background:var(--input-bg);border-color:var(--border)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div id="countLoadingState" class="text-center py-5">
+    <i class="fas fa-spinner fa-spin fa-2x mb-3" style="color:var(--accent)"></i>
+    <p class="text-muted mb-0">Loading inventory...</p>
+  </div>
+
+  <!-- Count Table -->
+  <div id="countTableWrap" class="d-none">
+    <div class="card border-0 shadow-sm" style="border-radius:12px;overflow:hidden">
+      <div class="table-responsive" style="max-height:60vh;overflow-y:auto">
+        <table class="table align-middle mb-0" id="dailyCountTable" style="border-collapse:separate;border-spacing:0">
+          <thead class="sticky-top" style="z-index:5;background:var(--card-bg);top:0">
+            <tr style="border-bottom:2px solid var(--border)">
+              <th class="text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:var(--text-muted);width:40px">#</th>
+              <th class="text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:var(--text-muted)">Product Name</th>
+              <th class="text-center text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:#0ea5e9;width:100px">WH Qty</th>
+              <th class="text-center text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:#10b981;width:100px">Store Qty</th>
+              <th class="text-center text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:var(--text-muted);width:100px">Total</th>
+              {% if user_role == 'User' %}
+              <th class="text-center text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:#0ea5e9;width:130px"><i class="fas fa-warehouse me-1" style="font-size:0.7rem"></i>WH Count</th>
+              <th class="text-center text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:#10b981;width:130px"><i class="fas fa-store me-1" style="font-size:0.7rem"></i>Store Count</th>
+              <th class="text-center text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:var(--text-muted);width:140px">WH Variance</th>
+              <th class="text-center text-uppercase small fw-semibold px-3 py-3" style="letter-spacing:0.04em;color:var(--text-muted);width:140px">Store Variance</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody id="dailyCountBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if user_role == 'User' %}
+  <!-- Submit Bar (sticky bottom) -->
+  <div id="countSubmitBar" class="d-none mt-3">
+    <div class="card border-0 shadow-sm" style="border-radius:12px;background:var(--card-bg)">
+      <div class="card-body py-3 px-4 d-flex flex-wrap align-items-center gap-3">
+        <div class="d-flex align-items-center gap-2">
+          <label class="form-label fw-semibold mb-0 small" style="color:var(--text-primary)">
+            <i class="fas fa-user-check me-1" style="color:var(--accent)"></i>Counted By:
+          </label>
+          <input type="text" class="form-control form-control-sm" id="dailyCountVerifiedBy" value="{{ current_user.full_name }}" style="width:200px;border-radius:8px;border:1.5px solid var(--border);background:var(--input-bg)">
+        </div>
+        <div class="ms-auto d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetCountForm()" style="border-radius:8px">
+            <i class="fas fa-rotate-left me-1"></i> Reset
+          </button>
+          <button type="button" onclick="submitDailyCount()" id="dailyCountSubmitBtn" class="btn btn-sm text-white" style="border-radius:8px;border:0;font-weight:600;background:linear-gradient(135deg,#059669,#0f766e)">
+            <i class="fas fa-paper-plane me-1"></i> Submit Count
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+let dailyCountProducts = [];
+const USER_ROLE = '{{ user_role }}';
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadInventoryData();
+});
+
+function loadInventoryData() {
+  const loading = document.getElementById('countLoadingState');
+  const tableWrap = document.getElementById('countTableWrap');
+  loading.classList.remove('d-none');
+  tableWrap.classList.add('d-none');
+
+  fetch('{{ url_for("store.count_inventory_data") }}')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) throw new Error(data.message || 'Failed to load products');
+      dailyCountProducts = data.products;
+      renderDailyCountTable(data.products);
+      loading.classList.add('d-none');
+      tableWrap.classList.remove('d-none');
+      var submitBar = document.getElementById('countSubmitBar');
+      if (submitBar) submitBar.classList.remove('d-none');
+    })
+    .catch(err => {
+      console.error('Error loading count data:', err);
+      showStoreNotification('Failed to load inventory: ' + err.message, 'error');
+      loading.innerHTML = '<i class="fas fa-exclamation-triangle fa-2x mb-3 text-warning"></i><p class="text-muted mb-0">Failed to load inventory data</p>';
+    });
+}
+
+function renderDailyCountTable(products) {
+  const tbody = document.getElementById('dailyCountBody');
+  tbody.innerHTML = '';
+  products.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    tr.className = 'count-row';
+    tr.dataset.name = p.name.toLowerCase();
+    tr.dataset.productId = p.id;
+    tr.style.borderBottom = '1px solid var(--border)';
+    tr.style.transition = 'background 0.12s';
+    let inputCols = '';
+    if (USER_ROLE === 'User') {
+      inputCols = `
+        <td class="text-center px-3" style="vertical-align:middle">
+          <input type="number" min="0" step="0.01" placeholder="—"
+                 class="form-control form-control-sm count-wh-input"
+                 data-product-id="${p.id}"
+                 data-wh-qty="${p.warehouse_qty}"
+                 oninput="updateLocationVariance(this, 'wh')"
+                 style="width:110px;display:inline-block;border-radius:8px;border:1.5px solid var(--border);background:var(--input-bg);text-align:center;font-weight:600;font-size:0.88rem">
+        </td>
+        <td class="text-center px-3" style="vertical-align:middle">
+          <input type="number" min="0" step="0.01" placeholder="—"
+                 class="form-control form-control-sm count-store-input"
+                 data-product-id="${p.id}"
+                 data-store-qty="${p.store_qty}"
+                 oninput="updateLocationVariance(this, 'store')"
+                 style="width:110px;display:inline-block;border-radius:8px;border:1.5px solid var(--border);background:var(--input-bg);text-align:center;font-weight:600;font-size:0.88rem">
+        </td>
+        <td class="text-center px-3 count-wh-variance-cell" style="vertical-align:middle">
+          <span class="count-wh-variance badge rounded-pill" style="font-size:0.78rem;padding:0.35em 0.75em;background:var(--light-bg);color:var(--text-muted)">—</span>
+        </td>
+        <td class="text-center px-3 count-store-variance-cell" style="vertical-align:middle">
+          <span class="count-store-variance badge rounded-pill" style="font-size:0.78rem;padding:0.35em 0.75em;background:var(--light-bg);color:var(--text-muted)">—</span>
+        </td>
+      `;
+    }
+    tr.innerHTML = `
+      <td class="px-3 text-muted small" style="vertical-align:middle">${i + 1}</td>
+      <td class="px-3">
+        <div class="fw-semibold" style="font-size:0.9rem;color:var(--text-primary)">${escapeHtml(p.name)}</div>
+        <small class="text-muted" style="font-size:0.72rem">${escapeHtml(p.account_title || '')} · ${escapeHtml(p.uom)}</small>
+      </td>
+      <td class="text-center px-3" style="vertical-align:middle">
+        <span class="fw-bold" style="font-size:0.95rem;color:#0ea5e9">${p.warehouse_qty}</span>
+      </td>
+      <td class="text-center px-3" style="vertical-align:middle">
+        <span class="fw-bold" style="font-size:0.95rem;color:#10b981">${p.store_qty}</span>
+      </td>
+      <td class="text-center px-3" style="vertical-align:middle">
+        <span class="fw-bold" style="font-size:1rem;color:var(--text-primary)">${p.system_qty}</span>
+      </td>
+      ${inputCols}
+    `;
+    tbody.appendChild(tr);
+  });
+  updateCountStats();
+}
+
+function updateLocationVariance(input, location) {
+  const systemQty = location === 'wh' ? parseFloat(input.dataset.whQty) || 0 : parseFloat(input.dataset.storeQty) || 0;
+  const actualQty = input.value === '' ? null : parseFloat(input.value);
+  const row = input.closest('tr');
+  const varianceSpan = row.querySelector('.count-' + location + '-variance');
+
+  if (input.value === '' || actualQty === null || isNaN(actualQty)) {
+    input.style.borderColor = 'var(--border)';
+    input.style.boxShadow = 'none';
+    varianceSpan.textContent = '—';
+    varianceSpan.style.background = 'var(--light-bg)';
+    varianceSpan.style.color = 'var(--text-muted)';
+  } else {
+    const diff = actualQty - systemQty;
+    if (diff === 0) {
+      varianceSpan.textContent = '0 (Match)';
+      varianceSpan.style.background = 'rgba(16,185,129,0.12)';
+      varianceSpan.style.color = '#10b981';
+      input.style.borderColor = '#10b981';
+      input.style.boxShadow = '0 0 0 2px rgba(16,185,129,0.15)';
+    } else if (diff > 0) {
+      varianceSpan.textContent = '+' + diff + ' (Over)';
+      varianceSpan.style.background = 'rgba(245,158,11,0.12)';
+      varianceSpan.style.color = '#f59e0b';
+      input.style.borderColor = '#f59e0b';
+      input.style.boxShadow = '0 0 0 2px rgba(245,158,11,0.15)';
+    } else {
+      varianceSpan.textContent = diff + ' (Short)';
+      varianceSpan.style.background = 'rgba(239,68,68,0.12)';
+      varianceSpan.style.color = '#ef4444';
+      input.style.borderColor = '#ef4444';
+      input.style.boxShadow = '0 0 0 2px rgba(239,68,68,0.15)';
+    }
+  }
+  updateCountStats();
+}
+
+function updateCountStats() {
+  const whInputs = document.querySelectorAll('.count-wh-input');
+  const storeInputs = document.querySelectorAll('.count-store-input');
+  let filled = 0, matched = 0, over = 0, short = 0;
+
+  whInputs.forEach(input => {
+    const sysQty = parseFloat(input.dataset.whQty) || 0;
+    if (input.value !== '' && !isNaN(parseFloat(input.value))) {
+      filled++;
+      const diff = parseFloat(input.value) - sysQty;
+      if (diff === 0) matched++;
+      else if (diff > 0) over++;
+      else short++;
+    }
+  });
+  storeInputs.forEach(input => {
+    const sysQty = parseFloat(input.dataset.storeQty) || 0;
+    if (input.value !== '' && !isNaN(parseFloat(input.value))) {
+      filled++;
+      const diff = parseFloat(input.value) - sysQty;
+      if (diff === 0) matched++;
+      else if (diff > 0) over++;
+      else short++;
+    }
+  });
+
+  document.getElementById('countTotalProducts').textContent = whInputs.length;
+  document.getElementById('countMatched').textContent = matched;
+  document.getElementById('countOver').textContent = over;
+  document.getElementById('countShort').textContent = short;
+  document.getElementById('countFilled').textContent = filled;
+}
+
+function filterCountRows() {
+  const q = document.getElementById('countSearchInput').value.toLowerCase().trim();
+  document.querySelectorAll('#dailyCountBody .count-row').forEach(row => {
+    row.style.display = (!q || row.dataset.name.includes(q)) ? '' : 'none';
+  });
+}
+
+function resetCountForm() {
+  if (!confirm('Reset all counts? This will clear all entered values.')) return;
+  document.querySelectorAll('.count-wh-input, .count-store-input').forEach(input => {
+    input.value = '';
+    const location = input.classList.contains('count-wh-input') ? 'wh' : 'store';
+    updateLocationVariance(input, location);
+  });
+  document.getElementById('countSearchInput').value = '';
+  filterCountRows();
+}
+
+function submitDailyCount() {
+  const verifiedBy = document.getElementById('dailyCountVerifiedBy').value.trim();
+  if (!verifiedBy) {
+    showStoreNotification('Please enter who counted the inventory', 'error');
+    return;
+  }
+
+  // Gather per-product warehouse and store counts
+  const audits = [];
+  const rows = document.querySelectorAll('#dailyCountBody .count-row');
+  rows.forEach(row => {
+    const whInput = row.querySelector('.count-wh-input');
+    const storeInput = row.querySelector('.count-store-input');
+    if (!whInput && !storeInput) return;
+
+    const productId = parseInt(whInput?.dataset.productId || storeInput?.dataset.productId);
+    const whQty = whInput ? (whInput.value !== '' ? parseFloat(whInput.value) : null) : null;
+    const storeQty = storeInput ? (storeInput.value !== '' ? parseFloat(storeInput.value) : null) : null;
+    const whRecorded = whInput ? parseFloat(whInput.dataset.whQty) : 0;
+    const storeRecorded = storeInput ? parseFloat(storeInput.dataset.storeQty) : 0;
+
+    // Skip if neither input was filled
+    if (whQty === null && storeQty === null) return;
+
+    audits.push({
+      product_id: productId,
+      recorded_quantity: whRecorded + storeRecorded,
+      actual_quantity: (whQty !== null ? whQty : whRecorded) + (storeQty !== null ? storeQty : storeRecorded),
+      warehouse_recorded_qty: whRecorded,
+      warehouse_actual_qty: whQty !== null ? whQty : whRecorded,
+      store_recorded_qty: storeRecorded,
+      store_actual_qty: storeQty !== null ? storeQty : storeRecorded
+    });
+  });
+
+  if (audits.length === 0) {
+    showStoreNotification('Please enter at least one actual count (Warehouse or Store)', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('dailyCountSubmitBtn');
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Submitting...';
+
+  fetch('{{ url_for("store.submit_count") }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ audits: audits, verified_by: verifiedBy })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      let msg = 'Inventory count submitted! ' + data.count + ' products counted.';
+      showStoreNotification(msg, 'success');
+      // Reset form after successful submit
+      setTimeout(() => resetCountFormSilent(), 1500);
+    } else {
+      throw new Error(data.message || 'Failed to submit count');
+    }
+  })
+  .catch(err => {
+    console.error('Error submitting count:', err);
+    showStoreNotification('Failed to submit count: ' + err.message, 'error');
+  })
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  });
+}
+
+function resetCountFormSilent() {
+  document.querySelectorAll('.count-wh-input, .count-store-input').forEach(input => {
+    input.value = '';
+    const location = input.classList.contains('count-wh-input') ? 'wh' : 'store';
+    updateLocationVariance(input, location);
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(str || ''));
+  return div.innerHTML;
+}
+
+function showStoreNotification(message, type) {
+  const existing = document.querySelectorAll('.notification-toast');
+  existing.forEach(n => n.remove());
+
+  const notification = document.createElement('div');
+  notification.className = 'notification-toast notification-' + type;
+  notification.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;background:var(--card-bg);border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,0.15);padding:14px 18px;min-width:280px;transform:translateX(400px);transition:transform 0.3s ease-out;border-left:4px solid ' + (type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6');
+  notification.innerHTML = '<div class="d-flex align-items-center"><i class="fas fa-' + (type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle') + ' me-2" style="color:' + (type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6') + '"></i><span style="color:var(--text-primary)">' + message + '</span></div>';
+
+  document.body.appendChild(notification);
+  setTimeout(() => notification.style.transform = 'translateX(0)', 100);
+  setTimeout(() => {
+    notification.style.transform = 'translateX(400px)';
+    setTimeout(() => notification.remove(), 300);
+  }, 5000);
+}
+</script>
+
+<style>
+.count-row:hover { background: rgba(99,102,241,0.04); }
+.dark-mode .count-row:hover { background: rgba(255,255,255,0.04); }
+.count-wh-input, .count-store-input { font-size: 0.88rem; padding: 0.35rem 0.5rem; max-width: 110px; }
+.count-wh-input:focus, .count-store-input:focus { transform: scale(1.02); transition: all 0.15s; }
+.count-variance { font-size: 0.78rem; font-weight: 600; }
+.sticky-top { box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.dark-mode .sticky-top { box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+</style>
+{% endblock %}

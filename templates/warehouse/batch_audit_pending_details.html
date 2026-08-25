@@ -1,0 +1,260 @@
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}Batch Audit Details - iCount{% endblock %}
+
+{% block content %}
+<style>
+  /* Product name header styles */
+  .product-name-header {
+    background-color: var(--light-bg);
+    font-weight: bold;
+    padding: 0.5rem; /* Reduced padding */
+    border-bottom: 1px solid var(--border);
+    margin: 0; /* Removed margin top and bottom */
+    font-size: 0.9rem; /* Smaller font size */
+  }
+  
+  /* Product table styles */
+  .product-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-size: 0.85rem; /* Smaller font size for table */
+    table-layout: fixed; /* Fixed table layout for better control */
+    margin-bottom: 1rem;
+  }
+  
+  .product-table th,
+  .product-table td {
+    padding: 0.5rem; /* Reduced padding */
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap; /* Prevent text wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .product-table th {
+    background-color: var(--light-bg);
+    font-weight: 600;
+    text-align: center;
+    font-size: 0.9rem; /* Smaller header font size */
+  }
+  
+  /* Adjust column widths for better fit to match mobile design */
+  .product-table th:nth-child(1),
+  .product-table td:nth-child(1) { width: 10%; } /* # column */
+  .product-table th:nth-child(2),
+  .product-table td:nth-child(2) { width: 25%; } /* Exp Date column */
+  .product-table th:nth-child(3),
+  .product-table td:nth-child(3) { width: 20%; } /* System Qty column */
+  .product-table th:nth-child(4),
+  .product-table td:nth-child(4) { width: 20%; } /* Actual Qty column */
+  .product-table th:nth-child(5),
+  .product-table td:nth-child(5) { width: 25%; } /* Discrepancy column */
+  .product-table th:nth-child(6),
+  .product-table td:nth-child(6) { width: 30%; } /* Batch Barcode column */
+  
+  /* Discrepancy cell styling - using pill style to match mobile design */
+  .discrepancy-cell {
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.85rem;
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 1rem; /* Pill shape */
+    min-width: 80px; /* Minimum width for consistent pill size */
+  }
+  
+  .discrepancy-cell.positive {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+  }
+  
+  .discrepancy-cell.negative {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+  }
+  
+  .discrepancy-cell.zero {
+    background-color: #fff3cd;
+    color: #664d03;
+    border: 1px solid #ffe69c;
+  }
+  
+:where(.dark-mode) .discrepancy-cell.positive {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+:where(.dark-mode) .discrepancy-cell.negative {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+:where(.dark-mode) .discrepancy-cell.zero {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+:where(.dark-mode) .status-pending {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+}
+:where(.dark-mode) .status-settled {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+}
+  
+  /* Back button style */
+  .back-btn {
+    margin-bottom: 1rem;
+  }
+</style>
+
+<div class="container-fluid px-4">
+  <!-- Page Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-4 gap-3">
+    <div>
+      <div class="d-flex align-items-center mb-2">
+        <div class="feature-icon d-inline-flex align-items-center justify-content-center text-bg-primary bg-gradient fs-4 rounded-3 me-3" style="width: 48px; height: 48px;">
+          <i class="fas fa-clipboard-list"></i>
+        </div>
+        <div>
+          <h4 class="fw-bold mb-1" style="background: linear-gradient(45deg, #0d6efd, #0a58ca); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            Audit Session: {{ batch_label }}
+          </h4>
+          <p class="text-muted mb-0">
+            Review and manage audit details for this session
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Quick Stats for Selected Session -->
+    <div class="d-flex gap-2">
+      {% set positive_count = audits|selectattr('discrepancy', 'gt', 0)|list|length %}
+      {% set negative_count = audits|selectattr('discrepancy', 'lt', 0)|list|length %}
+      {% set matched_count = audits|selectattr('discrepancy', 'eq', 0)|list|length %}
+      {% set total_count = audits|length %}
+      
+      <div class="stat-card bg-success-subtle border-success p-2 rounded-2">
+        <div class="d-flex align-items-center gap-2">
+          <div class="stat-icon bg-success rounded-circle p-1">
+            <i class="fas fa-arrow-up text-white small"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-success h6 mb-0">{{ positive_count }}</div>
+            <div class="small text-success-emphasis">Over</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card bg-danger-subtle border-danger p-2 rounded-2">
+        <div class="d-flex align-items-center gap-2">
+          <div class="stat-icon bg-danger rounded-circle p-1">
+            <i class="fas fa-arrow-down text-white small"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-danger h6 mb-0">{{ negative_count }}</div>
+            <div class="small text-danger-emphasis">Short</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card bg-info-subtle border-info p-2 rounded-2">
+        <div class="d-flex align-items-center gap-2">
+          <div class="stat-icon bg-info rounded-circle p-1">
+            <i class="fas fa-equals text-white small"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-info h6 mb-0">{{ matched_count }}</div>
+            <div class="small text-info-emphasis">Matched</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Back Button -->
+  <div class="back-btn">
+    <a href="{{ url_for('api.batch_audit_pending') }}" class="btn btn-outline-primary">
+      <i class="fas fa-arrow-left"></i> Back to Pending List
+    </a>
+  </div>
+
+  <!-- Audit List -->
+  <div id="pending-list-section">
+    {% if audits %}
+      <!-- Group audits by product -->
+      {% set grouped_audits = {} %}
+      {% for audit in audits %}
+        {% if audit.product_name not in grouped_audits %}
+          {% set _ = grouped_audits.update({audit.product_name: []}) %}
+        {% endif %}
+        {% set _ = grouped_audits[audit.product_name].append(audit) %}
+      {% endfor %}
+      
+      <!-- Display products and their batches -->
+      {% for product_name, product_audits in grouped_audits.items() %}
+        <!-- Product Header -->
+        <div class="product-name-header">
+          <h6 class="mb-0">{{ product_name }}</h6>
+        </div>
+        
+        <!-- Product Table -->
+        <div class="table-responsive">
+        <table class="product-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Exp Date</th>
+              <th>System Qty</th>
+              <th>Actual Qty</th>
+              <th>Discrepancy</th>
+              <th>Batch Barcode</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for audit in product_audits %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ audit.exp_date.strftime('%Y-%m-%d') if audit.exp_date else 'N/A' }}</td>
+                <td>{{ audit.recorded_quantity }}</td>
+                <td>{{ audit.actual_quantity }}</td>
+                <td>
+                  <span class="discrepancy-cell 
+                    {% if audit.discrepancy > 0 %}positive{% elif audit.discrepancy < 0 %}negative{% else %}zero{% endif %}">
+                    {{ '+' if audit.discrepancy > 0 else '' }}{{ audit.discrepancy }}
+                  </span>
+                </td>
+                <td>{{ audit.batch_barcode }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="text-center py-5">
+        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+        <h5>No pending batch audits</h5>
+        <p class="text-muted">All batch audits have been processed.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  // Function to view audit details
+  function viewAuditDetails(auditId) {
+    // For now, just show an alert with the audit ID
+    // You can implement a modal or redirect to a detailed view page
+    alert('Viewing details for audit ID: ' + auditId);
+  }
+</script>
+{% endblock %}

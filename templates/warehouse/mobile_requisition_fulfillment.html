@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Requisition Fulfillment</title>
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#6366f1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Iceberg Fulfill">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="msapplication-TileColor" content="#4a5da7">
+  <meta name="msapplication-tap-highlight" content="no">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/static/manifest.json">
+  
+  <!-- PWA Icons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-16x16.png">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    :root {
+      --wh-primary: #6366f1;
+      --wh-primary-light: #818cf8;
+      --wh-primary-dark: #4f46e5;
+      --wh-bg: #f0f2ff;
+      --wh-card-bg: #ffffff;
+      --wh-text: #1e1b4b;
+      --wh-text-muted: #6b7280;
+      --wh-border: #e0e3f0;
+      --wh-success: #10b981;
+      --wh-warning: #f59e0b;
+      --wh-danger: #ef4444;
+      --wh-shadow: rgba(99, 102, 241, 0.1);
+      --bs-primary: #6366f1;
+      --bs-success: #10b981;
+      --bs-warning: #f59e0b;
+      --bs-danger: #ef4444;
+      --bs-secondary: #6b7280;
+      --bs-dark: #1e1b4b;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--wh-bg);
+      font-family: system-ui, -apple-system, sans-serif;
+      color: var(--wh-text);
+      min-height: 100vh;
+    }
+    .scanner-wrapper {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0.75rem 0.75rem 2rem;
+    }
+
+    .card { border: none !important; border-radius: 1rem !important; box-shadow: 0 2px 12px var(--wh-shadow) !important; background: var(--wh-card-bg) !important; }
+    .card-body { padding: 1.25rem !important; }
+
+    /* Header bar */
+    .fulfill-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .fulfill-header .badge { font-size: 0.75rem; font-weight: 700; padding: 0.4em 0.75em; border-radius: 999px; }
+
+    /* ===== SCANNER ===== */
+    .scanner-container { position: relative; border-radius: 0.75rem; overflow: hidden; background: #000; box-shadow: 0 0 0 2px var(--wh-primary-light), 0 4px 16px rgba(99,102,241,0.2); }
+    #reader { width: 100%; aspect-ratio: 1/1; background: #000; }
+    #reader video { object-fit: cover; }
+    #reader__scan_region { display: flex; justify-content: center; align-items: center; position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+    #reader__scan_region img { display: none; }
+    #reader__scan_region > svg { position: static !important; width: 100% !important; height: 100px !important; margin-top: -50px; }
+
+    /* Scanner corner frame */
+    .scanner-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 70%; height: 50%; border: 2.5px solid var(--wh-primary-light); border-radius: 0.5rem; box-shadow: 0 0 0 9999px rgba(0,0,0,0.35); pointer-events: none; z-index: 5; }
+    .scanner-frame::before, .scanner-frame::after, .scanner-frame .sf-br, .scanner-frame .sf-bl { content: ''; position: absolute; width: 18px; height: 18px; border-color: var(--wh-primary); border-style: solid; }
+    .scanner-frame::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+    .scanner-frame::after { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+    .scanner-frame .sf-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+    .scanner-frame .sf-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+    .scan-line { position: absolute; left: 15%; right: 15%; height: 2px; background: linear-gradient(90deg, transparent, var(--wh-primary-light), transparent); z-index: 6; animation: scanMove 1.8s ease-in-out infinite; border-radius: 1px; }
+    @keyframes scanMove { 0% { top: 30%; opacity: 0; } 30% { opacity: 1; } 70% { opacity: 1; } 100% { top: 65%; opacity: 0; } }
+
+    #status { position: absolute; top: 8px; left: 8px; z-index: 10; background: rgba(0,0,0,0.75); color: #fff; padding: 0.25rem 0.6rem; border-radius: 0.35rem; font-size: 0.75rem; backdrop-filter: blur(4px); }
+
+    /* ===== CARDS ===== */
+    .product-card { border-radius: 0.85rem; overflow: hidden; box-shadow: 0 2px 10px var(--wh-shadow); margin-bottom: 0.75rem; border: 1px solid var(--wh-border); background: var(--wh-card-bg); }
+    .product-header { background: linear-gradient(135deg, #f8f7ff 0%, #eef0ff 100%); padding: 0.75rem 1rem; border-bottom: 1px solid var(--wh-border); }
+    .product-header h5, .product-header h6 { font-size: 0.9rem; font-weight: 700; color: var(--wh-primary-dark); margin-bottom: 0; }
+    .product-body { padding: 0.75rem; }
+
+    .product-name { font-size: 0.9rem; font-weight: 600; color: var(--wh-text); }
+
+    .requested-qty-badge { font-size: 0.7rem; font-weight: 600; padding: 0.25em 0.5em; border-radius: 0.35rem; }
+
+    .btn-outline-primary { border: 1.5px solid var(--wh-border) !important; color: var(--wh-primary) !important; border-radius: 0.6rem; font-weight: 600; font-size: 0.8rem; padding: 0.45rem 0.75rem; transition: all 0.2s; }
+    .btn-outline-primary:hover { background: var(--wh-primary) !important; color: #fff !important; border-color: var(--wh-primary) !important; }
+
+    #scanAnotherBtn { border-radius: 0.6rem; font-weight: 600; font-size: 0.85rem; padding: 0.6rem; margin-top: 0.5rem; }
+
+    /* ===== FIFO TABLE ===== */
+    .fifo-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 0.5rem 0; border-radius: 0.5rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); font-size: 0.8rem; }
+    .fifo-table th { background: var(--wh-primary); color: #fff; padding: 0.45rem 0.5rem; text-align: left; font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .fifo-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--wh-border); font-size: 0.78rem; }
+    .fifo-table tr:last-child td { border-bottom: none; }
+    .fifo-table tr:nth-child(even):not(.table-success):not(.table-danger):not(.table-warning) { background: #f8f7ff; }
+    .fifo-table tr.table-success { background: #d1fae5 !important; }
+    .fifo-table tr.table-danger { background: #fee2e2 !important; }
+    .fifo-table tr.table-warning { background: #fef3c7 !important; }
+
+    .fifo-table th:nth-child(1), .fifo-table td:nth-child(1) { width: 30%; }
+    .fifo-table th:nth-child(2), .fifo-table td:nth-child(2) { width: 25%; }
+    .fifo-table th:nth-child(3), .fifo-table td:nth-child(3) { width: 20%; }
+    .fifo-table th:nth-child(4), .fifo-table td:nth-child(4) { width: 25%; }
+
+    /* ===== BATCH LIST ===== */
+    .batch-list { max-height: 150px; overflow-y: auto; }
+    .batch-item { cursor: pointer; transition: all 0.15s; padding: 0.5rem; font-size: 0.85rem; border-left: 3px solid transparent !important; }
+    .batch-item:hover { background: var(--wh-bg) !important; border-left-color: var(--wh-primary-light) !important; }
+    .batch-item.selected { background: #eef0ff !important; border-left-color: var(--wh-primary) !important; }
+
+    .batch-highlight { background: #eef0ff !important; border-left: 3px solid var(--wh-primary) !important; }
+    .scanned-batch { background: #d1fae5 !important; border-left: 3px solid var(--wh-success) !important; }
+    .non-fifo { background: #fee2e2 !important; border-left: 3px solid var(--wh-danger) !important; }
+
+    .barcode-input { font-family: 'Courier New', monospace; letter-spacing: 1px; font-size: 0.9rem; }
+    .status-badge { padding: 0.2rem 0.4rem; border-radius: 999px; font-size: 0.65rem; font-weight: 600; }
+
+    /* ===== BUTTONS ===== */
+    .btn-lg { font-size: 1rem; padding: 0.65rem; border-radius: 0.6rem; font-weight: 600; }
+    .btn-success { background: var(--wh-success) !important; border-color: var(--wh-success) !important; border-radius: 0.6rem; font-weight: 600; padding: 0.65rem; }
+    .btn-success:active { transform: scale(0.97); }
+    .btn-primary { background: var(--wh-primary) !important; border-color: var(--wh-primary) !important; }
+
+    /* ===== NOTIFICATION ===== */
+    .notification-toast { position: fixed; top: 20px; right: 20px; z-index: 9999; background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 6px 20px rgba(99,102,241,0.15); border-left: 4px solid var(--wh-primary); transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); max-width: 280px; font-size: 0.82rem; }
+    .notification-toast.show { transform: translateX(0); }
+    .notification-toast.notification-success { border-left-color: var(--wh-success); }
+    .notification-toast.notification-error { border-left-color: var(--wh-danger); }
+    .notification-toast.notification-info { border-left-color: var(--wh-primary-light); }
+
+    @keyframes fadeOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-100%); } }
+
+    /* ===== MODAL ===== */
+    .modal-content { border: none !important; border-radius: 1rem !important; box-shadow: 0 8px 32px rgba(99,102,241,0.15); }
+    .modal-header { border-bottom: 1px solid var(--wh-border); padding: 0.85rem 1.25rem; background: var(--wh-primary) !important; border-radius: 1rem 1rem 0 0 !important; }
+    .modal-header .modal-title { font-size: 0.9rem; font-weight: 700; color: #fff; }
+    .modal-header .btn-close { filter: brightness(0) invert(1); }
+    .modal-body { padding: 1.25rem; }
+    .modal-footer { border-top: 1px solid var(--wh-border); padding: 0.75rem 1.25rem; }
+    .form-control { border-radius: 0.5rem; border: 1.5px solid var(--wh-border); font-size: 0.9rem; padding: 0.55rem 0.75rem; transition: border-color 0.2s; }
+    .form-control:focus { border-color: var(--wh-primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+    .form-label { font-size: 0.8rem; font-weight: 600; color: var(--wh-text); margin-bottom: 0.25rem; }
+    .form-text { font-size: 0.75rem; color: var(--wh-text-muted); }
+    .btn-number { border-color: var(--wh-border) !important; color: var(--wh-text-muted) !important; }
+
+    input[type="date"]:disabled { opacity: 0.6; cursor: not-allowed; background: var(--wh-bg); }
+
+    .requisition-details p { margin-bottom: 0.25rem; font-size: 0.85rem; }
+    .requisition-details strong { font-size: 0.9rem; }
+    .req-info { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+    .req-info span { font-size: 0.78rem; color: var(--wh-text-muted); }
+    .req-info span i { color: var(--wh-primary-light); margin-right: 0.25rem; width: 14px; }
+  </style>
+</head>
+<body>
+  <!-- Flash Alert -->
+  <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1050">
+    <div id="flashAlert" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <!-- Message will be inserted here -->
+        </div>
+        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="scanner-wrapper">
+    <div class="card shadow">
+      <div class="card-body">
+        <!-- Add Validation process text on the left and back button on the right inside the card body -->
+        <div class="fulfill-header">
+          <span class="badge bg-warning text-dark"><i class="fas fa-clipboard-check me-1"></i>Validation process</span>
+          <button class="btn btn-outline-primary btn-sm" onclick="window.location.href='/scanner/mobile-pending-requisitions'">
+            <i class="fas fa-arrow-left me-1"></i> Back
+          </button>
+        </div>
+        
+        <!-- Remove the old header text -->
+        <!--
+        <div class="text-center mb-2">
+          <h5><i class="fas fa-clipboard-list me-1"></i> Requisition Fulfillment</h5>
+          <small class="text-muted">Scan batch barcodes to fulfill requisition</small>
+        </div>
+        -->
+
+        <!-- Scanner Container -->
+        <div class="scanner-container position-relative">
+          <!-- Scanner -->
+          <div id="reader" class="mb-3"></div>
+          
+          <!-- Status Display -->
+          <div id="status" class="scanner-status">Initializing camera...</div>
+
+          <!-- Scanner corner frame -->
+          <div class="scanner-frame"><div class="sf-br"></div><div class="sf-bl"></div></div>
+          <div class="scan-line"></div>
+        </div>
+
+        <!-- Scan Another Button -->
+        <button class="btn btn-outline-primary w-100 mt-2 d-none" id="scanAnotherBtn" onclick="scanAnotherProduct()">
+          <i class="fas fa-barcode me-1"></i> Scan Another
+        </button>
+      </div>
+    </div>
+
+    <!-- Requisition Details Card -->
+    <div class="card product-card mb-2">
+      <div class="product-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-file-invoice me-1"></i>
+            Req #{{ requisition.id }}
+          </h6>
+          <span class="status-badge bg-{{ 'success' if requisition.status.lower() == 'approved' else 'warning' }} text-{{ 'white' if requisition.status.lower() == 'approved' else 'dark' }}">
+            {{ requisition.status }}
+          </span>
+        </div>
+      </div>
+      <div class="product-body">
+        <div class="req-info">
+          <span><i class="fas fa-user"></i>{{ requisition.requested_by }}</span>
+          <span><i class="fas fa-building"></i>{{ requisition.branch }}</span>
+          <span><i class="fas fa-calendar"></i>{{ requisition.date_created.strftime('%m/%d/%Y') }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- All Products and Batches -->
+    <div class="card product-card">
+      <div class="product-header">
+        <h6 class="mb-0">
+          <i class="fas fa-boxes me-1"></i>
+          Products Requested <span class="text-muted" style="font-weight:400;font-size:0.75rem;">(FIFO)</span>
+        </h6>
+      </div>
+      <div class="product-body">
+        <div id="products-container">
+          {% for item_batch in items_with_batches %}
+          <div class="mb-3" data-product-id="{{ item_batch.item.product_id }}">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <div class="product-name">{{ item_batch.item.product_name }}</div>
+              <span class="badge bg-secondary requested-qty-badge">{{ item_batch.total_requested }} {{ item_batch.item.uom }}</span>
+            </div>
+            
+            <!-- FIFO Batch Recommendation Table -->
+            <div class="table-responsive">
+              <table class="fifo-table">
+                <thead>
+                  <tr>
+                    <th>Batch</th>
+                    <th>Exp.</th>
+                    <th>Avail.</th>
+                    <th>Need</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for batch in item_batch.recommended_batches %}
+                    <tr>
+                      <td>{{ batch.sub_barcode }}</td>
+                      <td>{{ batch.exp_date if batch.exp_date else 'N/A' }}</td>
+                      <td>{{ batch.quantity }}</td>
+                      <td>{{ batch.qty_needed }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    
+    <!-- Submit for Approval Button -->
+    <div class="d-grid gap-2 mt-3">
+      <button class="btn btn-success" id="submitForApproval" onclick="submitForApproval()" disabled>
+        <i class="fas fa-check-circle me-1"></i>
+        Submit for Approval
+      </button>
+    </div>
+    
+
+  </div>
+
+  <!-- Quantity Input Modal -->
+  <div class="modal fade quantity-modal" id="quantityModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white py-2">
+          <h6 class="modal-title">
+            <i class="fas fa-weight-hanging me-1"></i>
+            Enter Quantity
+          </h6>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body py-2">
+          <div class="text-center mb-2">
+            <h6 id="modal-product-name" class="mb-1"></h6>
+            <small class="text-muted">Batch: <span id="modal-batch-barcode"></span></small>
+          </div>
+          
+          <div class="mb-2">
+            <label class="form-label small">Quantity</label>
+            <div class="input-group">
+              <button class="btn btn-outline-secondary btn-number" type="button" id="decrease-qty">
+                <i class="fas fa-minus"></i>
+              </button>
+              <input type="number" class="form-control text-center py-1" id="quantity-input" min="0.01" step="0.01" value="0">
+              <button class="btn btn-outline-secondary btn-number" type="button" id="increase-qty">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+            <div class="form-text text-muted small">
+              Available: <span id="available-qty">0</span> <span id="uom-display"></span>
+            </div>
+          </div>
+          
+          <div class="alert alert-info py-2 px-2 small">
+            <i class="fas fa-info-circle me-1"></i>
+            Enter the quantity you want to fulfill for this batch
+          </div>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>Cancel
+          </button>
+          <button type="button" class="btn btn-sm btn-primary" id="confirm-quantity-btn">
+            <i class="fas fa-check me-1"></i>Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Global variables
+    let html5QrCode = null;
+    let currentRequisitionId = {{ requisition.id | tojson }};
+    let currentScanData = null; // Store scan data for quantity input
+    
+    // DOM Elements
+    const flashAlert = new bootstrap.Toast(document.getElementById('flashAlert'));
+    const quantityModal = new bootstrap.Modal(document.getElementById('quantityModal'));
+    const submitButton = document.getElementById('submitForApproval');
+    
+    // Initialize when page loads
+    window.addEventListener('load', function() {
+      initializeCamera();
+      loadCompletedBatches(); // Load previously completed batches
+      checkAllBatchesCompleted(); // Check if all batches are completed
+      
+      // Quantity modal event listeners
+      document.getElementById('decrease-qty').addEventListener('click', function() {
+        const input = document.getElementById('quantity-input');
+        const currentValue = parseFloat(input.value) || 0;
+        const newValue = Math.max(0, currentValue - 0.01);
+        input.value = newValue.toFixed(2);
+      });
+      
+      document.getElementById('increase-qty').addEventListener('click', function() {
+        const input = document.getElementById('quantity-input');
+        const currentValue = parseFloat(input.value) || 0;
+        const newValue = currentValue + 0.01;
+        input.value = newValue.toFixed(2);
+      });
+      
+      // Add Enter key listener to quantity input
+      document.getElementById('quantity-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          confirmQuantity();
+        }
+      });
+      
+      document.getElementById('confirm-quantity-btn').addEventListener('click', confirmQuantity);
+    });
+    
+    // Initialize camera
+    async function initializeCamera() {
+      try {
+        // Clean up any existing scanner instance
+        if (html5QrCode) {
+          try {
+            await html5QrCode.stop();
+          } catch (stopError) {
+            console.log('Error stopping existing scanner:', stopError);
+          }
+          html5QrCode = null;
+        }
+        
+        // Initialize scanner
+        html5QrCode = new Html5Qrcode("reader");
+        
+        // Configure scanner with more compatible settings
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 100 },
+          aspectRatio: 1
+        };
+
+        // Try to start camera with environment facing mode first
+        try {
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            onScanSuccess,
+            onScanError
+          );
+        } catch (primaryError) {
+          console.log('Primary camera setup failed, trying alternative:', primaryError);
+          // Fallback to any camera
+          await html5QrCode.start(
+            { facingMode: "user" },
+            config,
+            onScanSuccess,
+            onScanError
+          );
+        }
+
+        // Update status to show camera is active
+        showStatus('Camera is active and scanning');
+      } catch (err) {
+        const errorMessage = err.message || 'Unknown error';
+        showStatus('Error starting camera: ' + errorMessage);
+        console.error('Camera Error:', err);
+      }
+    }
+
+    function showStatus(message, type = 'info') {
+      const status = document.getElementById('status');
+      if (status) {
+        // For the new design, we only change the text content
+        status.textContent = message || 'Unknown status';
+        status.classList.remove('d-none');
+        
+        // Update background color based on type
+        switch(type) {
+          case 'success':
+            status.style.background = 'rgba(25, 135, 84, 0.7)'; // Green
+            break;
+          case 'danger':
+            status.style.background = 'rgba(220, 53, 69, 0.7)'; // Red
+            break;
+          case 'warning':
+            status.style.background = 'rgba(255, 193, 7, 0.7)'; // Yellow
+            break;
+          default:
+            status.style.background = 'rgba(0,0,0,0.7)'; // Default black
+        }
+      } else {
+        console.error('Status element not found');
+      }
+    }
+    
+    // Show flash message
+    function showFlashMessage(message, type) {
+      const alertElement = document.querySelector('#flashAlert .toast-body');
+      alertElement.textContent = message;
+      
+      // Set alert class based on type
+      const toastElement = document.getElementById('flashAlert');
+      toastElement.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'bg-info');
+      
+      if (type === 'success') {
+        toastElement.classList.add('bg-success', 'text-white');
+      } else if (type === 'error') {
+        toastElement.classList.add('bg-danger', 'text-white');
+      } else if (type === 'warning') {
+        toastElement.classList.add('bg-warning');
+      } else {
+        toastElement.classList.add('bg-info', 'text-white');
+      }
+      
+      flashAlert.show();
+    }
+    
+    // Start camera
+    async function startCamera() {
+      try {
+        showStatus('Starting camera...');
+        
+        // Clean up any existing scanner instance
+        if (html5QrCode) {
+          try {
+            await html5QrCode.stop();
+          } catch (stopError) {
+          }
+          html5QrCode = null;
+        }
+        
+        // Initialize scanner
+        html5QrCode = new Html5Qrcode("reader");
+        
+        // Configure scanner with more compatible settings
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 100 },
+          aspectRatio: 1
+        };
+
+        // Try to start camera with environment facing mode first
+        try {
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            onScanSuccess,
+            onScanError
+          );
+        } catch (primaryError) {
+          // Fallback to any camera
+          await html5QrCode.start(
+            { facingMode: "user" },
+            config,
+            onScanSuccess,
+            onScanError
+          );
+        }
+
+        showStatus('Camera is active and scanning', 'success');
+        document.getElementById('reader').classList.remove('d-none');
+        document.getElementById('scanAnotherBtn').classList.add('d-none');
+      } catch (err) {
+        const errorMessage = err.message || 'Unknown error';
+        showStatus('Error starting camera: ' + errorMessage, 'danger');
+      }
+    }
+    
+    // Scan success callback
+    function onScanSuccess(decodedText) {
+      // Always trim to 12 characters for barcode (same as mobile scanner)
+      const barcode = decodedText.slice(0, 12);
+      
+      // Stop scanning temporarily
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+          document.getElementById('reader').classList.add('d-none');
+          document.getElementById('status').classList.add('d-none');
+          
+          // Show flash message with scanned barcode
+          showFlashMessage(`Scanned barcode: ${barcode}`, 'info');
+
+          // Process the scanned barcode
+          processScannedBarcode(barcode);
+        });
+      }
+    }
+    
+    // Scan error callback
+    function onScanError(error) {
+      // Filter out common scan errors that aren't useful to log
+      const errorString = String(error);
+      const ignoreErrors = [
+        'QR code parse error',
+        'No MultiFormat Readers were able',
+        'No barcode or QR code detected'
+      ];
+      
+      // Only log errors that aren't in our ignore list
+      const shouldLog = !ignoreErrors.some(ignore => errorString.includes(ignore));
+    }
+    
+    // Scan another product
+    function scanAnotherProduct() {
+      document.getElementById('reader').classList.remove('d-none');
+      document.getElementById('scanAnotherBtn').classList.add('d-none');
+      startCamera();
+    }
+    
+    // Process scanned barcode
+    function processScannedBarcode(barcode) {
+      // First, look up which product this batch belongs to
+      // Preserve the exact barcode as scanned (with leading zeros)
+      const encodedBarcode = encodeURIComponent(barcode);
+      fetch(`/scanner/lookup_batch_by_sub_barcode?sub_barcode=${encodedBarcode}`)
+      .then(response => response.json())
+      .then(batchData => {
+        console.log('Batch lookup result:', batchData); // Debug logging
+        
+        if (!batchData.success) {
+          // Show specific error message for company mismatch
+          if (batchData.message.includes('Access denied') || batchData.message.includes('belongs to')) {
+            showFlashMessage(batchData.message, 'error');
+          } else {
+            showFlashMessage(batchData.message || 'Batch not found', 'error');
+          }
+          // Hide camera and show scan another button
+          document.getElementById('reader').classList.add('d-none');
+          document.getElementById('scanAnotherBtn').classList.remove('d-none');
+          return;
+        }
+        
+        // Check if this batch was already completed
+        const requisitionKey = `requisition_${currentRequisitionId}_completed_batches`;
+        const completedBatches = JSON.parse(localStorage.getItem(requisitionKey)) || [];
+        const existingBatch = completedBatches.find(batch => 
+          batch.sub_barcode === batchData.batch.sub_barcode);
+          
+        // If batch already completed, show message and return
+        if (existingBatch) {
+          showFlashMessage('This batch was already completed', 'info');
+          // Hide camera and show scan another button
+          document.getElementById('reader').classList.add('d-none');
+          document.getElementById('scanAnotherBtn').classList.remove('d-none');
+          return;
+        }
+        
+        // Show success message with the actual barcode from database
+        showFlashMessage(`Found batch: ${batchData.batch.sub_barcode}`, 'success');
+        
+        // Now validate the batch with the requisition
+        fetch('/scanner/scan_requisition_batch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            requisition_id: currentRequisitionId,
+            product_id: batchData.batch.product_id,
+            sub_barcode: batchData.batch.sub_barcode  // Use the barcode as stored in database
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          console.log('Requisition batch scan result:', data); // Debug logging
+          
+          if (data.status === 'success') {
+            // Store scan data for quantity input
+            // Make sure we preserve the product_id from the initial batch lookup
+            const batchInfo = {
+              ...data.batch_info,
+              product_id: data.batch_info.product_id || batchData.batch.product_id
+            };
+            
+            currentScanData = {
+              batch_info: batchInfo,
+              is_fifo_compliant: data.is_fifo_compliant,
+              recommended_quantity: data.recommended_quantity
+            };
+            
+            // If the batch is not FIFO compliant, show error and hide camera
+            // User must click "Scan Another Product" to continue
+            if (!data.is_fifo_compliant) {
+              showFlashMessage('Error: This batch is not in the recommended FIFO list!', 'error');
+              // Hide camera and show scan another button
+              document.getElementById('reader').classList.add('d-none');
+              document.getElementById('scanAnotherBtn').classList.remove('d-none');
+              return;
+            }
+            
+            // Show quantity input modal
+            showQuantityModal(batchInfo);
+          } else {
+            // Show specific error message for company mismatch
+            if (data.message.includes('Access denied') || data.message.includes('belongs to')) {
+              showFlashMessage(data.message, 'error');
+            } else {
+              showFlashMessage(data.message, 'error');
+            }
+            // Hide camera and show scan another button
+            document.getElementById('reader').classList.add('d-none');
+            document.getElementById('scanAnotherBtn').classList.remove('d-none');
+          }
+        })
+        .catch(error => {
+          console.error('Error in requisition batch scan:', error);
+          showFlashMessage('Scan processing error', 'error');
+          // Hide camera and show scan another button
+          document.getElementById('reader').classList.add('d-none');
+          document.getElementById('scanAnotherBtn').classList.remove('d-none');
+        });
+      })
+      .catch(error => {
+        console.error('Batch lookup error:', error);
+        showFlashMessage('Batch lookup error: ' + error.message, 'error');
+        // Hide camera and show scan another button
+        document.getElementById('reader').classList.add('d-none');
+        document.getElementById('scanAnotherBtn').classList.remove('d-none');
+      });
+    }
+    
+    // Show quantity input modal
+    function showQuantityModal(batchInfo) {
+      // Set modal content
+      document.getElementById('modal-product-name').textContent = batchInfo.product_name;
+      document.getElementById('modal-batch-barcode').textContent = batchInfo.sub_barcode;
+      document.getElementById('available-qty').textContent = batchInfo.quantity;
+      document.getElementById('uom-display').textContent = batchInfo.uom;
+      
+      // Find the required quantity for this product
+      let requiredQuantity = currentScanData.recommended_quantity; // fallback to recommended
+      const productElements = document.querySelectorAll(`[data-product-id="${batchInfo.product_id}"]`);
+      if (productElements.length > 0) {
+        const badgeElement = productElements[0].querySelector('.requested-qty-badge');
+        if (badgeElement) {
+          requiredQuantity = parseFloat(badgeElement.textContent);
+        }
+      }
+      
+      // Clear the quantity input to force user to type it in
+      document.getElementById('quantity-input').value = '';
+      
+      // Show modal
+      quantityModal.show();
+    }
+    
+    // Confirm quantity
+    function confirmQuantity() {
+      const quantity = parseFloat(document.getElementById('quantity-input').value);
+      const availableQty = parseFloat(document.getElementById('available-qty').textContent);
+      
+      if (isNaN(quantity) || quantity <= 0) {
+        showFlashMessage('Please enter a valid quantity', 'error');
+        return;
+      }
+      
+      if (quantity > availableQty) {
+        showFlashMessage('Quantity cannot exceed available stock', 'error');
+        return;
+      }
+      
+      // Find the required quantity for this specific batch (not the overall product quantity)
+      let requiredQuantity = currentScanData.recommended_quantity; // This is the batch's qty_needed
+      
+      // Double-check by looking up the batch in the table
+      const batchBarcode = currentScanData.batch_info.sub_barcode;
+      const batchRows = document.querySelectorAll('table.fifo-table tbody tr');
+      for (let row of batchRows) {
+        const barcodeCell = row.cells[0];
+        const neededCell = row.cells[3]; // The "Need" column
+        if (barcodeCell && barcodeCell.textContent.trim() === batchBarcode && neededCell) {
+          requiredQuantity = parseFloat(neededCell.textContent.trim());
+          break;
+        }
+      }
+      
+      // Check if quantity matches the required quantity for this specific batch
+      if (Math.abs(quantity - requiredQuantity) > 0.001) {
+        showFlashMessage(`Quantity mismatch! Required for this batch: ${requiredQuantity}, Entered: ${quantity}`, 'error');
+        // Highlight the row as error
+        highlightBatchRow(currentScanData.batch_info.sub_barcode, 'error');
+        return;
+      }
+      
+      // Store completed batch in localStorage
+      const requisitionKey = `requisition_${currentRequisitionId}_completed_batches`;
+      let completedBatches = JSON.parse(localStorage.getItem(requisitionKey)) || [];
+      
+      // Check if this batch was already scanned
+      const existingBatchIndex = completedBatches.findIndex(batch => 
+        batch.sub_barcode === currentScanData.batch_info.sub_barcode);
+      
+      if (existingBatchIndex !== -1) {
+        // Update existing batch
+        completedBatches[existingBatchIndex].quantity = quantity;
+        completedBatches[existingBatchIndex].required_quantity = requiredQuantity;
+      } else {
+        // Add new batch with all required information
+        const newBatch = {
+          sub_barcode: currentScanData.batch_info.sub_barcode,
+          quantity: quantity,
+          required_quantity: requiredQuantity,
+          product_id: currentScanData.batch_info.product_id,
+          product_name: currentScanData.batch_info.product_name,
+          timestamp: new Date().toISOString()
+        };
+        
+        completedBatches.push(newBatch);
+      }
+      
+      // Save to localStorage
+      localStorage.setItem(requisitionKey, JSON.stringify(completedBatches));
+      
+      // Highlight the batch row in the table
+      highlightBatchRow(currentScanData.batch_info.sub_barcode, 'success');
+      
+      // Hide modal
+      quantityModal.hide();
+      
+      // Show scan another button
+      document.getElementById('scanAnotherBtn').classList.remove('d-none');
+      
+      // Show success message
+      const message = `Successfully scanned ${quantity} ${currentScanData.batch_info.uom}`;
+      showFlashMessage(message, 'success');
+      
+      // Check if all batches are completed
+      checkAllBatchesCompleted();
+    }
+    
+    // Check if all batches are completed
+    function checkAllBatchesCompleted() {
+      // Get all recommended batch rows
+      const batchRows = document.querySelectorAll('table.fifo-table tbody tr');
+      if (!batchRows.length) {
+        return false;
+      }
+      
+      // Get completed batches from localStorage
+      const requisitionKey = `requisition_${currentRequisitionId}_completed_batches`;
+      const completedBatches = JSON.parse(localStorage.getItem(requisitionKey)) || [];
+      
+      // Create a map of completed batches for faster lookup
+      const completedMap = new Map();
+      completedBatches.forEach(batch => {
+        completedMap.set(batch.sub_barcode, batch);
+      });
+      
+      // Check if all recommended batches have been completed
+      let allCompleted = true;
+      let recommendedCount = 0;
+      let completedCount = 0;
+      
+      // For each recommended batch row
+      batchRows.forEach(row => {
+        const barcodeCell = row.cells[0];
+        if (!barcodeCell) return;
+        
+        // Check if this batch is in completed batches
+        const batchBarcode = barcodeCell.textContent.trim();
+        const completedBatch = completedMap.get(batchBarcode);
+        
+        recommendedCount++;
+        if (completedBatch) {
+          completedCount++;
+          // Ensure the row has the success class
+          row.classList.remove('table-warning', 'table-danger');
+          row.classList.add('table-success');
+        } else {
+          allCompleted = false;
+          // Ensure the row doesn't have success class
+          row.classList.remove('table-success', 'table-warning', 'table-danger');
+        }
+      });
+      
+      // Enable/disable submit button based on completion
+      if (submitButton) {
+        submitButton.disabled = !allCompleted;
+        
+        // Add visual feedback
+        if (allCompleted) {
+          submitButton.classList.add('btn-success');
+          submitButton.classList.remove('btn-secondary');
+          // Show a helpful message
+          if (recommendedCount > 0 && recommendedCount === completedCount) {
+            showFlashMessage(`All ${completedCount} batches completed successfully!`, 'success');
+          }
+        } else {
+          submitButton.classList.add('btn-secondary');
+          submitButton.classList.remove('btn-success');
+          
+          // Show a helpful message if some batches are missing
+          if (recommendedCount > 0 && completedCount < recommendedCount) {
+            showFlashMessage(`Need ${recommendedCount - completedCount} more batches to complete the requisition`, 'info');
+          }
+        }
+      }
+      
+      return allCompleted;
+    }
+    
+    // Load completed batches from localStorage
+    function loadCompletedBatches() {
+      const requisitionKey = `requisition_${currentRequisitionId}_completed_batches`;
+      const completedBatches = JSON.parse(localStorage.getItem(requisitionKey)) || [];
+      
+      // Highlight all completed batches
+      completedBatches.forEach(batch => {
+        highlightBatchRow(batch.sub_barcode, 'success');
+      });
+      
+      // Check if all batches are completed
+      checkAllBatchesCompleted();
+    }
+    
+    // Highlight batch row in the table
+    function highlightBatchRow(batchBarcode, type) {
+      // Find all batch rows in the tables
+      const rows = document.querySelectorAll('table.fifo-table tbody tr');
+      rows.forEach(row => {
+        const barcodeCell = row.cells[0];
+        if (barcodeCell && barcodeCell.textContent.trim() === batchBarcode) {
+          // Remove any existing highlight classes
+          row.classList.remove('table-success', 'table-warning', 'table-danger');
+          
+          // Add appropriate highlight class
+          if (type === 'success') {
+            row.classList.add('table-success');
+          } else if (type === 'warning') {
+            row.classList.add('table-warning');
+          } else if (type === 'error') {
+            row.classList.add('table-danger');
+          }
+        }
+      });
+    }
+    
+    // Submit for approval
+    async function submitForApproval() {
+      // Check if all batches are completed
+      const allCompleted = checkAllBatchesCompleted();
+      
+      if (!allCompleted) {
+        showFlashMessage('Please complete all batches before submission', 'error');
+        return;
+      }
+      
+      // Disable submit button to prevent duplicate submissions
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Submitting...';
+      }
+      
+      // Show confirmation dialog
+      if (!confirm('Are you sure you want to submit this requisition for approval?')) {
+        // Re-enable submit button if user cancels
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = 'Submit for Approval';
+        }
+        return;
+      }
+      
+      try {
+        // Get completed batches
+        const requisitionKey = `requisition_${currentRequisitionId}_completed_batches`;
+        const completedBatches = JSON.parse(localStorage.getItem(requisitionKey)) || [];
+        
+        // Extract product IDs from completed batches
+        const productIds = completedBatches.map(batch => batch.product_id);
+        
+        // Get product IDs from the requisition items
+        const requisitionItemIds = [];
+        // This section needs to be handled differently since we're in JavaScript, not Jinja2 template
+        // We'll get the product IDs from the DOM elements
+        const productElements = document.querySelectorAll('[data-product-id]');
+        productElements.forEach(element => {
+          const productId = parseInt(element.getAttribute('data-product-id'));
+          if (!isNaN(productId) && !requisitionItemIds.includes(productId)) {
+            requisitionItemIds.push(productId);
+          }
+        });
+        
+        // Validate that each completed batch's product exists in the requisition
+        const invalidProducts = [];
+        completedBatches.forEach(batch => {
+          if (!requisitionItemIds.includes(batch.product_id)) {
+            invalidProducts.push(batch.product_id);
+          }
+        });
+        
+        // If there are invalid products, show error
+        if (invalidProducts.length > 0) {
+          const errorMessage = `Error: Product ${invalidProducts.join(', ')} not found in requisition`;
+          showFlashMessage(errorMessage, 'error');
+          return;
+        }
+        
+        // Group batches by product ID
+        const batchesByProduct = {};
+        completedBatches.forEach(batch => {
+          if (!batchesByProduct[batch.product_id]) {
+            batchesByProduct[batch.product_id] = [];
+          }
+          batchesByProduct[batch.product_id].push({
+            sub_barcode: batch.sub_barcode,
+            quantity: batch.quantity
+          });
+        });
+        
+        // Submit for approval for each product separately
+        // We'll submit the first product's batches and let the backend handle the rest
+        const firstProductId = Object.keys(batchesByProduct)[0];
+        const firstProductBatches = batchesByProduct[firstProductId];
+        
+        // Show loading status
+        showStatus('Submitting for approval...', 'info');
+        
+        // Submit for approval
+        const response = await fetch('/scanner/fulfill_requisition_item', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            requisition_id: currentRequisitionId,
+            product_id: parseInt(firstProductId), // Send as integer
+            scanned_batches: firstProductBatches
+          })
+        });
+        
+        // Try to parse response
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          // If response isn't JSON, try to get text instead
+          const text = await response.text();
+          showFlashMessage('Unexpected server response. Please try again.', 'error');
+          return;
+        }
+        
+        if (data.status === 'success') {
+          showFlashMessage('Requisition submitted for approval successfully', 'success');
+          
+          // Clear completed batches from localStorage
+          localStorage.removeItem(requisitionKey);
+          
+          // Redirect after delay
+          setTimeout(() => {
+            window.location.href = '/scanner/mobile-pending-requisitions';
+          }, 1500);
+        } else if (data.status === 'error' && data.redirect) {
+          // Handle error with redirect
+          showFlashMessage(data.message, 'error');
+          setTimeout(() => {
+            if (data.redirect) {
+              window.location.href = data.redirect;
+            } else {
+              window.location.href = '/scanner/mobile-pending-requisitions';
+            }
+          }, 1500);
+        } else {
+          // Handle other errors
+          const errorMessage = data.message || 'Failed to submit requisition for approval';
+          showFlashMessage(errorMessage, 'error');
+        }
+      } catch (error) {
+        console.error('Error submitting requisition:', error);
+        showFlashMessage('Error submitting requisition for approval. Please try again.', 'error');
+      } finally {
+        // Re-enable submit button
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.innerHTML = '<i class="fas fa-check-circle me-1"></i>Submit for Approval';
+        }
+        
+        // Hide status message if still visible
+        const status = document.getElementById('status');
+        if (status && !status.classList.contains('d-none')) {
+          status.classList.add('d-none');
+        }
+      }
+    }
+  </script>
+</body>
+</html>

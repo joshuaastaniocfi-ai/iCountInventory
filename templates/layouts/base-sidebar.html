@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>iCount Admin Dashboard</title>
+
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#4a5da7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="IcebergINV">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="msapplication-TileColor" content="#4a5da7">
+  <meta name="msapplication-tap-highlight" content="no">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/static/manifest.json">
+
+  <!-- PWA Icons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-16x16.png">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <link href="/static/main.css" rel="stylesheet">
+
+  {% block styles %}
+  {% endblock %}
+
+  <!-- Blocking script to prevent white flash in dark mode -->
+  <script>
+    (function() {
+      if (localStorage.getItem('darkMode') === 'enabled') {
+        document.documentElement.classList.add('dark-mode');
+        document.documentElement.setAttribute('data-bs-theme', 'dark');
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.content = '#080911';
+        var style = document.createElement('style');
+        style.textContent = 'body{background:#080911}';
+        document.head.appendChild(style);
+      }
+    })();
+  </script>
+
+</head>
+<body>
+  <script>
+    if (document.documentElement.classList.contains('dark-mode')) {
+      document.body.classList.add('dark-mode');
+    }
+  </script>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="d-flex align-items-center gap-4">
+      <button id="toggle-btn" class="btn btn-transparent">
+        <i class="fas fa-bars"></i>
+      </button>
+              <a class="navbar-brand fw-bold" href="{{ url_for('main.dashboard') }}">
+        <span class="brand-icon"><i class="fas fa-cube"></i></span>iCount
+      </a>
+    </div>
+    <div class="user-area">
+      <div class="user-info d-flex align-items-center">
+        <div class="status-indicator status-active"></div>
+        <span class="username">{{ current_user.full_name }}</span>
+        <span class="badge bg-danger">{{ current_user.role }}</span>
+      </div>
+      <div class="actions d-flex align-items-center gap-3">
+        <a href="#" class="action-icon" id="darkModeToggle" title="Toggle Dark Mode" onclick="event.preventDefault(); toggleDarkMode();">
+          <i class="fas fa-moon"></i>
+        </a>
+        <a href="#" class="action-icon" title="Refresh" onclick="event.preventDefault(); location.reload();">
+          <i class="fas fa-rotate-right"></i>
+        </a>
+        <!-- Notification Bell -->
+        <div class="notification-dropdown-wrapper">
+          <a href="#" class="action-icon" id="notificationBell" title="Notifications" onclick="event.preventDefault(); toggleNotificationDropdown();">
+            <i class="fas fa-bell"></i>
+            {% if notification_count > 0 %}
+              <span class="notification-badge" id="notifBadge">{{ notification_count }}</span>
+            {% endif %}
+          </a>
+          <div class="notification-dropdown" id="notificationDropdown">
+            <div class="notif-header">
+              <span class="notif-title">Notifications</span>
+              <button class="notif-mark-all" onclick="markAllNotificationsRead()" id="markAllBtn" style="display:{% if notification_count > 0 %}inline{% else %}none{% endif %}">Mark all read</button>
+            </div>
+            <div class="notif-list" id="notifList">
+              <div class="notif-empty">Loading...</div>
+            </div>
+            <div class="notif-footer">
+              <span id="notifCount">{{ notification_count }} unread</span>
+            </div>
+          </div>
+        </div>
+        {% if current_user.role in ['SYS-Admin', 'WH-Admin', 'Company-Admin'] %}
+        <a href="{{ url_for('pending_removals.pending_removals_list') }}" class="action-icon" title="View Pending Removals">
+          <i class="fas fa-clock"></i>
+          {% if pending_removal_count > 0 %}
+            <span class="notification-badge">{{ pending_removal_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %}
+        {% if current_user.role in ['Company-Admin', 'SYS-Admin'] %}
+        <a href="{{ url_for('products.deletion_requests_page') }}" class="action-icon" title="Deletion Requests" style="{% if pending_deletion_count is defined and pending_deletion_count > 0 %}color:#ef4444{% endif %}">
+          <i class="fas fa-trash-alt"></i>
+          {% if pending_deletion_count is defined and pending_deletion_count > 0 %}
+            <span class="notification-badge">{{ pending_deletion_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %}
+        <a href="{{ url_for('auth.logout') }}" class="action-icon" title="Logout">
+          <i class="fas fa-sign-out-alt"></i>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="nav-container">
+      <div class="mobile-sidebar-header" id="mobileSidebarHeader">
+        <span class="mobile-sidebar-title">Navigation</span>
+        <button class="mobile-sidebar-close" id="mobileSidebarClose" aria-label="Close menu">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <ul class="nav-links">
+        <li class="nav-section">
+          <span class="nav-section-text">Main Menu</span>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('main.dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'main.dashboard' }}">
+            <span class="nav-icon"><i class="fas fa-chart-line"></i></span>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('products.view_products') }}" class="nav-link {{ 'active' if request.endpoint == 'products.view_products' }}">
+            <span class="nav-icon"><i class="fas fa-box"></i></span>
+            <span>Products</span>
+          </a>
+        </li>
+        {% if current_user.role != 'Purchaser' %}
+        <li class="nav-item">
+          <a href="{{ url_for('requisitions.view_requisitions') }}" class="nav-link {{ 'active' if request.endpoint == 'requisitions.view_requisitions' }}">
+            <span class="nav-icon"><i class="fas fa-users-rectangle"></i></span>
+            <span>Requisitions</span>
+            {% if pending_requisition_count is defined and pending_requisition_count > 0 %}
+              <span class="badge bg-warning rounded-pill ms-auto" style="font-size:0.65rem">{{ pending_requisition_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+        {% endif %}
+        {% if current_user.role in ['User', 'SYS-Admin', 'Company-Admin'] %}
+        <li class="nav-item">
+          <a href="{{ url_for('store.inventory_count') }}" class="nav-link {{ 'active' if request.endpoint == 'store.inventory_count' }}">
+            <span class="nav-icon"><i class="fas fa-clipboard-check"></i></span>
+            <span>Inventory Count</span>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if current_user.role != 'Purchaser' %}
+        <li class="nav-section">
+          <span class="nav-section-text">Misc</span>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('misc.misc_dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'misc.misc_dashboard' }}">
+            <span class="nav-icon"><i class="fas fa-tools"></i></span>
+            <span>Misc</span>
+          </a>
+        </li>
+
+        <li class="nav-section">
+          <span class="nav-section-text">Monitoring</span>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('api.stock_audit') }}" class="nav-link {{ 'active' if request.endpoint == 'api.stock_audit' }}">
+            <span class="nav-icon"><i class="fas fa-clipboard-check"></i></span>
+            <span>Audit Stocks</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('api.stock_audit_report') }}" class="nav-link {{ 'active' if request.endpoint == 'api.stock_audit_report' }}">
+            <span class="nav-icon"><i class="fas fa-chart-bar"></i></span>
+            <span>Audit Reports</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('api.batch_audit_report') }}" class="nav-link {{ 'active' if request.endpoint == 'api.batch_audit_report' }}">
+            <span class="nav-icon"><i class="fas fa-file-alt"></i></span>
+            <span>Batch Audit Report</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('reports.hub') }}" class="nav-link {{ 'active' if request.endpoint == 'reports.hub' }}">
+            <span class="nav-icon"><i class="fas fa-chart-pie"></i></span>
+            <span>Reports Hub</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('receiving.deliveries_page') }}" class="nav-link {{ 'active' if request.endpoint in ('receiving.deliveries_page', 'receiving.api_deliveries') }}">
+            <span class="nav-icon"><i class="fas fa-truck"></i></span>
+            <span>Deliveries</span>
+            {% if pending_receiving_count is defined and pending_receiving_count > 0 %}
+              <span class="badge bg-info rounded-pill ms-auto" style="font-size:0.65rem">{{ pending_receiving_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+        {% if current_user.role in ['SYS-Admin', 'WH-Admin', 'Company-Admin'] %}
+        <li class="nav-item">
+          <a href="{{ url_for('pending_removals.pending_removals_list') }}" class="nav-link {{ 'active' if request.endpoint == 'pending_removals.pending_removals_list' }}">
+            <span class="nav-icon"><i class="fas fa-clock"></i></span>
+            <span>Pending Removals</span>
+            {% if pending_removal_count is defined and pending_removal_count > 0 %}
+              <span class="badge bg-danger rounded-pill ms-auto" style="font-size:0.65rem">{{ pending_removal_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('pending_removals.removal_history') }}" class="nav-link {{ 'active' if request.endpoint == 'pending_removals.removal_history' }}">
+            <span class="nav-icon"><i class="fas fa-history"></i></span>
+            <span>Removal History</span>
+          </a>
+        </li>
+        {% endif %}
+        {% if current_user.role in ['Company-Admin', 'SYS-Admin'] %}
+        <li class="nav-item">
+          <a href="{{ url_for('products.deletion_requests_page') }}" class="nav-link {{ 'active' if request.endpoint in ('products.deletion_requests_page', 'products.api_deletion_requests') }}">
+            <span class="nav-icon"><i class="fas fa-trash-alt"></i></span>
+            <span>Deletion Requests</span>
+            {% if pending_deletion_count is defined and pending_deletion_count > 0 %}
+              <span class="badge bg-danger rounded-pill ms-auto" style="font-size:0.65rem">{{ pending_deletion_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+        {% endif %}
+        {% endif %}
+        <!-- Activity Logs - Added for users with appropriate roles -->
+        {% if current_user.role in ['SYS-Admin', 'WH-Admin', 'Company-Admin'] %}
+        <li class="nav-item">
+          <a href="{{ url_for('logs.view_logs') }}" class="nav-link {{ 'active' if request.endpoint == 'logs.view_logs' }}">
+            <span class="nav-icon"><i class="fas fa-history"></i></span>
+            <span>Activity Logs</span>
+          </a>
+        </li>
+        {% endif %}
+        <!-- Company Management - Only for SYS-Admin -->
+        {% if current_user.role == 'SYS-Admin' %}
+        <li class="nav-item">
+          <a href="{{ url_for('companies.view_companies') }}" class="nav-link {{ 'active' if request.endpoint == 'companies.view_companies' }}">
+            <span class="nav-icon"><i class="fas fa-building"></i></span>
+            <span>Company Management</span>
+          </a>
+        </li>
+        {% endif %}
+        <!-- User Management - Only for SYS-Admin -->
+        {% if current_user.role == 'SYS-Admin' %}
+        <li class="nav-item">
+          <a href="{{ url_for('admin.admin_users') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.admin_users' }}">
+            <span class="nav-icon"><i class="fas fa-users"></i></span>
+            <span>User Management</span>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+      <div class="sidebar-spacer"></div>
+      <ul class="nav-links">
+        <li class="nav-item">
+          <a href="{{ url_for('auth.logout') }}" class="nav-link logout-link">
+            <span class="nav-icon"><i class="fas fa-right-from-bracket"></i></span>
+            <span>Logout</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main-content fade-in">
+    {% block content %}
+    {% endblock %}
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-bottom">
+      <div class="footer-bottom-content">
+        <p>&copy; 2025 iCount. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Flash Messages Container -->
+  <div class="alert-container"></div>
+
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div id="flash-messages" style="display: none;">
+        {% for category, message in messages %}
+          <div class="flash-message {{ category }}">
+            <div class="flash-content">{{ message }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Flash Messages Script -->
+  <script src="{{ url_for('static', filename='js/flash.js') }}"></script>
+
+  <!-- Mobile Bottom Bar -->
+  <nav class="bottom-bar" id="bottomBar">
+    <a href="{{ url_for('main.dashboard') }}" class="bottom-bar-item {{ 'active' if request.endpoint == 'main.dashboard' }}">
+      <i class="fas fa-chart-line"></i>
+      <span>Home</span>
+    </a>
+    <a href="{{ url_for('products.view_products') }}" class="bottom-bar-item {{ 'active' if request.endpoint == 'products.view_products' }}">
+      <i class="fas fa-cube"></i>
+      <span>Products</span>
+    </a>
+    {% if current_user.role != 'Purchaser' %}
+    <a href="{{ url_for('requisitions.view_requisitions') }}" class="bottom-bar-item {{ 'active' if request.endpoint == 'requisitions.view_requisitions' }}" style="position:relative">
+      <i class="fas fa-users-rectangle"></i>
+      <span>Requests</span>
+      {% if pending_requisition_count is defined and pending_requisition_count > 0 %}
+        <span class="badge bg-warning rounded-pill" style="position:absolute;top:2px;right:8px;font-size:0.55rem;padding:2px 5px">{{ pending_requisition_count }}</span>
+      {% endif %}
+    </a>
+    {% if current_user.role in ['User', 'SYS-Admin', 'Company-Admin'] %}
+    <a href="{{ url_for('store.inventory_count') }}" class="bottom-bar-item {{ 'active' if request.endpoint == 'store.inventory_count' }}">
+      <i class="fas fa-clipboard-check"></i>
+      <span>Count</span>
+    </a>
+    {% else %}
+    <a href="{{ url_for('api.stock_audit') }}" class="bottom-bar-item {{ 'active' if request.endpoint == 'api.stock_audit' }}" style="position:relative">
+      <i class="fas fa-clipboard-check"></i>
+      <span>Audit</span>
+      {% if pending_receiving_count is defined and pending_receiving_count > 0 %}
+        <span class="badge bg-info rounded-pill" style="position:absolute;top:2px;right:8px;font-size:0.55rem;padding:2px 5px">{{ pending_receiving_count }}</span>
+      {% endif %}
+    </a>
+    {% endif %}
+    {% endif %}
+    <button class="bottom-bar-item bottom-bar-more" id="bottomBarMore" aria-label="More menu">
+      <i class="fas fa-ellipsis-h"></i>
+      <span>More</span>
+    </button>
+  </nav>
+
+  <!-- Mobile Sidebar Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- PWA Scripts -->
+  <script src="{{ url_for('static', filename='js/pwa-install.js') }}"></script>
+
+  <!-- Dark Mode Toggle Script -->
+  <script>
+    function toggleDarkMode() {
+      var body = document.body;
+      var html = document.documentElement;
+      body.classList.toggle('dark-mode');
+      var isDark = body.classList.contains('dark-mode');
+      // Keep the <html> class in sync so the theme token block (.dark-mode) follows the toggle
+      html.classList.toggle('dark-mode', isDark);
+      localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+      if (isDark) {
+        html.setAttribute('data-bs-theme', 'dark');
+      } else {
+        html.removeAttribute('data-bs-theme');
+      }
+      var icon = document.querySelector('#darkModeToggle i');
+      if (icon) {
+        icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+      }
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.content = isDark ? '#080911' : '#f0f0ff';
+    }
+
+    (function() {
+      var icon = document.querySelector('#darkModeToggle i');
+      if (document.body.classList.contains('dark-mode') && icon) {
+        icon.className = 'fas fa-sun';
+      }
+    })();
+  </script>
+
+  <!-- Sidebar Toggle Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const toggleButton = document.getElementById('toggle-btn');
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.querySelector('.main-content');
+      const overlay = document.getElementById('sidebarOverlay');
+      const moreBtn = document.getElementById('bottomBarMore');
+
+      function isMobile() {
+        return window.innerWidth <= 768;
+      }
+
+      function openMobileSidebar() {
+        sidebar.classList.add('mobile-open');
+        if (overlay) overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeMobileSidebar() {
+        sidebar.classList.remove('mobile-open');
+        if (overlay) overlay.classList.remove('open');
+        document.body.style.overflow = '';
+      }
+
+      // Desktop sidebar toggle
+      function toggleSidebar() {
+        if (isMobile()) {
+          openMobileSidebar();
+          return;
+        }
+        sidebar.classList.toggle('close');
+        mainContent.classList.toggle('expanded');
+        document.querySelectorAll('.footer').forEach(function(el) {
+          el.classList.toggle('expanded');
+        });
+        localStorage.setItem('sidebarState', sidebar.classList.contains('close') ? 'closed' : 'open');
+      }
+
+      // Initialize sidebar state from localStorage
+      const savedState = localStorage.getItem('sidebarState');
+      if (savedState === 'closed' && !isMobile()) {
+        sidebar.classList.add('close');
+        mainContent.classList.add('expanded');
+        document.querySelectorAll('.footer').forEach(function(el) {
+          el.classList.add('expanded');
+        });
+      }
+
+      // Toggle button click
+      toggleButton.addEventListener('click', toggleSidebar);
+
+      // More button on mobile bottom bar
+      if (moreBtn) {
+        moreBtn.addEventListener('click', function() {
+          if (sidebar.classList.contains('mobile-open')) {
+            closeMobileSidebar();
+          } else {
+            openMobileSidebar();
+          }
+        });
+      }
+
+      // Overlay click to close
+      if (overlay) {
+        overlay.addEventListener('click', closeMobileSidebar);
+      }
+
+      // Close button on mobile sidebar header
+      const mobileCloseBtn = document.getElementById('mobileSidebarClose');
+      if (mobileCloseBtn) {
+        mobileCloseBtn.addEventListener('click', closeMobileSidebar);
+      }
+
+      // Close sidebar when clicking a nav link on mobile
+      sidebar.querySelectorAll('.nav-link').forEach(function(link) {
+        link.addEventListener('click', function() {
+          if (isMobile()) {
+            closeMobileSidebar();
+          }
+        });
+      });
+
+      // Handle resize: close mobile sidebar when resizing up
+      window.addEventListener('resize', function() {
+        if (!isMobile()) {
+          closeMobileSidebar();
+        }
+      });
+
+      // Show any flash messages
+      const flashMessages = document.querySelectorAll('.flash-message');
+      flashMessages.forEach(function(flash) {
+        const category = Array.from(flash.classList)
+          .find(cls => ['success', 'danger', 'warning', 'info'].includes(cls)) || 'info';
+        const message = flash.querySelector('.flash-content').textContent;
+        showAlert(message, category);
+      });
+
+      // ── Notification Center ──
+      window.notifDropdownOpen = false;
+
+      window.toggleNotificationDropdown = function() {
+        const dd = document.getElementById('notificationDropdown');
+        window.notifDropdownOpen = !window.notifDropdownOpen;
+        dd.classList.toggle('open', window.notifDropdownOpen);
+        if (window.notifDropdownOpen) loadNotifications();
+      };
+
+      function loadNotifications() {
+        fetch('/api/notifications?page=1')
+          .then(r => r.json())
+          .then(data => {
+            if (!data.success) return;
+            const list = document.getElementById('notifList');
+            if (!data.notifications.length) {
+              list.innerHTML = '<div class="notif-empty"><i class="fas fa-bell-slash mb-2" style="font-size:1.5rem;opacity:0.4;display:block"></i>No notifications yet</div>';
+              return;
+            }
+            list.innerHTML = data.notifications.map(n => `
+              <div class="notif-item ${n.is_read ? '' : 'unread'}" onclick="markNotifRead(${n.id})">
+                <div class="notif-icon ${n.type}">
+                  <i class="fas ${n.type === 'success' ? 'fa-check-circle' : n.type === 'warning' ? 'fa-exclamation-triangle' : n.type === 'danger' ? 'fa-times-circle' : 'fa-info-circle'}"></i>
+                </div>
+                <div class="notif-content">
+                  <div class="notif-item-title">${escHtml(n.title)}</div>
+                  ${n.message ? '<div class="notif-item-msg">' + escHtml(n.message) + '</div>' : ''}
+                  <div class="notif-item-time">${timeAgo(n.created_at)}</div>
+                </div>
+              </div>
+            `).join('');
+          });
+      }
+
+      window.markNotifRead = function(id) {
+        fetch('/api/notifications/mark-read/' + id, { method: 'POST' })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) updateNotifBadge();
+            loadNotifications();
+          });
+      };
+
+      window.markAllNotificationsRead = function() {
+        fetch('/api/notifications/mark-all-read', { method: 'POST' })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) updateNotifBadge();
+            loadNotifications();
+            document.getElementById('markAllBtn').style.display = 'none';
+          });
+      };
+
+      function updateNotifBadge() {
+        fetch('/api/notifications/count')
+          .then(r => r.json())
+          .then(data => {
+            const badge = document.getElementById('notifBadge');
+            const markBtn = document.getElementById('markAllBtn');
+            const countSpan = document.getElementById('notifCount');
+            if (badge) {
+              if (data.count > 0) { badge.textContent = data.count; badge.style.display = ''; }
+              else badge.style.display = 'none';
+            }
+            if (markBtn) markBtn.style.display = data.count > 0 ? 'inline' : 'none';
+            if (countSpan) countSpan.textContent = data.count + ' unread';
+          });
+      }
+
+      // Close dropdown on outside click
+      document.addEventListener('click', function(e) {
+        const wrapper = document.querySelector('.notification-dropdown-wrapper');
+        if (window.notifDropdownOpen && wrapper && !wrapper.contains(e.target)) {
+          document.getElementById('notificationDropdown').classList.remove('open');
+          window.notifDropdownOpen = false;
+        }
+      });
+
+      // Poll for new notifications every 60s
+      setInterval(updateNotifBadge, 60000);
+
+      function escHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str || '';
+        return div.innerHTML;
+      }
+
+      function timeAgo(iso) {
+        const diff = Date.now() - new Date(iso).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'Just now';
+        if (mins < 60) return mins + 'm ago';
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return hrs + 'h ago';
+        const days = Math.floor(hrs / 24);
+        if (days < 7) return days + 'd ago';
+        return new Date(iso).toLocaleDateString();
+      }
+    });
+  </script>
+
+
+
+
+
+</body>
+</html>

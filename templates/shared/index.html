@@ -1,0 +1,1133 @@
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}Dashboard - iCount{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Welcome Section -->
+  <div class="dashboard-header mb-4">
+    <div class="welcome-section">
+      <div class="welcome-content">
+        <div class="welcome-time">
+          <span>{{ now.strftime('%I:%M %p') }}</span>
+          <span class="date">{{ now.strftime('%B %d, %Y') }}</span>
+        </div>
+        <h1 class="welcome-title">
+          {% if now.hour < 12 %}
+            Good Morning,
+          {% elif now.hour < 17 %}
+            Good Afternoon,
+          {% else %}
+            Good Evening,
+          {% endif %}
+          <span class="user-name">{{ current_user.full_name.split()[0] }}</span>
+        </h1>
+        <div class="welcome-subtitle-container">
+          <p class="welcome-subtitle" title="{{ stock_status | safe }}">
+            {{ stock_status | safe }}
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="actions d-flex flex-row flex-wrap gap-2 align-items-center mt-3 mb-2">
+      {% if current_user.role != 'Purchaser' %}
+      <button class="btn btn-primary btn-glow d-flex align-items-center" onclick="window.location.href='{{ url_for('products.view_products') }}'">
+        <i class="fas fa-plus me-2"></i> Add New Product
+      </button>
+      <button class="btn btn-success d-flex align-items-center" onclick="window.location.href='{{ url_for('api.stock_audit') }}'">
+        <i class="fas fa-clipboard-check me-2"></i> Start Audit
+      </button>
+      {% endif %}
+      
+      {% if current_user.role in ['SYS-Admin', 'WH-Admin', 'Company-Admin'] %}
+      <form id="sendWeeklyReportForm" method="post" action="{{ url_for('main.send_weekly_report') }}" style="display:inline;">
+        <button id="sendWeeklyReportBtn" type="submit" class="btn btn-info d-flex align-items-center">
+          <i class="fas fa-envelope me-2"></i> Send Daily Report
+        </button>
+      </form>
+      <script>
+        document.getElementById('sendWeeklyReportForm').addEventListener('submit', function(e) {
+          var btn = document.getElementById('sendWeeklyReportBtn');
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
+        });
+      </script>
+      {% endif %}
+      
+      {% if current_user.role == 'Purchaser' %}
+      <form id="sendPurchaserReportForm" method="post" action="{{ url_for('main.send_purchaser_report') }}" style="display:inline;">
+        <button id="sendPurchaserReportBtn" type="submit" class="btn btn-warning d-flex align-items-center">
+          <i class="fas fa-envelope me-2"></i> Send Purchaser Report
+        </button>
+      </form>
+      <script>
+        document.getElementById('sendPurchaserReportForm').addEventListener('submit', function(e) {
+          var btn = document.getElementById('sendPurchaserReportBtn');
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
+        });
+      </script>
+      {% endif %}
+      
+      <button class="btn btn-outline-secondary d-flex align-items-center" onclick="openWidgetModal()" title="Customize Dashboard">
+        <i class="fas fa-sliders-h me-2"></i> Customize
+      </button>
+    </div>
+    <style>
+      .actions {
+        gap: 0.75rem !important;
+        flex-wrap: wrap;
+      }
+      .actions button, .actions form {
+        margin-bottom: 0 !important;
+      }
+      @media (max-width: 600px) {
+        .actions {
+          flex-direction: column !important;
+          align-items: stretch !important;
+        }
+        .actions button, .actions form {
+          width: 100%;
+        }
+      }
+    </style>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="row g-3 mb-4" data-widget="stats">
+    <div class="col-md-3">
+      <div class="stat-card products">
+        <div class="stat-card-content">
+          <div class="stat-icon">
+            <i class="fas fa-box-open"></i>
+          </div>
+          <div class="stat-details">
+            <span class="stat-title">Total Products</span>
+            <h3 class="stat-value">{{ total_inventory }}</h3>
+            <span class="stat-label">Items in inventory</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="stat-card low-stock">
+        <div class="stat-card-content">
+          <div class="stat-icon">
+            <i class="fas fa-triangle-exclamation"></i>
+          </div>
+          <div class="stat-details">
+            <span class="stat-title">Low Stock</span>
+            <h3 class="stat-value">{{ low_stock_count if low_stock_count is not none else 0 }}</h3>
+            <span class="stat-label">Items below threshold</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="stat-card expiring">
+        <div class="stat-card-content">
+          <div class="stat-icon">
+            <i class="fas fa-calendar-alt"></i>
+          </div>
+          <div class="stat-details">
+            <span class="stat-title">Expiring in 30 Days</span>
+            <h3 class="stat-value">{{ expiring_30d if expiring_30d is not none else 0 }}</h3>
+            <span class="stat-label">Products expiring soon</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="stat-card no-stocks">
+        <div class="stat-card-content">
+          <div class="stat-icon">
+            <i class="fas fa-times-circle"></i>
+          </div>
+          <div class="stat-details">
+            <span class="stat-title">No Stocks</span>
+            <h3 class="stat-value">{{ out_of_stock_count if out_of_stock_count is not none else 0 }}</h3>
+            <span class="stat-label">Items out of stock</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Dashboard Content -->
+  <div class="row g-4">
+    <!-- Stock Movement Chart -->
+    <div class="col-lg-8" data-widget="stock-chart">
+      <div class="card dashboard-card">
+        <div class="card-header border-0 bg-transparent">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+              <i class="fas fa-chart-line text-primary me-2"></i>Stock Quantities
+            </h5>
+            <div class="chart-actions">
+              <button class="btn btn-sm btn-primary" data-period="week" onclick="changeChartPeriod('week')">Week</button>
+              <button class="btn btn-sm btn-outline-secondary" data-period="month" onclick="changeChartPeriod('month')">Month</button>
+              <button class="btn btn-sm btn-outline-secondary" data-period="year" onclick="changeChartPeriod('year')">Year</button>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <canvas id="areaChart" height="280"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Products Chart -->
+    <div class="col-lg-4" data-widget="top-products">
+      <div class="card dashboard-card">
+        <div class="card-header border-0 bg-transparent">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+              <i class="fas fa-trophy text-warning me-2"></i>Top Products
+            </h5>
+            <button class="btn btn-sm btn-outline-primary">View All</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <canvas id="donutChart" height="280"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Low Stock Alert Table -->
+    <div class="col-lg-8" data-widget="low-stock">
+      <div class="card dashboard-card low-stock-alert">
+        <div class="card-header border-0 bg-dark text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+              <i class="fas fa-exclamation-triangle text-warning me-2"></i>Low Stock Alerts
+            </h5>
+            <button class="btn btn-sm btn-warning" onclick="window.location.href='{{ url_for('products.view_products') }}'">
+              <i class="fas fa-plus me-1"></i>Restock Items
+            </button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 border-0">
+              <thead
+                <tr>
+                  <th class="ps-4">Product Details</th>
+                  <th>Current Stock</th>
+                  <th>Reorder Level</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for product in low_stock_items[:5] %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center">
+                        <div class="product-icon me-3">
+                          {% set barcode_path = 'product_barcodes/company_' ~ product.company_id|string ~ '/' ~ product.barcode ~ '.png' %}
+                          <img src="{{ url_for('static', filename=barcode_path) }}" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
+                        </div>
+                        <div>
+                          <h6 class="mb-1 text-dark">{{ product.name }}</h6>
+                          <span class="badge bg-dark">{{ product.barcode }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="stock-info">
+                        <span class="stock-value text-danger fw-bold">{{ product.quantity }}</span>
+                        <span class="stock-unit">{{ product.uom }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="stock-info">
+                        <span class="stock-value text-dark fw-bold">{{ product.reorder_level }}</span>
+                        <span class="stock-unit">{{ product.uom }}</span>
+                      </div>
+                    </td>
+                  </tr>
+                {% else %}
+                  <tr>
+                    <td colspan="3" class="text-center py-4">
+                      <div class="empty-state">
+                        <i class="fas fa-check-circle text-success fa-2x mb-3"></i>
+                        <h6 class="mb-0">All stock levels are healthy!</h6>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+                {% if low_stock_items|length > 5 %}
+                  <tr>
+                    <td colspan="3" class="text-center py-3">
+                      <div class="text-muted">
+                        <i class="fas fa-ellipsis-h me-1"></i>
+                        Showing top 5 of {{ low_stock_items|length }} low stock items
+                        <br>
+                        <a href="{{ url_for('products.view_products') }}" class="btn btn-sm btn-outline-primary mt-2">
+                          <i class="fas fa-eye me-1"></i>View All Products
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expiring Products -->
+      <div class="card dashboard-card expiring-products mt-4" data-widget="expiring">
+        <div class="card-header border-0 bg-dark text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+              <i class="fas fa-clock text-warning me-2"></i>
+              <span id="expiring-title">Products Expiring in 30 Days</span>
+            </h5>
+            <div class="d-flex align-items-center gap-2">
+              <!-- Toggle Buttons -->
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" id="toggle-30days" 
+                   class="btn btn-warning" onclick="toggleExpiringView('30days')">
+                  30 Days
+                </button>
+                <button type="button" id="toggle-3months" 
+                   class="btn btn-outline-warning" onclick="toggleExpiringView('3months')">
+                  3 Months
+                </button>
+              </div>
+              <span class="badge bg-warning text-dark" id="expiring-count">{{ expiring_products|length }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 border-0">
+              <thead
+                <tr>
+                  <th class="ps-4">Product Details</th>
+                  <th>Earliest Expiry</th>
+                  <th>Expiring Batches</th>
+                  <th>Total Expiring</th>
+                </tr>
+              </thead>
+              <tbody id="expiring-products-table">
+                {% for product in expiring_products %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center">
+                        <div class="product-icon me-3">
+                          {% set barcode_path = 'product_barcodes/company_' ~ product.company_id|string ~ '/' ~ product.barcode ~ '.png' %}
+                          <img src="{{ url_for('static', filename=barcode_path) }}" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
+                        </div>
+                        <div>
+                          <h6 class="mb-1 text-dark">{{ product.name }}</h6>
+                          <span class="badge bg-dark">{{ product.barcode }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <div class="me-2">
+                          <div class="fw-medium">{{ product.batches[0].exp_date.strftime('%Y-%m-%d') }}</div>
+                          <small class="text-warning">
+                            <i class="fas fa-clock"></i> {{ (product.batches[0].exp_date - now.date()).days }} days left
+                          </small>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="d-flex flex-column gap-1">
+                        {% for batch in product.batches[:3] %}
+                          {% if batch.quantity > 0 %}
+                            {% set days_until = (batch.exp_date - now.date()).days %}
+                            {% if days_until <= 30 %}
+                              <div class="d-flex justify-content-between align-items-center p-1 rounded">
+                                <small class="fw-medium">{{ batch.quantity }} {{ product.uom }}</small>
+                                <small>
+                                  {% if days_until <= 0 %}
+                                    <span class="text-danger">Expired</span>
+                                  {% else %}
+                                    <span class="text-danger">{{ days_until }}d</span>
+                                  {% endif %}
+                                </small>
+                              </div>
+                            {% endif %}
+                          {% endif %}
+                        {% endfor %}
+                        {% if product.batches|length > 3 %}
+                          <small class="text-muted text-center">+ {{ product.batches|length - 3 }} more batches</small>
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="text-center">
+                        <div class="fw-bold text-warning">
+                          {{ product.quantity }}
+                        </div>
+                        <small class="text-muted">{{ product.uom }}</small>
+                      </div>
+                    </td>
+                  </tr>
+                 {% else %}
+                  <tr>
+                    <td colspan="4" class="text-center py-4">
+                      <div class="empty-state">
+                        <i class="fas fa-calendar-check text-success fa-2x mb-3"></i>
+                        <h6 class="mb-0">
+                          No products expiring in 30 days
+                        </h6>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <style>
+        .btn-group .btn {
+          border-radius: 0;
+          font-size: 0.8rem;
+          padding: 0.25rem 0.5rem;
+        }
+        .btn-group .btn:first-child {
+          border-top-left-radius: 0.25rem;
+          border-bottom-left-radius: 0.25rem;
+        }
+        .btn-group .btn:last-child {
+          border-top-right-radius: 0.25rem;
+          border-bottom-right-radius: 0.25rem;
+        }
+        .btn-outline-warning {
+          color: #ffc107;
+          border-color: #ffc107;
+        }
+        .btn-outline-warning:hover {
+          color: #000;
+          background-color: #ffc107;
+          border-color: #ffc107;
+        }
+      </style>
+
+      <!-- Expired Products (Top 5) -->
+      <div class="card dashboard-card expiring-products mt-4" data-widget="expired">
+        <div class="card-header border-0 bg-dark text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+              <i class="fas fa-ban text-danger me-2"></i>Expired Products (Top 5)
+            </h5>
+            <span class="badge bg-danger">{{ expired_products_top5|length }}</span>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 border-0">
+              <thead
+                <tr>
+                  <th class="ps-4">Product Details</th>
+                  <th>Earliest Expired</th>
+                  <th>Expired Batches</th>
+                  <th>Total Expired</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in expired_products_top5 %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center">
+                        <div class="product-icon me-3">
+                          {% set barcode_path = 'product_barcodes/company_' ~ item.product.company_id|string ~ '/' ~ item.product.barcode ~ '.png' %}
+                          <img src="{{ url_for('static', filename=barcode_path) }}" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
+                        </div>
+                        <div>
+                          <h6 class="mb-1 text-dark">{{ item.product.name }}</h6>
+                          <span class="badge bg-dark">{{ item.product.barcode }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <div class="me-2">
+                          <div class="fw-medium">{{ item.earliest_expired_batch.exp_date.strftime('%Y-%m-%d') }}</div>
+                          <small class="text-danger">
+                            <i class="fas fa-exclamation-circle"></i> {{ item.days_overdue }} days overdue
+                          </small>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="d-flex flex-column gap-1">
+                        {% for batch in item.expired_batches[:3] %}
+                          <div class="d-flex justify-content-between align-items-center p-1 rounded">
+                            <small class="fw-medium">{{ batch.quantity }} {{ item.product.uom }}</small>
+                            {% if now is defined %}
+                              <small class="text-danger">{{ (now.date() - batch.exp_date).days }}d</small>
+                            {% else %}
+                              <small class="text-danger">N/A</small>
+                            {% endif %}
+                          </div>
+                        {% endfor %}
+                        {% if item.expired_batches|length > 3 %}
+                          <small class="text-muted text-center">+ {{ item.expired_batches|length - 3 }} more batches</small>
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="text-center">
+                        <div class="fw-bold text-danger">
+                          {{ item.total_expired_qty }}
+                        </div>
+                        <small class="text-muted">{{ item.product.uom }}</small>
+                      </div>
+                    </td>
+                  </tr>
+                {% else %}
+                  <tr>
+                    <td colspan="4" class="text-center py-4">
+                      <div class="empty-state">
+                        <i class="fas fa-check-circle text-success fa-2x mb-3"></i>
+                        <h6 class="mb-0">No expired products</h6>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Favorite Products (Top 5) -->
+      <div class="card dashboard-card expiring-products mt-4" data-widget="favorites">
+        <div class="card-header border-0 bg-dark text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+              <i class="fas fa-star text-warning me-2"></i>Top 5 Favorites
+            </h5>
+            <a href="{{ url_for('products.view_products', status='Favorites') }}" class="btn btn-sm btn-outline-light">View All</a>
+          </div>
+        </div>
+        <style>
+          /* Stock info font size adjustments */
+          .stock-info .stock-value {
+            font-size: 0.85rem;
+          }
+          .stock-info .stock-unit {
+            font-size: 0.75rem;
+          }
+        </style>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 border-0">
+              <thead
+                <tr>
+                  <th class="ps-4">Product Details</th>
+                  <th>Current Stock</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for product in favorite_products %}
+                  {% set qty = product.quantity | int %}
+                  {% set is_low = product.is_low_stock %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center">
+                        <div class="product-icon me-3">
+                          {% set barcode_path = 'product_barcodes/company_' ~ product.company_id|string ~ '/' ~ product.barcode ~ '.png' %}
+                          <img src="{{ url_for('static', filename=barcode_path) }}" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
+                        </div>
+                        <div>
+                          <h6 class="mb-1 text-dark">
+                            <i class="fas fa-star text-warning me-1"></i>{{ product.name }}
+                          </h6>
+                          <span class="badge bg-dark">{{ product.barcode }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="stock-info">
+                        <span class="stock-value {% if qty == 0 %}text-danger{% elif is_low %}text-warning{% else %}text-success{% endif %} fw-bold small">
+                          {% if qty == 0 %}
+                            Out of Stock
+                          {% else %}
+                            {{ qty }} / {{ product.initial_quantity }} {{ product.uom }}
+                          {% endif %}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      {% if qty == 0 %}
+                        <span class="badge bg-danger">Out of Stock</span>
+                      {% elif is_low %}
+                        <span class="badge bg-warning">Low Stock</span>
+                      {% else %}
+                        <span class="badge bg-success">In Stock</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% else %}
+                  <tr>
+                    <td colspan="3" class="text-center py-4">
+                      <div class="empty-state">
+                        <i class="far fa-star text-muted fa-2x mb-3"></i>
+                        <h6 class="mb-0 text-muted">No favorite products yet</h6>
+                        <small class="text-muted">Mark products as favorites to see them here</small>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stock Forecast -->
+    <div class="col-lg-4" data-widget="stock-forecast">
+      <div class="card dashboard-card expiring-products">
+        <div class="card-header border-0 bg-dark text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+              <i class="fas fa-chart-line text-warning me-2"></i>Stock Forecast
+            </h5>
+            <span class="badge bg-warning text-dark">{{ forecast_products|length }}</span>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="p-3">
+            {% if forecast_products %}
+              {% for item in forecast_products %}
+                {% set p = item.product %}
+                {% set f = item.forecast %}
+                <div class="d-flex align-items-center justify-content-between p-2 mb-2 rounded">
+                  <div class="d-flex align-items-center gap-2" style="min-width: 0;">
+                    <i class="fas fa-box {% if f.days_until_depletion <= 7 %}text-danger{% elif f.days_until_depletion <= 30 %}text-warning{% else %}text-success{% endif %} flex-shrink-0"></i>
+                    <div style="min-width: 0;">
+                      <div class="fw-semibold small text-truncate" style="max-width: 140px;">{{ p.name }}</div>
+                      <small class="text-muted d-block">{{ p.quantity }} {{ p.uom }} left</small>
+                    </div>
+                  </div>
+                  <div class="text-end flex-shrink-0 ms-2">
+                    <div class="fw-bold small {% if f.days_until_depletion <= 7 %}text-danger{% elif f.days_until_depletion <= 30 %}text-warning{% else %}text-success{% endif %}">
+                      {% if f.days_until_depletion <= 0 %}
+                        Depleted
+                      {% else %}
+                        {{ f.days_until_depletion }} days
+                      {% endif %}
+                    </div>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">
+                      {% if f.days_until_depletion > 0 %}
+                        {{ f.projected_depletion_date }}
+                      {% endif %}
+                    </small>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="text-center py-3">
+                <div class="empty-state">
+                  <i class="fas fa-chart-line text-muted fa-2x mb-2"></i>
+                  <h6 class="mb-1 small text-muted">Insufficient data</h6>
+                  <small class="text-muted">Add consumption history to see forecasts</small>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activities -->
+    <div class="col-lg-4" data-widget="recent-activities">
+      <div class="card dashboard-card expiring-products">
+        <div class="card-header border-0 bg-dark text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+              <i class="fas fa-history text-info me-2"></i>Recent Activities
+            </h5>
+            <button class="btn btn-sm btn-outline-light">View All</button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="activity-timeline">
+            {% for log in recent_logs %}
+              <div class="activity-item">
+                <div class="activity-content">
+                  <div class="activity-icon 
+                       {% if 'Add' in log.action %}bg-success
+                       {% elif 'Remove' in log.action %}bg-danger
+                       {% else %}bg-primary{% endif %}">
+                    <i class="fas 
+                         {% if 'Add' in log.action %}fa-plus
+                         {% elif 'Remove' in log.action %}fa-minus
+                         {% else %}fa-sync{% endif %}">
+                    </i>
+                  </div>
+                  <div class="activity-details">
+                    <div class="activity-header">
+                      <h6 class="mb-0 text-dark">{{ log.action }}</h6>
+                      <span class="activity-time">{{ log.timestamp|relative_time }}</span>
+                    </div>
+                    <p class="mb-1 text-dark">{{ log.details|safe }}</p>
+                    <div class="activity-meta">
+                      <span class="badge bg-dark">{{ log.timestamp.strftime('%b %d') }}</span>
+                      <span class="badge bg-primary">Time: {{ log.timestamp.strftime('%I:%M %p') }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% else %}
+              <div class="text-center py-4">
+                <div class="empty-state">
+                  <i class="fas fa-history text-muted fa-2x mb-3"></i>
+                  <h6 class="mb-0 text-muted">No recent activities</h6>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ApexCharts -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Area Chart Configuration
+const ctx1 = document.getElementById('areaChart').getContext('2d');
+new Chart(ctx1, {
+  type: "line",
+  data: {
+    labels: {{ labels | tojson }},
+    datasets: [
+      {
+        label: "Stock Added (Units)",
+        data: {{ added_data | tojson }},
+        backgroundColor: "rgba(59, 130, 246, 0.1)",
+        borderColor: "rgba(59, 130, 246, 1)",
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointBackgroundColor: "rgba(59, 130, 246, 1)",
+        pointBorderColor: "#fff",
+        pointBorderWidth: 2
+      },
+      {
+        label: "Stock Removed (Units)",
+        data: {{ removed_data | tojson }},
+        backgroundColor: "rgba(239, 68, 68, 0.1)",
+        borderColor: "rgba(239, 68, 68, 1)",
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointBackgroundColor: "rgba(239, 68, 68, 1)",
+        pointBorderColor: "#fff",
+        pointBorderWidth: 2
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "top",
+        labels: {
+          usePointStyle: true,
+          padding: 20,
+          font: {
+            size: 12,
+            family: "Inter, sans-serif"
+          }
+        }
+      },
+      tooltip: {
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
+        padding: 12,
+        titleFont: {
+          size: 14,
+          family: "Inter, sans-serif"
+        },
+        bodyFont: {
+          size: 13,
+          family: "Inter, sans-serif"
+        },
+        displayColors: false
+      }
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          font: {
+            size: 12,
+            family: "Inter, sans-serif"
+          }
+        }
+      },
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: "rgba(0, 0, 0, 0.05)"
+        },
+        ticks: {
+          font: {
+            size: 12,
+            family: "Inter, sans-serif"
+          }
+        }
+      }
+    }
+  }
+});
+
+// Donut Chart Configuration
+const ctx2 = document.getElementById('donutChart').getContext('2d');
+new Chart(ctx2, {
+  type: "doughnut",
+  data: {
+    labels: {{ top_product_labels | tojson }},
+    datasets: [{
+      data: {{ top_product_quantities | tojson }},
+      backgroundColor: [
+        "rgba(59, 130, 246, 0.9)",
+        "rgba(16, 185, 129, 0.9)",
+        "rgba(245, 158, 11, 0.9)",
+        "rgba(99, 102, 241, 0.9)",
+        "rgba(236, 72, 153, 0.9)"
+      ],
+      borderWidth: 0,
+      hoverOffset: 15
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: "75%",
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: {
+          padding: 20,
+          usePointStyle: true,
+          font: {
+            size: 12,
+            family: "Inter, sans-serif"
+          }
+        }
+      },
+      tooltip: {
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
+        padding: 12,
+        titleFont: {
+          size: 14,
+          family: "Inter, sans-serif"
+        },
+        bodyFont: {
+          size: 13,
+          family: "Inter, sans-serif"
+        }
+      }
+    }
+  }
+});
+
+// Chart period toggle functionality
+let currentChart;
+let currentPeriod = 'week'; // Default period changed to week
+
+function changeChartPeriod(period) {
+  // Update button states
+  document.querySelectorAll('[data-period]').forEach(btn => {
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-outline-secondary');
+  });
+  
+  // Set active button
+  const activeBtn = document.querySelector(`[data-period="${period}"]`);
+  if (activeBtn) {
+    activeBtn.classList.remove('btn-outline-secondary');
+    activeBtn.classList.add('btn-primary');
+  }
+  
+  // Update current period
+  currentPeriod = period;
+  
+  // Fetch new data and update chart
+  updateStockMovementChart(period);
+}
+
+async function updateStockMovementChart(period) {
+  try {
+    // Show loading state
+    const chartContainer = document.getElementById('areaChart');
+    chartContainer.style.opacity = '0.5';
+    
+    // Fetch data for the selected period
+    const response = await fetch(`/api/stock_movements?period=${period}`);
+    const data = await response.json();
+    
+    if (data.success) {
+      // Update chart data
+      currentChart.data.labels = data.labels;
+      currentChart.data.datasets[0].data = data.added_data;
+      currentChart.data.datasets[1].data = data.removed_data;
+      currentChart.update();
+      
+      // Restore opacity
+      chartContainer.style.opacity = '1';
+    } else {
+      console.error('Failed to fetch chart data:', data.message);
+      chartContainer.style.opacity = '1';
+    }
+  } catch (error) {
+    console.error('Error updating chart:', error);
+    const chartContainer = document.getElementById('areaChart');
+    chartContainer.style.opacity = '1';
+  }
+}
+
+// Initialize chart with current period
+document.addEventListener('DOMContentLoaded', function() {
+  // Store chart reference for updates
+  currentChart = Chart.getChart('areaChart');
+});
+
+// Expiring products toggle functionality
+let currentExpiringView = '30days';
+
+async function toggleExpiringView(view) {
+  // Update button states
+  if (view === '30days') {
+    document.getElementById('toggle-30days').className = 'btn btn-warning';
+    document.getElementById('toggle-3months').className = 'btn btn-outline-warning';
+  } else {
+    document.getElementById('toggle-30days').className = 'btn btn-outline-warning';
+    document.getElementById('toggle-3months').className = 'btn btn-warning';
+  }
+  
+  // Update current view
+  currentExpiringView = view;
+  
+  // Show loading state
+  const tableBody = document.getElementById('expiring-products-table');
+  tableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="spinner-border text-warning" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
+  
+  try {
+    // Fetch data for the selected view
+    const response = await fetch(`/api/expiring_products?view=${view}`);
+    const data = await response.json();
+    
+    if (data.success) {
+      // Update title
+      document.getElementById('expiring-title').textContent = data.title;
+      
+      // Update count badge
+      document.getElementById('expiring-count').textContent = data.count;
+      
+      // Update table content
+      if (data.products.length > 0) {
+        let html = '';
+        for (const product of data.products) {
+          html += `
+            <tr>
+              <td class="ps-4">
+                <div class="d-flex align-items-center">
+                  <div class="product-icon me-3">
+                    <img src="/static/product_barcodes/company_${product.company_id}/${product.barcode}.png" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
+                  </div>
+                  <div>
+                    <h6 class="mb-1 text-dark">${product.name}</h6>
+                    <span class="badge bg-dark">${product.barcode}</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="d-flex align-items-center">
+                  <div class="me-2">
+                    <div class="fw-medium">${product.earliest_exp_date}</div>
+                    <small class="text-warning">
+                      <i class="fas fa-clock"></i> ${product.days_left} days left
+                    </small>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="d-flex flex-column gap-1">
+                  ${product.expiring_batches.map(batch => `
+                    <div class="d-flex justify-content-between align-items-center p-1 rounded">
+                      <small class="fw-medium">${batch.quantity} ${product.uom}</small>
+                      <small class="text-danger">${batch.days_until}d</small>
+                    </div>
+                  `).join('')}
+                  ${product.total_expiring_batches > 3 ? 
+                    `<small class="text-muted text-center">+ ${product.total_expiring_batches - 3} more batches</small>` : 
+                    ''}
+                </div>
+              </td>
+              <td>
+                <div class="text-center">
+                  <div class="fw-bold text-warning">
+                    ${product.quantity}
+                  </div>
+                  <small class="text-muted">${product.uom}</small>
+                </div>
+              </td>
+            </tr>
+          `;
+        }
+        tableBody.innerHTML = html;
+      } else {
+        // Show empty state
+        let emptyMessage = 'No products expiring in 30 days';
+        if (view === '3months') {
+          emptyMessage = 'No products expiring in 31-90 days';
+        }
+        
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="4" class="text-center py-4">
+              <div class="empty-state">
+                <i class="fas fa-calendar-check text-success fa-2x mb-3"></i>
+                <h6 class="mb-0">${emptyMessage}</h6>
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+    } else {
+      console.error('Failed to fetch expiring products data:', data.message);
+      tableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-danger">Error loading data</td></tr>';
+    }
+  } catch (error) {
+    console.error('Error fetching expiring products:', error);
+    tableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-danger">Error loading data</td></tr>';
+  }
+}
+
+</script>
+
+<!-- Widget Customization Modal -->
+<div class="modal fade" id="widgetModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h6 class="modal-title fw-bold"><i class="fas fa-sliders-h me-2"></i>Customize Dashboard</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-0">
+        <div class="widget-list" id="widgetList"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button class="btn btn-sm btn-outline-danger" onclick="resetWidgets()">Reset to Default</button>
+        <button class="btn btn-sm btn-primary" data-bs-dismiss="modal">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.widget-item { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); }
+.widget-item:last-child { border-bottom:none; }
+.widget-item .widget-label { font-size:0.85rem; font-weight:500; color:var(--text-primary); }
+.widget-item .widget-desc { font-size:0.72rem; color:var(--text-muted); }
+
+/* Toggle Switch */
+.widget-toggle { position:relative; width:40px; height:22px; flex-shrink:0; }
+.widget-toggle input { opacity:0; width:0; height:0; }
+.widget-toggle .slider { position:absolute; inset:0; cursor:pointer; background:#d1d5db; border-radius:22px; transition:0.3s; }
+.widget-toggle .slider::before { content:""; position:absolute; left:3px; bottom:3px; width:16px; height:16px; background:#fff; border-radius:50%; transition:0.3s; }
+.widget-toggle input:checked + .slider { background:#6366f1; }
+.widget-toggle input:checked + .slider::before { transform:translateX(18px); }
+:where(.dark-mode) .widget-toggle .slider { background:#374151; }
+:where(.dark-mode) .widget-toggle input:checked + .slider { background:#6366f1; }
+</style>
+
+<script>
+const WIDGETS = [
+  { id:'stats', label:'Stats Cards', desc:'Total products, low stock, expiring & out of stock counts', default:true },
+  { id:'stock-chart', label:'Stock Movement Chart', desc:'Line chart of stock additions and removals', default:true },
+  { id:'top-products', label:'Top Products Chart', desc:'Donut chart of top 5 products by quantity', default:true },
+  { id:'low-stock', label:'Low Stock Alerts', desc:'Table of products below reorder threshold', default:true },
+  { id:'expiring', label:'Expiring Products', desc:'Products expiring within 30 days', default:true },
+  { id:'expired', label:'Expired Products', desc:'Top 5 expired products', default:true },
+  { id:'favorites', label:'Favorite Products', desc:'Top 5 starred products', default:false },
+  { id:'stock-forecast', label:'Stock Forecast', desc:'Days until depletion estimates', default:true },
+  { id:'recent-activities', label:'Recent Activities', desc:'Latest system activity log', default:true },
+];
+
+function getWidgetState() {
+  try { return JSON.parse(localStorage.getItem('dashWidgets')) || {}; } catch { return {}; }
+}
+
+function setWidgetState(state) {
+  localStorage.setItem('dashWidgets', JSON.stringify(state));
+}
+
+function applyWidgetVisibility() {
+  const state = getWidgetState();
+  document.querySelectorAll('[data-widget]').forEach(el => {
+    const id = el.dataset.widget;
+    const visible = state[id] !== undefined ? state[id] : (WIDGETS.find(w => w.id === id)?.default ?? true);
+    el.style.display = visible ? '' : 'none';
+  });
+}
+
+function openWidgetModal() {
+  const state = getWidgetState();
+  const list = document.getElementById('widgetList');
+  list.innerHTML = WIDGETS.map(w => {
+    const checked = state[w.id] !== undefined ? state[w.id] : w.default;
+    return `
+      <div class="widget-item">
+        <div>
+          <div class="widget-label">${w.label}</div>
+          <div class="widget-desc">${w.desc}</div>
+        </div>
+        <label class="widget-toggle">
+          <input type="checkbox" ${checked ? 'checked' : ''} data-widget-id="${w.id}" onchange="toggleWidget(this)">
+          <span class="slider"></span>
+        </label>
+      </div>
+    `;
+  }).join('');
+  const modal = new bootstrap.Modal(document.getElementById('widgetModal'));
+  modal.show();
+}
+
+function toggleWidget(el) {
+  const state = getWidgetState();
+  state[el.dataset.widgetId] = el.checked;
+  setWidgetState(state);
+  applyWidgetVisibility();
+}
+
+function resetWidgets() {
+  const state = {};
+  WIDGETS.forEach(w => { state[w.id] = w.default; });
+  setWidgetState(state);
+  applyWidgetVisibility();
+  // Update modal checkboxes
+  document.querySelectorAll('#widgetList input[type="checkbox"]').forEach(el => {
+    const def = WIDGETS.find(w => w.id === el.dataset.widgetId)?.default ?? true;
+    el.checked = def;
+  });
+}
+
+document.addEventListener('DOMContentLoaded', applyWidgetVisibility);
+</script>
+
+{% endblock %}

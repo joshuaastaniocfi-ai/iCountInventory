@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>📦 Stock Scanner</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/html5-qrcode@2.3.7/html5-qrcode.min.js"></script>
+  <style>
+    body {
+      background-color: #f4f6f9;
+      font-family: system-ui, sans-serif;
+    }
+    .scanner-wrapper {
+      max-width: 600px;
+      margin: 2rem auto;
+      padding: 1rem;
+    }
+    #reader {
+      width: 100%;
+      aspect-ratio: 1/1;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      background: #000;
+    }
+    .barcode-img {
+      max-width: 100px;
+      margin: 0 auto 1rem;
+    }
+    .low-stock {
+      color: #dc3545;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+    .btn-group-toggle .btn {
+      flex: 1;
+    }
+    .btn-lg {
+      font-size: 1.2rem;
+      padding: 0.75rem;
+    }
+    #product-info h6 {
+      font-size: 1.3rem;
+      font-weight: bold;
+    }
+    #product-stock {
+      font-size: 1.1rem;
+    }
+    #extra-details div {
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+    
+    /* Disabled expiry date styling */
+    input[type="date"]:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      background-color: #f8f9fa;
+    }
+    
+    input[type="date"]:disabled::placeholder {
+      color: #6c757d;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <style>
+    /* Modal Styles - Fix for grey barrier issue */
+    .modal {
+      /* Above header (1100) and backdrop */
+      z-index: 1205 !important;
+    }
+
+    .modal-backdrop {
+      /* Below modal content, above header */
+      z-index: 1200 !important;
+    }
+  </style>
+  <div class="scanner-wrapper">
+    <div class="card shadow">
+      <div class="card-body">
+
+        <!-- Header -->
+        <div class="text-center mb-3">
+          <h4><i class="fas fa-barcode"></i> Stock Scanner</h4>
+          <small class="text-muted">Select mode and scan product</small>
+        </div>
+
+        <!-- Mode Toggle -->
+        <div class="btn-group w-100 mb-3" role="group" id="mode-toggle">
+          <button class="btn btn-outline-secondary active btn-lg" data-mode="scan"><i class="fas fa-search"></i> Scan</button>
+          <button class="btn btn-outline-primary btn-lg" data-mode="add"><i class="fas fa-plus"></i> Add</button>
+          <button class="btn btn-outline-danger btn-lg" data-mode="remove"><i class="fas fa-minus"></i> Remove</button>
+        </div>
+
+        <!-- Scanner -->
+        <div id="reader" class="mb-3"></div>
+
+        <!-- Alert -->
+        <div id="success-alert" class="alert alert-success alert-dismissible fade show d-none" role="alert">
+          <span id="success-message"></span>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <!-- Product Info -->
+        <div id="product-info" class="d-none text-center">
+          <img src="" alt="Barcode" id="barcode-img" class="barcode-img d-none" />
+          <h6 id="product-name"></h6>
+          <span class="badge bg-dark" id="product-stock"></span>
+          <div id="low-stock-warning" class="low-stock mt-2 d-none">
+            <i class="fas fa-triangle-exclamation"></i> Low stock level!
+          </div>
+
+          <!-- Extra Info -->
+          <div id="extra-details" class="mt-3 text-start text-muted">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Form -->
+        <form id="stock-form" class="d-none mt-3" method="POST">
+          <input type="hidden" name="product_id" id="product_id" />
+          <div class="mb-3">
+            <label id="qty-label" class="form-label" for="quantity">Quantity</label>
+            <input type="number" name="quantity" id="quantity" class="form-control form-control-lg" required min="0.01" step="0.01" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="supplier_name">
+              <i class="fas fa-truck me-1"></i>Supplier Name
+            </label>
+            <input type="text" name="supplier_name" id="supplier_name" class="form-control form-control-lg" placeholder="Enter supplier name (Optional)" />
+            <small class="text-muted">Optional: Name of the supplier for this batch</small>
+          </div>
+          <div class="mb-3 d-none" id="exp-date-group">
+              <label class="form-label" for="exp_date">Expiration Date</label>
+              <input type="date" name="exp_date" id="exp_date" class="form-control form-control-lg" />
+          </div>
+          <button type="submit" class="btn btn-success w-100 btn-lg"><i class="fas fa-check"></i> Submit</button>
+        </form>
+
+        <!-- Retry -->
+        <button class="btn btn-outline-secondary w-100 mt-3 d-none btn-lg" id="retryBtn" onclick="retryScan()">
+          <i class="fas fa-redo"></i> Retry Scan
+        </button>
+
+        <!-- Tip -->
+        <p class="text-center mt-3 small text-muted">
+          Use <code>https</code> or <strong>ngrok</strong> for mobile camera access.
+        </p>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT -->
+<script>
+  let mode = 'scan';
+  let html5QrCode;
+
+  function setMode(newMode) {
+    mode = newMode;
+
+    // Update button styles
+    document.querySelectorAll('#mode-toggle .btn').forEach(btn => {
+      btn.classList.remove('active', 'btn-primary', 'btn-danger', 'btn-secondary');
+      const btnMode = btn.dataset.mode;
+      btn.classList.add('btn-outline-' + (btnMode === 'add' ? 'primary' : btnMode === 'remove' ? 'danger' : 'secondary'));
+      if (btnMode === mode) {
+        btn.classList.remove('btn-outline-' + (mode === 'add' ? 'primary' : mode === 'remove' ? 'danger' : 'secondary'));
+        btn.classList.add(mode === 'add' ? 'btn-primary' : mode === 'remove' ? 'btn-danger' : 'btn-secondary', 'active');
+      }
+    });
+
+    // Update label
+    document.getElementById('qty-label').innerText =
+      mode === 'add' ? 'Quantity to Add' :
+      mode === 'remove' ? 'Quantity to Remove (Spoilage)' : '';
+
+    // Toggle form visibility
+    const showForm = mode !== 'scan';
+    document.getElementById('stock-form').classList.toggle('d-none', !showForm);
+
+    // Toggle expiration date input visibility (only for 'add')
+    document.getElementById('exp-date-group')?.classList.toggle('d-none', mode !== 'add');
+  }
+
+  function showSuccess(msg) {
+    document.getElementById('success-message').innerText = msg;
+    document.getElementById('success-alert').classList.remove('d-none');
+  }
+
+  function retryScan() {
+    document.getElementById('product-info').classList.add('d-none');
+    document.getElementById('reader').classList.remove('d-none');
+    document.getElementById('retryBtn').classList.add('d-none');
+    document.getElementById('status').classList.add('d-none');
+    
+    // Restore mode buttons
+    document.querySelectorAll('#mode-toggle .btn').forEach(btn => {
+      btn.classList.remove('d-none');
+    });
+
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 100 },
+      aspectRatio: 1.7777778,
+      formatsToSupport: [ Html5QrCode.BARCODE_FORMAT.CODE_128, Html5QrCode.BARCODE_FORMAT.EAN_13 ]
+    };
+    
+    html5QrCode.start(
+      { facingMode: "environment" },
+      config,
+      onScanSuccess,
+      (errorMessage) => {
+        console.log(errorMessage);
+      }
+    );
+  }
+
+  function onScanSuccess(decodedText) {
+    html5QrCode.stop().then(() => {
+      const code = decodedText.length === 13 ? decodedText.slice(0, 12) : decodedText;
+
+      fetch(`/products/lookup_product/${code}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById('reader').classList.add('d-none');
+
+            document.getElementById('product_id').value = data.id;
+            document.getElementById('product-name').innerText = data.name;
+            document.getElementById('product-stock').innerText = `Stock: ${data.quantity}`;
+            document.getElementById('stock-form').action = mode === 'add' ? '{{ url_for("products.add_stock") }}' : '{{ url_for("products.remove_stock") }}';
+
+            document.getElementById('extra-details').innerHTML = `
+              <div><i class="fas fa-barcode"></i> <strong>Barcode:</strong> ${data.barcode}</div>
+              <div><i class="fas fa-weight-hanging"></i> <strong>UOM:</strong> ${data.uom}</div>
+              <div><i class="fas fa-folder"></i> <strong>Account:</strong> ${data.account_title}</div>
+              <div><i class="fas fa-layer-group"></i> <strong>Initial:</strong> ${data.initial_quantity}</div>
+            `;
+
+            document.getElementById('product-info').classList.remove('d-none');
+            document.getElementById('retryBtn').classList.remove('d-none');
+
+            // Hide other mode buttons
+            document.querySelectorAll('#mode-toggle .btn').forEach(btn => {
+              if (btn.dataset.mode !== mode) {
+                btn.classList.add('d-none');
+              }
+            });
+
+            if (mode !== 'scan') {
+              document.getElementById('stock-form').classList.remove('d-none');
+            } else {
+              document.getElementById('stock-form').classList.add('d-none');
+            }
+
+            const expGroup = document.getElementById('exp-date-group');
+            if (expGroup) {
+              expGroup.classList.toggle('d-none', mode !== 'add');
+              
+              // Disable expiry date for Supplies products
+              const expDateInput = document.getElementById('exp_date');
+              if (expDateInput && mode === 'add') {
+                if (data.account_title && data.account_title.toLowerCase().startsWith('supplies')) {
+                  expDateInput.disabled = true;
+                  expDateInput.value = '';
+                  expDateInput.required = false;
+                  expDateInput.placeholder = 'Disabled for Supplies';
+                  expDateInput.title = 'Expiry date is disabled for Supplies products';
+                } else {
+                  expDateInput.disabled = false;
+                  expDateInput.required = true;
+                  expDateInput.placeholder = '';
+                  expDateInput.title = '';
+                }
+              }
+            }
+
+            const thresholdQty = data.initial_quantity * (data.low_stock_threshold / 100);
+            document.getElementById('low-stock-warning').classList.toggle('d-none', !(data.quantity <= thresholdQty));
+          } else {
+            // Show specific error message for company mismatch
+            if (data.message && (data.message.includes('Access denied') || data.message.includes('belongs to'))) {
+              alert("❌ " + data.message);
+            } else {
+              alert("❌ Product not found.");
+            }
+            // Show retry button but keep camera hidden
+            document.getElementById('retryBtn').classList.remove('d-none');
+          }
+        });
+    });
+  }
+
+  document.getElementById('stock-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = new FormData(form);
+    const action = form.action;
+
+    if (action.includes('remove_stock')) {
+      // Handle removal request
+      const productId = data.get('product_id');
+      const quantity = data.get('quantity');
+      const reason = data.get('reason');
+      const remarks = data.get('remarks', '');
+
+      fetch('/pending-removals/request-removal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          product_id: productId,
+          batch_id: null, // This will need to be handled differently for this template
+          quantity: parseFloat(quantity),
+          reason: reason,
+          remarks: remarks
+        })
+      }).then(async res => {
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || "Unknown error");
+        }
+        return res.json();
+      }).then(data => {
+        if (data.status === 'success') {
+          showSuccess('✅ ' + data.message);
+          form.reset();
+          form.classList.add('d-none');
+          document.getElementById('product-info').classList.add('d-none');
+          document.getElementById('retryBtn').classList.add('d-none');
+          document.getElementById('reader').classList.remove('d-none');
+
+          // Restore mode buttons
+          document.querySelectorAll('#mode-toggle .btn').forEach(btn => {
+            btn.classList.remove('d-none');
+          });
+
+          const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 100 },
+            aspectRatio: 1.7777778,
+            formatsToSupport: [ Html5QrCode.BARCODE_FORMAT.CODE_128, Html5QrCode.BARCODE_FORMAT.EAN_13 ]
+          };
+          
+          html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            onScanSuccess,
+            (errorMessage) => {
+              console.log(errorMessage);
+            }
+          );
+        } else {
+          throw new Error(data.message || "Unknown error");
+        }
+      }).catch(err => {
+        alert(`❌ Error requesting removal: ${err.message}`);
+      });
+    } else {
+      // Handle add stock (existing functionality)
+      fetch(action, {
+        method: 'POST',
+        body: data
+      }).then(async res => {
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || "Unknown error");
+        }
+        return res.text();
+      }).then(() => {
+        showSuccess(`Stock ${mode === 'add' ? 'added' : 'removed'} successfully.`);
+        form.reset();
+        form.classList.add('d-none');
+        document.getElementById('product-info').classList.add('d-none');
+        document.getElementById('retryBtn').classList.add('d-none');
+        document.getElementById('reader').classList.remove('d-none');
+
+        // Restore mode buttons
+        document.querySelectorAll('#mode-toggle .btn').forEach(btn => {
+          btn.classList.remove('d-none');
+        });
+
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 100 },
+          aspectRatio: 1.7777778,
+          formatsToSupport: [ Html5QrCode.BARCODE_FORMAT.CODE_128, Html5QrCode.BARCODE_FORMAT.EAN_13 ]
+        };
+        
+        html5QrCode.start(
+          { facingMode: "environment" },
+          config,
+          onScanSuccess,
+          (errorMessage) => {
+            console.log(errorMessage);
+          }
+        );
+      }).catch((err) => {
+        alert(`❌ Error processing stock update.\n${err.message}`);
+      });
+    }
+  });
+
+      window.addEventListener('DOMContentLoaded', () => {
+      html5QrCode = new Html5Qrcode("reader");
+
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 100 }, // Make scanning box more rectangular for barcodes
+        aspectRatio: 1.7777778,
+        formatsToSupport: [ Html5QrCode.BARCODE_FORMAT.CODE_128, Html5QrCode.BARCODE_FORMAT.EAN_13 ]
+      };
+
+      // Try to start camera directly first
+      html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccess,
+        (errorMessage) => {
+          console.log(errorMessage);
+        }
+      ).catch(err => {
+        // If direct start fails, try getting camera list
+        Html5Qrcode.getCameras().then(cameras => {
+          if (cameras.length) {
+            // Try to find back camera
+            const backCamera = cameras.find(camera => 
+              camera.label.toLowerCase().includes('back') || 
+              camera.label.toLowerCase().includes('rear')
+            );
+            
+            html5QrCode.start(
+              backCamera ? { deviceId: backCamera.id } : { facingMode: "environment" },
+              config,
+              onScanSuccess,
+              (errorMessage) => {
+                console.log(errorMessage);
+              }
+            );
+          } else {
+            alert("No camera found. Please ensure camera permissions are granted.");
+          }
+        });
+      });
+
+    document.querySelectorAll('#mode-toggle .btn').forEach(btn => {
+      btn.addEventListener('click', () => setMode(btn.dataset.mode));
+    });
+  });
+</script>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
