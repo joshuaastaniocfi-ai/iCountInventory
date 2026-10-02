@@ -2,7 +2,7 @@
 from urllib.parse import quote_plus
 
 # Third-party imports
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from flask_login import current_user
 from flask_migrate import Migrate
 from werkzeug.exceptions import HTTPException
@@ -10,7 +10,7 @@ from werkzeug.exceptions import HTTPException
 # Local imports
 from config import config
 from extensions import db, login_manager, mail
-from models import User, Requisition, PendingRemoval, Notification, DeletionRequest
+from models import User, Requisition, PendingRemoval, Notification, DeletionRequest, Spoilage, OnTheHouse
 from template_filters import format_relative_time, to_float
 from routes.auth import auth
 from routes.main import main
@@ -26,6 +26,9 @@ from routes.companies import companies
 from routes.store import store
 from routes.routes import receiving_bp
 from routes.reports import reports
+from routes.spoilage import spoilage
+from routes.oth import oth_bp
+
 
 # Import user loader function
 def load_user(user_id):
@@ -98,17 +101,40 @@ def create_app(config_name='default'):
             
             # Count requisitions awaiting delivery (approved or Dispatched)
             pending_receiving_count = Requisition.query.filter(
-                Requisition.company_id == current_user.company_id,
-                Requisition.status.in_(['approved', 'Dispatched'])
+                (Requisition.company_id == current_user.company_id) | (Requisition.destination_company_id == current_user.company_id),
+                Requisition.status.in_(['approved', 'Approved', 'Dispatched', 'dispatched', 'Partial', 'partial'])
             ).count()
+
 
             # Count pending deletion requests for Company-Admin/SYS-Admin
             pending_deletion_count = 0
+            pending_variance_count = 0
             if current_user.role in ('Company-Admin', 'SYS-Admin'):
                 if current_user.role == 'SYS-Admin' and current_user.company_id is None:
                     pending_deletion_count = DeletionRequest.query.filter_by(status='Pending').count()
+                    pending_variance_count = Requisition.query.filter(
+                        Requisition.status.in_(['Discrepancy - Pending Approval', 'Variance - Pending Approval'])
+                    ).count()
                 else:
                     pending_deletion_count = DeletionRequest.query.filter_by(status='Pending', company_id=current_user.company_id).count()
+                    pending_variance_count = Requisition.query.filter(
+                        Requisition.company_id == current_user.company_id,
+                        Requisition.status.in_(['Discrepancy - Pending Approval', 'Variance - Pending Approval'])
+                    ).count()
+
+            # Count pending and approved OTH (On The House) requests
+            pending_oth_count = 0
+            approved_oth_count = 0
+            if current_user.role in ('Company-Admin', 'SYS-Admin'):
+                if current_user.role == 'SYS-Admin' and current_user.company_id is None:
+                    pending_oth_count = OnTheHouse.query.filter_by(status='Pending').count()
+                else:
+                    pending_oth_count = OnTheHouse.query.filter_by(status='Pending', company_id=current_user.company_id).count()
+            if current_user.role in ('WH-Admin', 'SYS-Admin'):
+                if current_user.role == 'SYS-Admin' and current_user.company_id is None:
+                    approved_oth_count = OnTheHouse.query.filter_by(status='Approved').count()
+                else:
+                    approved_oth_count = OnTheHouse.query.filter_by(status='Approved', company_id=current_user.company_id).count()
 
             return dict(
                 current_user=current_user,
@@ -116,6 +142,9 @@ def create_app(config_name='default'):
                 pending_removal_count=pending_removal_count,
                 pending_receiving_count=pending_receiving_count,
                 pending_deletion_count=pending_deletion_count,
+                pending_variance_count=pending_variance_count,
+                pending_oth_count=pending_oth_count,
+                approved_oth_count=approved_oth_count,
                 notification_count=Notification.query.filter_by(
                     user_id=current_user.id, is_read=False
                 ).count()
@@ -137,6 +166,16 @@ def create_app(config_name='default'):
     app.register_blueprint(receiving_bp)
     app.register_blueprint(reports)
     app.register_blueprint(store)
+    app.register_blueprint(spoilage)
+    app.register_blueprint(oth_bp)
+    
+    # Enable CORS for static uploads/assets so canvas and clipboard operations never encounter CORS restrictions
+    @app.after_request
+    def add_static_cors_headers(response):
+        if request.path.startswith('/static/'):
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        return response
     
     # Error handlers
     @app.errorhandler(404)
@@ -254,6 +293,7 @@ def create_app(config_name='default'):
         pending_removal_count = 0
         pending_receiving_count = 0
         pending_deletion_count = 0
+        pending_variance_count = 0
         if current_user.is_authenticated:
             try:
                 notification_count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
@@ -263,8 +303,15 @@ def create_app(config_name='default'):
                 if current_user.role in ('Company-Admin', 'SYS-Admin'):
                     if current_user.role == 'SYS-Admin' and current_user.company_id is None:
                         pending_deletion_count = DeletionRequest.query.filter_by(status='Pending').count()
+                        pending_variance_count = Requisition.query.filter(
+                            Requisition.status.in_(['Discrepancy - Pending Approval', 'Variance - Pending Approval'])
+                        ).count()
                     else:
                         pending_deletion_count = DeletionRequest.query.filter_by(status='Pending', company_id=current_user.company_id).count()
+                        pending_variance_count = Requisition.query.filter(
+                            Requisition.company_id == current_user.company_id,
+                            Requisition.status.in_(['Discrepancy - Pending Approval', 'Variance - Pending Approval'])
+                        ).count()
             except Exception:
                 pass
         return render_template('shared/500.html',
@@ -272,6 +319,7 @@ def create_app(config_name='default'):
                              pending_removal_count=pending_removal_count,
                              pending_receiving_count=pending_receiving_count,
                              pending_deletion_count=pending_deletion_count,
+                             pending_variance_count=pending_variance_count,
                              notification_count=notification_count), 500
     
     # Create tables and initialize database
@@ -350,6 +398,83 @@ def create_app(config_name='default'):
 
             # Create deletion_request table if it doesn't exist
             existing_tables = inspector.get_table_names()
+            if 'on_the_house' not in existing_tables:
+                db.create_all()
+                app.logger.info("Created 'on_the_house' table")
+            else:
+                try:
+                    oth_cols = [c['name'] for c in inspector.get_columns('on_the_house')]
+                    cols_to_check = [
+                        ('transaction_date', 'DATE'),
+                        ('product_id', 'INTEGER'),
+                        ('quantity', 'FLOAT'),
+                        ('employee_name', 'VARCHAR(150)'),
+                        ('purpose', 'TEXT'),
+                        ('intended_approver', 'VARCHAR(150)'),
+                        ('approver_id', 'INTEGER'),
+                        ('approver_name', 'VARCHAR(150)'),
+                        ('status', 'VARCHAR(50) DEFAULT \'Pending\''),
+                        ('requested_by', 'INTEGER'),
+                        ('created_at', 'DATETIME'),
+                        ('date_approved', 'DATETIME'),
+                        ('date_declined', 'DATETIME'),
+                        ('date_released', 'DATETIME'),
+                        ('released_by', 'INTEGER'),
+                        ('admin_notes', 'TEXT'),
+                        ('company_id', 'INTEGER'),
+                    ]
+                    for col_name, col_def in cols_to_check:
+                        if col_name not in oth_cols:
+                            db.session.execute(text(f'ALTER TABLE on_the_house ADD COLUMN {col_name} {col_def}'))
+                            db.session.commit()
+                            app.logger.info(f"Added '{col_name}' column to on_the_house table")
+                except Exception as e:
+                    db.session.rollback()
+                    app.logger.warning(f"OnTheHouse table migration note: {e}")
+            if 'store_production' not in existing_tables:
+                db.create_all()
+                app.logger.info("Created 'store_production' table")
+            else:
+                try:
+                    prod_cols = [c['name'] for c in inspector.get_columns('store_production')]
+                    cols_to_check = [
+                        ('batch_code', 'VARCHAR(50)'),
+                        ('production_date', 'DATE'),
+                        ('product_id', 'INTEGER'),
+                        ('product_name', 'VARCHAR(100)'),
+                        ('portion_formula', 'VARCHAR(100)'),
+                        ('quantity', 'FLOAT'),
+                        ('unit_type', 'VARCHAR(20) DEFAULT \'order\''),
+                        ('total_yield_grams', 'FLOAT'),
+                        ('store_qty_before', 'FLOAT DEFAULT 0.0'),
+                        ('store_qty_after', 'FLOAT DEFAULT 0.0'),
+                        ('produced_by', 'INTEGER'),
+                        ('notes', 'TEXT'),
+                        ('created_at', 'DATETIME'),
+                        ('company_id', 'INTEGER'),
+                    ]
+                    for col_name, col_def in cols_to_check:
+                        if col_name not in prod_cols:
+                            db.session.execute(text(f'ALTER TABLE store_production ADD COLUMN {col_name} {col_def}'))
+                            db.session.commit()
+                            app.logger.info(f"Added '{col_name}' column to store_production table")
+                except Exception as e:
+                    db.session.rollback()
+                    app.logger.warning(f"StoreProduction table migration note: {e}")
+
+            if 'spoilage' not in existing_tables:
+                db.create_all()
+                app.logger.info("Created 'spoilage' table")
+            else:
+                try:
+                    spoil_cols = [c['name'] for c in inspector.get_columns('spoilage')]
+                    if 'declaration_date' not in spoil_cols:
+                        db.session.execute(text('ALTER TABLE spoilage ADD COLUMN declaration_date DATE'))
+                        db.session.commit()
+                        app.logger.info("Added 'declaration_date' column to spoilage table")
+                except Exception as e:
+                    db.session.rollback()
+                    app.logger.warning(f"Spoilage declaration_date migration note: {e}")
             if 'deletion_request' not in existing_tables:
                 db.create_all()
                 app.logger.info("Created 'deletion_request' table")
@@ -433,6 +558,87 @@ def create_app(config_name='default'):
             except Exception as e:
                 db.session.rollback()
                 app.logger.warning(f"Stock audit migration note: {e}")
+
+            # ── Add resolution columns to receiving_record table ──
+            try:
+                inspector = inspect(db.engine)
+                rr_cols = [c['name'] for c in inspector.get_columns('receiving_record')]
+                new_rr_cols = [
+                    ('status', "VARCHAR(30) NOT NULL DEFAULT 'approved'"),
+                    ('resolution_type', "VARCHAR(30)"),
+                    ('admin_notes', "TEXT"),
+                    ('resolved_by', "INTEGER REFERENCES user(id)"),
+                    ('resolved_at', "TIMESTAMP"),
+                ]
+                for col_name, col_def in new_rr_cols:
+                    if col_name not in rr_cols:
+                        db.session.execute(text(f'ALTER TABLE receiving_record ADD COLUMN {col_name} {col_def}'))
+                db.session.commit()
+                app.logger.info("Added resolution columns to receiving_record")
+            except Exception as e:
+                db.session.rollback()
+                app.logger.warning(f"Receiving record migration note: {e}")
+
+            # ── Add released_quantity to requisition_item and variance to requisition ──
+            try:
+                inspector = inspect(db.engine)
+                ri_cols = [c['name'] for c in inspector.get_columns('requisition_item')]
+                if 'released_quantity' not in ri_cols:
+                    db.session.execute(text('ALTER TABLE requisition_item ADD COLUMN released_quantity FLOAT'))
+                    db.session.commit()
+                    app.logger.info("Added released_quantity to requisition_item table")
+
+                req_cols = [c['name'] for c in inspector.get_columns('requisition')]
+                if 'has_variance' not in req_cols:
+                    db.session.execute(text('ALTER TABLE requisition ADD COLUMN has_variance BOOLEAN DEFAULT 0'))
+                if 'variance_summary' not in req_cols:
+                    db.session.execute(text('ALTER TABLE requisition ADD COLUMN variance_summary TEXT'))
+                if 'variance_resolution' not in req_cols:
+                    db.session.execute(text('ALTER TABLE requisition ADD COLUMN variance_resolution VARCHAR(50)'))
+                if 'variance_resolved_by' not in req_cols:
+                    db.session.execute(text('ALTER TABLE requisition ADD COLUMN variance_resolved_by INTEGER REFERENCES user(id)'))
+                if 'variance_resolved_at' not in req_cols:
+                    db.session.execute(text('ALTER TABLE requisition ADD COLUMN variance_resolved_at TIMESTAMP'))
+                if 'variance_admin_notes' not in req_cols:
+                    db.session.execute(text('ALTER TABLE requisition ADD COLUMN variance_admin_notes TEXT'))
+                if 'requisition_type' not in req_cols:
+                    db.session.execute(text("ALTER TABLE requisition ADD COLUMN requisition_type VARCHAR(50) DEFAULT 'store'"))
+                if 'destination_company_id' not in req_cols:
+                    db.session.execute(text("ALTER TABLE requisition ADD COLUMN destination_company_id INTEGER REFERENCES company(id)"))
+                db.session.commit()
+                app.logger.info("Added variance and transfer columns to requisition table")
+            except Exception as e:
+                db.session.rollback()
+                app.logger.warning(f"Requisition item/variance migration note: {e}")
+
+            # ── Auto-heal: Ensure warehouse_qty matches batch sums and quantity == warehouse_qty + store_qty ──
+            try:
+                # Sync warehouse_qty to sum of warehouse batches for products that have batches
+                db.session.execute(text("""
+                    UPDATE product 
+                    SET warehouse_qty = (
+                        SELECT COALESCE(SUM(b.quantity), 0) 
+                        FROM warehouse_product_batch b 
+                        WHERE b.product_id = product.id
+                    )
+                    WHERE EXISTS (
+                        SELECT 1 FROM warehouse_product_batch b WHERE b.product_id = product.id
+                    ) AND ABS(warehouse_qty - (
+                        SELECT COALESCE(SUM(b.quantity), 0) 
+                        FROM warehouse_product_batch b 
+                        WHERE b.product_id = product.id
+                    )) > 0.001;
+                """))
+                # Sync total quantity = warehouse_qty + store_qty
+                db.session.execute(text("""
+                    UPDATE product 
+                    SET quantity = warehouse_qty + store_qty
+                    WHERE ABS(quantity - (warehouse_qty + store_qty)) > 0.001;
+                """))
+                db.session.commit()
+            except Exception as e_sync:
+                db.session.rollback()
+                app.logger.warning(f"Product stock auto-heal sync note: {e_sync}")
 
         except Exception as e:
             db.session.rollback()

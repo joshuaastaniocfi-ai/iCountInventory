@@ -54,8 +54,16 @@
     </div>
   </div>
   
-  <!-- Quick Stats -->
-  <div class="d-flex gap-2 flex-wrap">
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    {% if current_user.role == 'WH-Admin' %}
+    <a href="{{ url_for('requisitions.transfer_requisition_form') }}" class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm py-2 px-3">
+      <i class="fas fa-arrow-right-arrow-left"></i>
+      <span class="fw-semibold">New Transfer Request</span>
+    </a>
+    {% endif %}
+
+    <!-- Quick Stats -->
+    <div class="d-flex gap-2 flex-wrap">
     {% set pending_count = requisitions|selectattr('status', 'equalto', 'Pending')|list|length %}
     {% set approved_count = requisitions|selectattr('status', 'equalto', 'approved')|list|length %}
     {% set dispatched_count = requisitions|selectattr('status', 'equalto', 'Dispatched')|list|length %}
@@ -123,6 +131,7 @@
     </div>
   </div>
   </div>
+</div>
 
 <!-- Filters -->
 <div class="card filter-card shadow-sm border mb-4">
@@ -175,8 +184,20 @@
           <!-- Header (compact) -->
           <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex flex-column">
-              <div class="d-flex align-items-center gap-2 mb-1">
+              <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                 <div class="fw-semibold fs-6">{{ requisition.requested_by }}</div>
+                {% if requisition.requisition_type == 'transfer' %}
+                  <span class="badge bg-purple-subtle text-purple border border-purple-subtle rounded-pill py-1 px-2" style="font-size: 0.72rem;">
+                    <i class="fas fa-arrow-right-arrow-left me-1"></i>Transfer Request
+                  </span>
+                  <span class="small fw-semibold text-primary">
+                    {{ requisition.company.name if requisition.company else 'From' }}
+                    <i class="fas fa-arrow-right mx-1 text-muted" style="font-size: 0.65rem;"></i>
+                    {{ requisition.destination_company.name if requisition.destination_company else requisition.branch }}
+                  </span>
+                {% else %}
+                  <span class="text-muted small fw-medium">({{ requisition.branch or 'Branch' }})</span>
+                {% endif %}
                 <span class="badge rounded-pill 
                   {% if status == 'pending' %}bg-warning-subtle text-warning
                   {% elif status == 'approved' %}bg-success-subtle text-success

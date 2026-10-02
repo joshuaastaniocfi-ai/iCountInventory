@@ -116,6 +116,8 @@
                         Batch #{{ record.reference_id }}
                       {% elif record.reference_type == 'requisition' %}
                         Req #{{ record.reference_id }}
+                      {% elif record.reference_type == 'spoilage' %}
+                        Spoilage #{{ record.reference_id }}
                       {% endif %}
                     </small>
                   </td>

@@ -138,6 +138,34 @@
         </div>
       </div>
     </div>
+
+    <!-- Inventory Ledger Card -->
+    <div class="col-md-6 col-lg-4">
+      <div class="card dashboard-card h-100 border-start border-4 border-emerald" style="border-left-color: #10b981 !important;">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rounded-circle p-3" style="background: rgba(16, 185, 129, 0.12); color: #10b981;">
+              <i class="fas fa-book-journal-whills fa-lg"></i>
+            </div>
+            <div>
+              <h6 class="fw-bold mb-1">Inventory Ledger</h6>
+              <small class="text-muted">Live stock movements &amp; running balances</small>
+            </div>
+          </div>
+          <p class="small text-muted mb-3">
+            Complete transaction journal for warehouse &amp; store quantities, calculating directly to current stock.
+          </p>
+          <div class="mt-auto d-flex gap-2">
+            <a href="{{ url_for('reports.ledger') }}" class="btn btn-sm btn-primary flex-fill">
+              <i class="fas fa-arrow-up-right-from-square me-1"></i> Open Ledger
+            </a>
+            <a href="{{ url_for('reports.export_ledger') }}" class="btn btn-sm btn-outline-secondary">
+              <i class="fas fa-download me-1"></i> CSV
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 

@@ -1,0 +1,1661 @@
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}Spoilage Management - iCount{% endblock %}
+
+{% block content %}
+<style>
+  /* ── Spoilage Theme-Adaptive Styles ── */
+  .spoil-metric-card {
+    border: 1px solid var(--border, rgba(99, 102, 241, 0.12)) !important;
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .spoil-metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .spoil-metric-card.incidents {
+    background: linear-gradient(135deg, var(--card-bg, #ffffff) 0%, rgba(239, 68, 68, 0.08) 100%) !important;
+    border-left: 4px solid #ef4444 !important;
+  }
+  .spoil-metric-card.warehouse {
+    background: linear-gradient(135deg, var(--card-bg, #ffffff) 0%, rgba(2, 132, 199, 0.08) 100%) !important;
+    border-left: 4px solid #0284c7 !important;
+  }
+  .spoil-metric-card.store {
+    background: linear-gradient(135deg, var(--card-bg, #ffffff) 0%, rgba(16, 185, 129, 0.08) 100%) !important;
+    border-left: 4px solid #10b981 !important;
+  }
+  .spoil-metric-card.total {
+    background: linear-gradient(135deg, var(--card-bg, #ffffff) 0%, rgba(147, 51, 234, 0.08) 100%) !important;
+    border-left: 4px solid #9333ea !important;
+  }
+
+  .spoil-panel-card {
+    background: var(--card-bg, #ffffff) !important;
+    border: 1px solid var(--border, rgba(99, 102, 241, 0.12)) !important;
+    box-shadow: var(--shadow-sm);
+    border-radius: 12px;
+  }
+
+  .spoil-card-header {
+    background: var(--card-bg, #ffffff) !important;
+    border-bottom: 1px solid var(--border, rgba(99, 102, 241, 0.12)) !important;
+  }
+
+  .spoil-thead th {
+    background: var(--surface, rgba(0, 0, 0, 0.03)) !important;
+    color: var(--text-muted, #9ca3af) !important;
+    border-bottom: 1px solid var(--border, rgba(99, 102, 241, 0.12)) !important;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .spoil-table tbody tr {
+    border-bottom: 1px solid var(--border, rgba(99, 102, 241, 0.08));
+    transition: background 0.15s ease;
+  }
+  .spoil-table tbody tr:hover {
+    background: var(--hover-bg, rgba(255, 255, 255, 0.04)) !important;
+  }
+
+  .spoil-input-addon {
+    background: var(--surface, #f8f9fa) !important;
+    color: var(--text-muted, #6b7280) !important;
+    border-color: var(--border, rgba(99, 102, 241, 0.15)) !important;
+  }
+
+  .spoil-input {
+    background: var(--card-bg, #ffffff) !important;
+    color: var(--text-primary, #1e1b4b) !important;
+    border-color: var(--border, rgba(99, 102, 241, 0.15)) !important;
+  }
+  .spoil-input:focus {
+    background: var(--card-bg, #ffffff) !important;
+    color: var(--text-primary, #1e1b4b) !important;
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 0.2rem rgba(239, 68, 68, 0.2) !important;
+  }
+
+  .spoil-dropzone {
+    background: var(--surface, #fafafa);
+    border: 2px dashed var(--border, #d1d5db);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .spoil-dropzone:hover {
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.03);
+  }
+
+  /* ── Searchable Combobox Styles ── */
+  .combobox-wrapper {
+    position: relative;
+  }
+  .combobox-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 1060;
+    margin-top: 4px;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border, rgba(0, 0, 0, 0.15));
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg, 0 10px 25px rgba(0, 0, 0, 0.15));
+  }
+  .combobox-item {
+    cursor: pointer;
+    border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.05));
+    transition: background-color 0.15s ease;
+  }
+  .combobox-item:last-child {
+    border-bottom: none;
+  }
+  .combobox-item:hover, .combobox-item.active {
+    background-color: var(--hover-bg, rgba(99, 102, 241, 0.08)) !important;
+  }
+
+  /* Dark mode overrides */
+  .dark-mode .spoil-input {
+    background-color: var(--card-bg, #121523) !important;
+    color: var(--text-primary, #f1f3f9) !important;
+    border-color: var(--border, rgba(255, 255, 255, 0.1)) !important;
+  }
+  .dark-mode .spoil-input-addon {
+    background-color: var(--surface, #161a2c) !important;
+    color: var(--text-muted, rgba(241, 243, 249, 0.45)) !important;
+    border-color: var(--border, rgba(255, 255, 255, 0.1)) !important;
+  }
+  .dark-mode .modal-content {
+    background-color: var(--card-bg, #121523) !important;
+    color: var(--text-primary, #f1f3f9) !important;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.12)) !important;
+  }
+  .dark-mode .modal-footer {
+    background-color: var(--surface, #161a2c) !important;
+    border-top-color: var(--border, rgba(255, 255, 255, 0.08)) !important;
+  }
+  .dark-mode #declareSpoilageModal .form-control,
+  .dark-mode #declareSpoilageModal .form-select {
+    background-color: var(--surface, #161a2c) !important;
+    color: var(--text-primary, #f1f3f9) !important;
+    border-color: var(--border, rgba(255, 255, 255, 0.12)) !important;
+  }
+  .dark-mode #declareSpoilageModal .form-label {
+    color: var(--text-primary, #f1f3f9) !important;
+  }
+  .dark-mode #productStockBanner {
+    background-color: var(--surface, #161a2c) !important;
+    border-color: var(--border, rgba(255, 255, 255, 0.08)) !important;
+  }
+  .dark-mode #productStockBanner .stock-box {
+    background-color: var(--card-bg, #121523) !important;
+    border-color: var(--border, rgba(255, 255, 255, 0.08)) !important;
+  }
+  .dark-mode .spoil-dropzone {
+    background-color: var(--surface, #161a2c) !important;
+    border-color: var(--border, rgba(255, 255, 255, 0.15)) !important;
+  }
+  .dark-mode .combobox-menu {
+    background-color: var(--card-bg, #121523) !important;
+    border-color: var(--border, rgba(255, 255, 255, 0.12)) !important;
+  }
+  .dark-mode .combobox-item:hover, .dark-mode .combobox-item.active {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+  }
+  .dark-mode #viewDetailContent .detail-card {
+    background-color: var(--surface, #161a2c) !important;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08)) !important;
+  }
+  .dark-mode #viewDetailContent .detail-box-white {
+    background-color: var(--card-bg, #121523) !important;
+    border-color: var(--border, rgba(255, 255, 255, 0.08)) !important;
+    color: var(--text-primary, #f1f3f9) !important;
+  }
+</style>
+
+<div class="container-fluid px-3 px-md-4 py-3">
+
+  <!-- ── Flash Notifications ── -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show shadow-sm" role="alert">
+          <i class="fas {{ 'fa-exclamation-circle' if category == 'error' else 'fa-check-circle' }} me-2"></i>
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- ── Page Header ── -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <h3 class="fw-bold mb-0" style="color:var(--text-primary);letter-spacing:-0.02em">
+          <i class="fas fa-trash-can text-danger me-2"></i>Spoilage Management
+        </h3>
+        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size:0.75rem">
+          Inventory Spoilage
+        </span>
+      </div>
+      <p class="mb-0 small mt-1" style="color:var(--text-secondary)">
+        Declare and record spoiled, damaged, or expired stock with photo proof. Deductions are automatically synced to inventory.
+      </p>
+    </div>
+
+    <div class="d-flex align-items-center gap-2 w-100 w-md-auto flex-wrap">
+      <a href="{{ url_for('spoilage.export_spoilage', side=selected_side) }}" class="btn btn-outline-secondary btn-sm px-3 shadow-sm d-flex align-items-center gap-2">
+        <i class="fas fa-file-csv"></i>
+        <span>Export CSV</span>
+      </a>
+      <button type="button" class="btn btn-danger btn-sm px-3 shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#declareSpoilageModal">
+        <i class="fas fa-plus-circle"></i>
+        <span class="fw-semibold">Declare Spoilage</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Summary Metric Cards ── -->
+  <div class="row g-3 mb-4">
+    <!-- Card 1: Total Incidents -->
+    <div class="col-6 col-lg-3">
+      <div class="card spoil-metric-card incidents h-100 overflow-hidden">
+        <div class="card-body p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <span class="text-uppercase fw-semibold" style="color:var(--text-muted);font-size:0.7rem;letter-spacing:0.05em">Total Incidents</span>
+              <h3 class="fw-bold mb-0 mt-1 text-danger">{{ total_records }}</h3>
+            </div>
+            <div class="rounded-circle d-flex align-items-center justify-content-center bg-danger-subtle text-danger" style="width:42px;height:42px">
+              <i class="fas fa-triangle-exclamation fs-5"></i>
+            </div>
+          </div>
+          <small class="d-block mt-2" style="color:var(--text-muted);font-size:0.75rem">Recorded spoilage logs</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Warehouse Losses -->
+    <div class="col-6 col-lg-3">
+      <div class="card spoil-metric-card warehouse h-100 overflow-hidden">
+        <div class="card-body p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <span class="text-uppercase fw-semibold" style="color:var(--text-muted);font-size:0.7rem;letter-spacing:0.05em">Warehouse Spoilage</span>
+              <h3 class="fw-bold mb-0 mt-1 text-primary">{{ total_wh_qty }}</h3>
+            </div>
+            <div class="rounded-circle d-flex align-items-center justify-content-center bg-primary-subtle text-primary" style="width:42px;height:42px">
+              <i class="fas fa-warehouse fs-5"></i>
+            </div>
+          </div>
+          <small class="d-block mt-2" style="color:var(--text-muted);font-size:0.75rem">{{ wh_records_count }} warehouse record{{ 's' if wh_records_count != 1 else '' }}</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Store Losses -->
+    <div class="col-6 col-lg-3">
+      <div class="card spoil-metric-card store h-100 overflow-hidden">
+        <div class="card-body p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <span class="text-uppercase fw-semibold" style="color:var(--text-muted);font-size:0.7rem;letter-spacing:0.05em">Store Spoilage</span>
+              <h3 class="fw-bold mb-0 mt-1 text-success">{{ total_store_qty }}</h3>
+            </div>
+            <div class="rounded-circle d-flex align-items-center justify-content-center bg-success-subtle text-success" style="width:42px;height:42px">
+              <i class="fas fa-store fs-5"></i>
+            </div>
+          </div>
+          <small class="d-block mt-2" style="color:var(--text-muted);font-size:0.75rem">{{ store_records_count }} store record{{ 's' if store_records_count != 1 else '' }}</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Total Units Lost -->
+    <div class="col-6 col-lg-3">
+      <div class="card spoil-metric-card total h-100 overflow-hidden">
+        <div class="card-body p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <span class="text-uppercase fw-semibold" style="color:var(--text-muted);font-size:0.7rem;letter-spacing:0.05em">Total Units Deducted</span>
+              <h3 class="fw-bold mb-0 mt-1" style="color:#a855f7">{{ (total_wh_qty + total_store_qty)|round(2) }}</h3>
+            </div>
+            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:42px;height:42px;background:rgba(168,85,247,0.15);color:#a855f7">
+              <i class="fas fa-boxes-stacked fs-5"></i>
+            </div>
+          </div>
+          <small class="d-block mt-2" style="color:var(--text-muted);font-size:0.75rem">Combined system deduction</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Filter & Search Toolbar ── -->
+  <div class="card spoil-panel-card mb-4">
+    <div class="card-body p-3">
+      <form method="GET" action="{{ url_for('spoilage.spoilage_records') }}" class="row g-2 align-items-center">
+
+        <!-- Search Bar -->
+        <div class="col-12 col-md-4">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text spoil-input-addon border-end-0"><i class="fas fa-search"></i></span>
+            <input type="text" name="search" class="form-control spoil-input border-start-0" placeholder="Search product, barcode, user, reason..." value="{{ search or '' }}">
+          </div>
+        </div>
+
+        <!-- Inventory Side Filter -->
+        <div class="col-6 col-md-3">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text spoil-input-addon"><i class="fas fa-layer-group"></i></span>
+            <select name="side" class="form-select form-select-sm spoil-input" {% if current_user.role in ['WH-Admin', 'User'] %}disabled{% endif %}>
+              {% if current_user.role == 'WH-Admin' %}
+                <option value="warehouse" selected>Warehouse Side</option>
+              {% elif current_user.role == 'User' %}
+                <option value="store" selected>Store Side</option>
+              {% else %}
+                <option value="" {% if not selected_side %}selected{% endif %}>All Sides (Warehouse & Store)</option>
+                <option value="warehouse" {% if selected_side == 'warehouse' %}selected{% endif %}>Warehouse Only</option>
+                <option value="store" {% if selected_side == 'store' %}selected{% endif %}>Store Only</option>
+              {% endif %}
+            </select>
+            {% if current_user.role in ['WH-Admin', 'User'] %}
+              <input type="hidden" name="side" value="{{ selected_side }}">
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Date Range Filter -->
+        <div class="col-6 col-md-3">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text spoil-input-addon"><i class="fas fa-calendar-alt"></i></span>
+            <input type="date" name="start_date" class="form-control spoil-input" title="Start Date" value="{{ start_date or '' }}">
+            <span class="input-group-text spoil-input-addon px-1">-</span>
+            <input type="date" name="end_date" class="form-control spoil-input" title="End Date" value="{{ end_date or '' }}">
+          </div>
+        </div>
+
+        <!-- Filter Action Buttons -->
+        <div class="col-12 col-md-2 d-flex gap-2">
+          <button type="submit" class="btn btn-primary btn-sm w-100 shadow-sm">
+            <i class="fas fa-filter me-1"></i>Filter
+          </button>
+          {% if search or (selected_side and current_user.role in ['Company-Admin', 'SYS-Admin']) or start_date or end_date %}
+            <a href="{{ url_for('spoilage.spoilage_records') }}" class="btn btn-light btn-sm border" title="Reset Filters">
+              <i class="fas fa-times"></i>
+            </a>
+          {% endif %}
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Spoilage Records Table ── -->
+  <div class="card spoil-panel-card overflow-hidden">
+    <div class="card-header spoil-card-header py-3 px-3 d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <h6 class="mb-0 fw-bold" style="color:var(--text-primary)">
+          <i class="fas fa-list-check me-1" style="color:var(--text-muted)"></i>Declared Spoilage Logs
+        </h6>
+        <span class="badge bg-secondary-subtle text-secondary rounded-pill">{{ records|length }}</span>
+      </div>
+      <div class="small" style="color:var(--text-muted)">
+        Showing {{ records|length }} record{{ 's' if records|length != 1 else '' }}
+      </div>
+    </div>
+
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 spoil-table">
+          <thead class="spoil-thead">
+            <tr>
+              <th class="ps-3" style="width:140px">Declaration Date</th>
+              <th style="width:90px" class="text-center">Proof Photo</th>
+              <th>Product Details</th>
+              <th class="text-center" style="width:120px">Inventory Side</th>
+              <th class="text-end" style="width:130px">Quantity Spoiled</th>
+              <th class="text-center" style="width:110px">Expiry Date</th>
+              <th>Reason & Remarks</th>
+              <th style="width:140px">Declared By</th>
+              <th class="pe-3 text-center" style="width:80px">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if records %}
+              {% for record in records %}
+                <tr>
+                  <!-- Date of Declaration & Timestamp -->
+                  <td class="ps-3">
+                    <span class="fw-semibold d-block" style="color:var(--text-primary);font-size:0.85rem">
+                      {{ (record.declaration_date or record.created_at.date()).strftime('%b %d, %Y') }}
+                    </span>
+                    <small style="color:var(--text-muted);font-size:0.72rem">
+                      Logged: {{ record.created_at.strftime('%I:%M %p') }}
+                    </small>
+                  </td>
+
+                  <!-- Proof Photos Thumbnail -->
+                  <td class="text-center">
+                    {% set imgs = record.image_list %}
+                    {% if imgs %}
+                      <div class="position-relative d-inline-block" style="cursor:pointer" onclick="showLightbox('{{ url_for('static', filename='uploads/spoilage/' + imgs[0]) }}', {{ imgs|tojson }})">
+                        <img src="{{ url_for('static', filename='uploads/spoilage/' + imgs[0]) }}"
+                             alt="Spoilage Proof"
+                             class="rounded border shadow-sm object-fit-cover"
+                             style="width:48px;height:48px"
+                             loading="lazy">
+                        {% if imgs|length > 1 %}
+                          <span class="position-absolute bottom-0 end-0 badge rounded-pill bg-dark" style="font-size:0.6rem;padding:0.2em 0.4em">
+                            +{{ imgs|length - 1 }}
+                          </span>
+                        {% endif %}
+                      </div>
+                    {% else %}
+                      <span class="badge bg-light text-muted border" style="font-size:0.7rem">No photo</span>
+                    {% endif %}
+                  </td>
+
+                  <!-- Product Details -->
+                  <td>
+                    <div class="fw-bold" style="color:var(--text-primary);font-size:0.9rem">
+                      {{ record.product.name if record.product else 'Unknown Product' }}
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mt-1">
+                      <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle font-monospace" style="font-size:0.7rem">
+                        <i class="fas fa-barcode me-1"></i>{{ record.product.barcode if record.product else 'N/A' }}
+                      </span>
+                      {% if record.product and record.product.account_title %}
+                        <small style="color:var(--text-muted);font-size:0.72rem">
+                          {{ record.product.account_title }}
+                        </small>
+                      {% endif %}
+                    </div>
+                  </td>
+
+                  <!-- Side -->
+                  <td class="text-center">
+                    {% if record.side == 'warehouse' %}
+                      <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style="font-size:0.75rem">
+                        <i class="fas fa-warehouse me-1"></i>Warehouse
+                      </span>
+                    {% else %}
+                      <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size:0.75rem">
+                        <i class="fas fa-store me-1"></i>Store
+                      </span>
+                    {% endif %}
+                  </td>
+
+                  <!-- Quantity Spoiled -->
+                  <td class="text-end">
+                    <span class="fw-bold text-danger" style="font-size:0.95rem">
+                      -{{ record.quantity|decimal_format(2) }}
+                    </span>
+                    <small class="d-block" style="color:var(--text-muted);font-size:0.72rem">
+                      {{ record.product.uom if record.product else 'units' }}
+                    </small>
+                  </td>
+
+                  <!-- Expiry Date -->
+                  <td class="text-center">
+                    {% if record.exp_date %}
+                      <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" style="font-size:0.75rem">
+                        <i class="far fa-calendar-times me-1 text-danger"></i>{{ record.exp_date.strftime('%Y-%m-%d') }}
+                      </span>
+                    {% else %}
+                      <span class="small" style="color:var(--text-muted)">—</span>
+                    {% endif %}
+                  </td>
+
+                  <!-- Reason & Remarks -->
+                  <td>
+                    <span class="badge bg-danger-subtle text-danger fw-semibold px-2 py-1" style="font-size:0.75rem">
+                      {{ record.reason or 'Spoilage' }}
+                    </span>
+                    {% if record.remarks %}
+                      <p class="mb-0 small mt-1 text-truncate" style="color:var(--text-muted);max-width:260px" title="{{ record.remarks }}">
+                        {{ record.remarks }}
+                      </p>
+                    {% endif %}
+                  </td>
+
+                  <!-- Declared By -->
+                  <td>
+                    <div class="fw-semibold" style="color:var(--text-primary);font-size:0.85rem">
+                      {{ record.user.full_name if record.user else 'Unknown' }}
+                    </div>
+                    <span class="badge bg-secondary-subtle text-secondary" style="font-size:0.65rem">
+                      {{ record.user.role if record.user else '' }}
+                    </span>
+                  </td>
+
+                  <!-- Actions -->
+                  <td class="pe-3 text-center text-nowrap">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" onclick="viewSpoilageDetails({{ record.id }})" title="View Details">
+                      <i class="fas fa-eye text-primary"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1 ms-1 copy-spoilage-btn" onclick="copySpoilageRecord(this, {{ record.id }})" title="Copy Spoilage Card (Photo + Details + Date)">
+                      <i class="fas fa-copy me-1"></i>Copy
+                    </button>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="9" class="text-center py-5">
+                  <div style="color:var(--text-muted)">
+                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width:64px;height:64px;background:var(--surface);color:var(--text-muted)">
+                      <i class="fas fa-trash-can fa-2x"></i>
+                    </div>
+                    <h5 class="fw-bold" style="color:var(--text-primary)">No Spoilage Records Found</h5>
+                    <p class="small mb-3" style="color:var(--text-secondary)">No inventory items have been declared as spoiled matching your filter criteria.</p>
+                    <button type="button" class="btn btn-danger btn-sm px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#declareSpoilageModal">
+                      <i class="fas fa-plus-circle me-1"></i>Declare Spoilage Now
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     MODAL: DECLARE SPOILAGE
+══════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="declareSpoilageModal" tabindex="-1" aria-labelledby="declareSpoilageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+      
+      <!-- Modal Header -->
+      <div class="modal-header bg-danger text-white py-3 px-4">
+        <div class="d-flex align-items-center gap-2">
+          <div class="rounded-circle bg-white text-danger d-flex align-items-center justify-content-center" style="width:36px;height:36px">
+            <i class="fas fa-triangle-exclamation"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold mb-0 text-white" id="declareSpoilageModalLabel">Declare Product Spoilage</h5>
+            <small class="text-white-50">Stock will be directly deducted from system inventory upon submission</small>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <!-- Modal Form -->
+      <form id="spoilageForm" method="POST" action="{{ url_for('spoilage.declare_spoilage') }}" enctype="multipart/form-data" onsubmit="return handleSpoilageSubmit(event)">
+        <div class="modal-body p-4">
+
+          <!-- ── 1. Select Product (Searchable Combobox) ── -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small" style="color:var(--text-primary)">
+              Product Name <span class="text-danger">*</span>
+            </label>
+            <div class="combobox-wrapper">
+              <div class="input-group">
+                <span class="input-group-text spoil-input-addon"><i class="fas fa-box-open"></i></span>
+                <input type="text"
+                       id="productComboboxInput"
+                       class="form-control form-control-lg spoil-input"
+                       placeholder="Click or type to search product..."
+                       autocomplete="off"
+                       oninput="filterComboboxOptions(this.value)"
+                       onfocus="openComboboxDropdown()"
+                       onkeydown="handleComboboxKeydown(event)">
+                <input type="hidden" name="product_id" id="modalProductSelect" required>
+                <button type="button" class="btn btn-outline-secondary spoil-input-addon" id="comboboxClearBtn" style="display:none" onclick="clearComboboxSelection(event)" title="Clear selection">
+                  <i class="fas fa-times"></i>
+                </button>
+                <button type="button" class="btn btn-outline-secondary spoil-input-addon" id="comboboxToggleBtn" onclick="toggleComboboxDropdown(event)" title="Browse products">
+                  <i class="fas fa-chevron-down" id="comboboxChevron"></i>
+                </button>
+              </div>
+
+              <!-- Combobox Dropdown Menu -->
+              <div id="productComboboxMenu" class="combobox-menu d-none">
+                <div id="comboboxList">
+                  {% for p in products %}
+                    <div class="combobox-item px-3 py-2 d-flex justify-content-between align-items-center"
+                         data-id="{{ p.id }}"
+                         data-name="{{ p.name }}"
+                         data-barcode="{{ p.barcode or '' }}"
+                         data-uom="{{ p.uom or 'units' }}"
+                         data-wh="{{ p.warehouse_qty|default(0) }}"
+                         data-st="{{ p.store_qty|default(0) }}"
+                         onclick="selectComboboxItem({{ p.id }}, '{{ p.name|e }}', '{{ p.barcode|default('')|e }}')">
+                      <div>
+                        <div class="fw-semibold text-truncate item-name" style="color:var(--text-primary);max-width:400px">{{ p.name }}</div>
+                        {% if p.barcode %}
+                          <small class="font-monospace item-barcode" style="color:var(--text-muted);font-size:0.75rem">
+                            <i class="fas fa-barcode me-1"></i>{{ p.barcode }}
+                          </small>
+                        {% endif %}
+                      </div>
+                      {% if p.account_title %}
+                        <span class="badge bg-secondary-subtle text-secondary small" style="font-size:0.65rem">{{ p.account_title }}</span>
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+                <div id="comboboxNoResults" class="text-center py-3 d-none small" style="color:var(--text-muted)">
+                  <i class="fas fa-search me-1"></i>No matching products found
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Product Stock Status Banner (Appears when product is selected) -->
+          <div id="productStockBanner" class="p-3 mb-3 rounded-3 border d-none" style="background:var(--surface)">
+            <div class="row g-2 align-items-center text-center text-md-start">
+              <div class="col-12 col-md-6">
+                <span class="small d-block" style="color:var(--text-muted)">Selected Product:</span>
+                <span class="fw-bold" style="color:var(--text-primary)" id="bannerProdName">—</span>
+                <span class="badge bg-secondary-subtle text-secondary ms-1" id="bannerProdBarcode">—</span>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="p-2 rounded stock-box border">
+                  <span class="d-block" style="color:var(--text-muted);font-size:0.7rem">Warehouse Stock</span>
+                  <span class="fw-bold text-primary fs-6" id="bannerWhQty">0.00</span>
+                  <span class="small" style="color:var(--text-muted)" id="bannerWhUom">units</span>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="p-2 rounded stock-box border">
+                  <span class="d-block" style="color:var(--text-muted);font-size:0.7rem">Store Stock</span>
+                  <span class="fw-bold text-success fs-6" id="bannerStQty">0.00</span>
+                  <span class="small" style="color:var(--text-muted)" id="bannerStUom">units</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── 2. Inventory Side (Warehouse vs Store) ── -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small d-flex justify-content-between" style="color:var(--text-primary)">
+              <span>Inventory Side <span class="text-danger">*</span></span>
+              <span class="fw-normal" style="color:var(--text-muted);font-size:0.75rem">Where will the stock be deducted from?</span>
+            </label>
+
+            {% if current_user.role in ['Company-Admin', 'SYS-Admin'] %}
+              <!-- Company Admin & SYS-Admin can choose Warehouse or Store -->
+              <div class="row g-2">
+                <div class="col-6">
+                  <input type="radio" class="btn-check" name="side" id="sideWarehouse" value="warehouse" checked onchange="onSideChanged()">
+                  <label class="btn btn-outline-primary w-100 py-2 d-flex flex-column align-items-center gap-1 rounded-3" for="sideWarehouse">
+                    <i class="fas fa-warehouse fs-5"></i>
+                    <span class="fw-bold">Warehouse Side</span>
+                    <small style="font-size:0.72rem" id="labelWhStock">Stock: 0.00</small>
+                  </label>
+                </div>
+                <div class="col-6">
+                  <input type="radio" class="btn-check" name="side" id="sideStore" value="store" onchange="onSideChanged()">
+                  <label class="btn btn-outline-success w-100 py-2 d-flex flex-column align-items-center gap-1 rounded-3" for="sideStore">
+                    <i class="fas fa-store fs-5"></i>
+                    <span class="fw-bold">Store Side</span>
+                    <small style="font-size:0.72rem" id="labelStStock">Stock: 0.00</small>
+                  </label>
+                </div>
+              </div>
+            {% elif current_user.role == 'WH-Admin' %}
+              <!-- Locked to Warehouse for WH-Admin -->
+              <input type="hidden" name="side" value="warehouse">
+              <div class="p-2 rounded-3 bg-primary-subtle border border-primary-subtle text-primary d-flex align-items-center gap-2">
+                <i class="fas fa-warehouse fs-5"></i>
+                <div>
+                  <span class="fw-bold">Warehouse Side</span>
+                  <small class="d-block text-secondary" style="font-size:0.72rem">As Warehouse Admin, spoilage is deducted directly from warehouse inventory.</small>
+                </div>
+              </div>
+            {% else %}
+              <!-- Locked to Store for User (Store) -->
+              <input type="hidden" name="side" value="store">
+              <div class="p-2 rounded-3 bg-success-subtle border border-success-subtle text-success d-flex align-items-center gap-2">
+                <i class="fas fa-store fs-5"></i>
+                <div>
+                  <span class="fw-bold">Store Side</span>
+                  <small class="d-block text-secondary" style="font-size:0.72rem">As Store Staff, spoilage is deducted directly from store inventory.</small>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- ── 3. Date of Declaration & Expiry Date (Row) ── -->
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-semibold small" style="color:var(--text-primary)">
+                Date of Declaration <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text spoil-input-addon"><i class="fas fa-calendar-day"></i></span>
+                <input type="date"
+                       name="declaration_date"
+                       id="modalDeclarationDate"
+                       class="form-control spoil-input"
+                       value="{{ now.strftime('%Y-%m-%d') }}"
+                       required>
+              </div>
+              <small class="d-block mt-1" style="color:var(--text-muted);font-size:0.72rem">Date when the spoilage occurred / was declared.</small>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-semibold small d-flex justify-content-between" style="color:var(--text-primary)">
+                <span>Expiry Date <span class="fw-normal" style="color:var(--text-muted)">(if applicable)</span></span>
+                <span class="fw-normal" style="color:var(--text-muted);font-size:0.75rem">Optional</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text spoil-input-addon"><i class="far fa-calendar-times"></i></span>
+                <input type="date" name="exp_date" id="modalExpDateInput" class="form-control spoil-input">
+              </div>
+              <!-- Active batches chips container -->
+              <div id="activeBatchesChips" class="mt-1 d-flex flex-wrap gap-1"></div>
+            </div>
+          </div>
+
+          <!-- ── 4. Quantity & Reason for Spoilage (Row) ── -->
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-semibold small" style="color:var(--text-primary)">
+                Quantity to Spoil <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <input type="number"
+                       name="quantity"
+                       id="modalQuantityInput"
+                       class="form-control spoil-input"
+                       placeholder="0.00"
+                       step="any"
+                       min="0.001"
+                       autocomplete="off"
+                       required
+                       oninput="validateQuantityInput()">
+                <span class="input-group-text spoil-input-addon fw-semibold" id="modalUomAddon">units</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-1">
+                <small style="color:var(--text-muted);font-size:0.72rem">Must not exceed available stock.</small>
+                <small class="text-danger fw-semibold d-none" id="qtyErrorMsg">Exceeds available stock!</small>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-semibold small" style="color:var(--text-primary)">Reason for Spoilage <span class="text-danger">*</span></label>
+              <select name="reason" class="form-select spoil-input" required>
+                <option value="Expired Date Passed" selected>Expired Date Passed</option>
+                <option value="Damaged / Broken Packaging">Damaged / Broken Packaging</option>
+                <option value="Mold / Rotten / Decomposed">Mold / Rotten / Decomposed</option>
+                <option value="Temperature Abuse / Thawed">Temperature Abuse / Thawed</option>
+                <option value="Spilled / Leaked">Spilled / Leaked</option>
+                <option value="Pest / Insect Damage">Pest / Insect Damage</option>
+                <option value="Contaminated / Off-odor">Contaminated / Off-odor</option>
+                <option value="Handling / Drop Incident">Handling / Drop Incident</option>
+                <option value="Other">Other (specify in remarks)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- ── 5. Remarks / Notes ── -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small" style="color:var(--text-primary)">Remarks / Notes</label>
+            <input type="text" name="remarks" class="form-control spoil-input" placeholder="Additional explanation or incident notes...">
+          </div>
+
+          <!-- ── 6. Images Upload (Mandatory) ── -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small d-flex justify-content-between" style="color:var(--text-primary)">
+              <span>Photo / Image Proof <span class="text-danger">*</span></span>
+              <span class="fw-normal" style="color:var(--text-muted);font-size:0.75rem">At least 1 photo required (multiple supported)</span>
+            </label>
+
+            <!-- Custom Drag & Drop Zone -->
+            <div class="spoil-dropzone p-3 text-center position-relative" onclick="document.getElementById('spoilageImagesInput').click()">
+              <input type="file"
+                     name="images"
+                     id="spoilageImagesInput"
+                     class="d-none"
+                     accept="image/*"
+                     multiple
+                     required
+                     onchange="handleImageFileSelect(this)">
+              <div id="dropzonePrompt">
+                <i class="fas fa-camera text-danger fa-2x mb-2"></i>
+                <div class="fw-semibold" style="color:var(--text-primary);font-size:0.875rem">Click or tap to upload photo(s) of spoiled items</div>
+                <small style="color:var(--text-muted);font-size:0.75rem">Supports JPG, PNG, WEBP, GIF. You can select multiple images.</small>
+              </div>
+              <!-- Preview container -->
+              <div id="imagePreviewContainer" class="d-flex flex-wrap gap-2 justify-content-center mt-2 d-none" onclick="event.stopPropagation()"></div>
+            </div>
+            <div class="form-text text-danger d-none" id="imageErrorMsg">
+              <i class="fas fa-exclamation-triangle me-1"></i>Please attach at least one proof photo.
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="modal-footer px-4 py-3">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" id="submitSpoilageBtn" class="btn btn-danger px-4 shadow-sm fw-semibold d-flex align-items-center gap-2">
+            <span class="spinner-border spinner-border-sm d-none" id="submitSpinner" role="status" aria-hidden="true"></span>
+            <i class="fas fa-check" id="submitIcon"></i>
+            <span>Submit Spoilage Declaration</span>
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     MODAL: VIEW DETAILS
+══════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="viewSpoilageDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+      <div class="modal-header bg-dark text-white py-3 px-4">
+        <h5 class="modal-title fw-bold mb-0 text-white">
+          <i class="fas fa-circle-info text-info me-2"></i>Spoilage Declaration Details
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4" id="viewDetailContent">
+        <div class="text-center py-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer px-4 py-2 d-flex justify-content-between">
+        <button type="button" class="btn btn-danger btn-sm rounded-pill px-3 shadow-sm fw-semibold" id="modalDetailCopyBtn" onclick="copySpoilageRecord(this, currentViewingRecordId)">
+          <i class="fas fa-copy me-1"></i>Copy Spoilage Card
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     MODAL: IMAGE LIGHTBOX
+══════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="imageLightboxModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content bg-black border-0 shadow-2xl">
+      <div class="modal-header border-0 pb-0 justify-content-end">
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center p-3 pt-0">
+        <img id="lightboxMainImg" src="" alt="Full view" class="img-fluid rounded shadow" style="max-height:80vh;object-fit:contain">
+        <div id="lightboxThumbs" class="d-flex gap-2 justify-content-center mt-3 overflow-auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     SCRIPTS FOR SPOILAGE FUNCTIONALITY
+══════════════════════════════════════════════════════════════ -->
+<script>
+// State for current selected product
+let currentProductData = null;
+let comboboxActiveIndex = -1;
+
+// ── Searchable Combobox Functions ──
+function openComboboxDropdown() {
+  const menu = document.getElementById('productComboboxMenu');
+  const chevron = document.getElementById('comboboxChevron');
+  if (menu) {
+    menu.classList.remove('d-none');
+    if (chevron) chevron.className = 'fas fa-chevron-up';
+  }
+}
+
+function closeComboboxDropdown() {
+  const menu = document.getElementById('productComboboxMenu');
+  const chevron = document.getElementById('comboboxChevron');
+  if (menu) {
+    menu.classList.add('d-none');
+    if (chevron) chevron.className = 'fas fa-chevron-down';
+  }
+  comboboxActiveIndex = -1;
+}
+
+function toggleComboboxDropdown(event) {
+  if (event) event.stopPropagation();
+  const menu = document.getElementById('productComboboxMenu');
+  if (menu && menu.classList.contains('d-none')) {
+    openComboboxDropdown();
+    document.getElementById('productComboboxInput').focus();
+  } else {
+    closeComboboxDropdown();
+  }
+}
+
+function filterComboboxOptions(query) {
+  openComboboxDropdown();
+  const filter = (query || '').toLowerCase().trim();
+  const items = document.querySelectorAll('.combobox-item');
+  let visibleCount = 0;
+
+  items.forEach(item => {
+    const name = (item.getAttribute('data-name') || '').toLowerCase();
+    const barcode = (item.getAttribute('data-barcode') || '').toLowerCase();
+    if (!filter || name.includes(filter) || barcode.includes(filter)) {
+      item.classList.remove('d-none');
+      visibleCount++;
+    } else {
+      item.classList.add('d-none');
+    }
+  });
+
+  const noResults = document.getElementById('comboboxNoResults');
+  if (noResults) {
+    if (visibleCount === 0) noResults.classList.remove('d-none');
+    else noResults.classList.add('d-none');
+  }
+
+  const clearBtn = document.getElementById('comboboxClearBtn');
+  if (clearBtn) {
+    clearBtn.style.display = query ? 'inline-block' : 'none';
+  }
+
+  // If user clears the input manually, reset selection
+  if (!query) {
+    document.getElementById('modalProductSelect').value = '';
+    const banner = document.getElementById('productStockBanner');
+    if (banner) banner.classList.add('d-none');
+    const chips = document.getElementById('activeBatchesChips');
+    if (chips) chips.innerHTML = '';
+    currentProductData = null;
+    validateQuantityInput();
+  }
+}
+
+function selectComboboxItem(id, name, barcode) {
+  const input = document.getElementById('productComboboxInput');
+  const hiddenInput = document.getElementById('modalProductSelect');
+  const clearBtn = document.getElementById('comboboxClearBtn');
+
+  hiddenInput.value = id;
+  input.value = barcode ? `${name} (${barcode})` : name;
+  if (clearBtn) clearBtn.style.display = 'inline-block';
+
+  closeComboboxDropdown();
+  onProductSelected(id);
+}
+
+function clearComboboxSelection(event) {
+  if (event) event.stopPropagation();
+  const input = document.getElementById('productComboboxInput');
+  const hiddenInput = document.getElementById('modalProductSelect');
+  const clearBtn = document.getElementById('comboboxClearBtn');
+
+  input.value = '';
+  hiddenInput.value = '';
+  if (clearBtn) clearBtn.style.display = 'none';
+
+  filterComboboxOptions('');
+  closeComboboxDropdown();
+
+  const banner = document.getElementById('productStockBanner');
+  if (banner) banner.classList.add('d-none');
+  const chips = document.getElementById('activeBatchesChips');
+  if (chips) chips.innerHTML = '';
+  currentProductData = null;
+  validateQuantityInput();
+}
+
+function handleComboboxKeydown(event) {
+  const menu = document.getElementById('productComboboxMenu');
+  if (!menu || menu.classList.contains('d-none')) {
+    if (event.key === 'ArrowDown' || event.key === 'Enter') {
+      openComboboxDropdown();
+    }
+    return;
+  }
+
+  const visibleItems = Array.from(document.querySelectorAll('.combobox-item:not(.d-none)'));
+  if (visibleItems.length === 0) return;
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    comboboxActiveIndex = (comboboxActiveIndex + 1) % visibleItems.length;
+    highlightComboboxItem(visibleItems);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    comboboxActiveIndex = (comboboxActiveIndex - 1 + visibleItems.length) % visibleItems.length;
+    highlightComboboxItem(visibleItems);
+  } else if (event.key === 'Enter') {
+    event.preventDefault();
+    if (comboboxActiveIndex >= 0 && comboboxActiveIndex < visibleItems.length) {
+      visibleItems[comboboxActiveIndex].click();
+    }
+  } else if (event.key === 'Escape') {
+    closeComboboxDropdown();
+  }
+}
+
+function highlightComboboxItem(visibleItems) {
+  visibleItems.forEach((el, idx) => {
+    if (idx === comboboxActiveIndex) {
+      el.classList.add('active');
+      el.scrollIntoView({ block: 'nearest' });
+    } else {
+      el.classList.remove('active');
+    }
+  });
+}
+
+// Close combobox when clicking outside
+document.addEventListener('click', function(e) {
+  const wrapper = document.querySelector('.combobox-wrapper');
+  if (wrapper && !wrapper.contains(e.target)) {
+    closeComboboxDropdown();
+  }
+});
+
+// When a product is selected in modal
+function onProductSelected(productId) {
+  if (!productId) return;
+
+  fetch(`/spoilage/api/product-info/${productId}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'success') {
+        currentProductData = data.product;
+        
+        // Show banner
+        document.getElementById('productStockBanner').classList.remove('d-none');
+        document.getElementById('bannerProdName').innerText = currentProductData.name;
+        document.getElementById('bannerProdBarcode').innerText = currentProductData.barcode;
+        document.getElementById('bannerWhQty').innerText = Number(currentProductData.warehouse_qty).toFixed(2);
+        document.getElementById('bannerStQty').innerText = Number(currentProductData.store_qty).toFixed(2);
+        document.getElementById('bannerWhUom').innerText = currentProductData.uom;
+        document.getElementById('bannerStUom').innerText = currentProductData.uom;
+        document.getElementById('modalUomAddon').innerText = currentProductData.uom;
+
+        // Update labels for Company-Admin side selector if present
+        const lblWh = document.getElementById('labelWhStock');
+        const lblSt = document.getElementById('labelStStock');
+        if (lblWh) lblWh.innerText = `Stock: ${Number(currentProductData.warehouse_qty).toFixed(2)} ${currentProductData.uom}`;
+        if (lblSt) lblSt.innerText = `Stock: ${Number(currentProductData.store_qty).toFixed(2)} ${currentProductData.uom}`;
+
+        // Populate active batch expiry chips
+        populateExpiryChips();
+
+        // Validate quantity against newly selected product
+        validateQuantityInput();
+      }
+    })
+    .catch(err => console.error("Error loading product info:", err));
+}
+
+// When side is toggled by Company Admin
+function onSideChanged() {
+  populateExpiryChips();
+  validateQuantityInput();
+}
+
+function getSelectedSide() {
+  const whRadio = document.getElementById('sideWarehouse');
+  const stRadio = document.getElementById('sideStore');
+  if (whRadio && stRadio) {
+    return whRadio.checked ? 'warehouse' : 'store';
+  }
+  const hiddenSide = document.querySelector('input[name="side"]');
+  return hiddenSide ? hiddenSide.value : 'warehouse';
+}
+
+function getAvailableStockForSelectedSide() {
+  if (!currentProductData) return 0;
+  const side = getSelectedSide();
+  return side === 'warehouse' ? Number(currentProductData.warehouse_qty) : Number(currentProductData.store_qty);
+}
+
+// Populate clickable chips for active batch expiration dates
+function populateExpiryChips() {
+  const container = document.getElementById('activeBatchesChips');
+  if (!container || !currentProductData) return;
+  container.innerHTML = '';
+
+  const side = getSelectedSide();
+  const batches = side === 'warehouse' ? currentProductData.warehouse_batches : currentProductData.store_batches;
+
+  if (batches && batches.length > 0) {
+    const lbl = document.createElement('span');
+    lbl.className = 'small me-1';
+    lbl.style.color = 'var(--text-muted)';
+    lbl.style.fontSize = '0.72rem';
+    lbl.innerText = 'Active batches:';
+    container.appendChild(lbl);
+
+    batches.forEach(b => {
+      if (b.exp_date && b.quantity > 0) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'btn btn-xs btn-outline-warning border px-2 py-0';
+        chip.style.fontSize = '0.7rem';
+        chip.innerHTML = `<i class="far fa-calendar-check me-1 text-danger"></i>${b.exp_date} (${Number(b.quantity).toFixed(1)})`;
+        chip.onclick = () => {
+          document.getElementById('modalExpDateInput').value = b.exp_date;
+        };
+        container.appendChild(chip);
+      }
+    });
+  }
+}
+
+// Validate quantity input in real time
+function validateQuantityInput() {
+  const qtyInput = document.getElementById('modalQuantityInput');
+  const errorMsg = document.getElementById('qtyErrorMsg');
+  const submitBtn = document.getElementById('submitSpoilageBtn');
+  if (!qtyInput) return;
+
+  const val = parseFloat(qtyInput.value);
+  const maxStock = getAvailableStockForSelectedSide();
+
+  if (val > maxStock) {
+    qtyInput.classList.add('is-invalid');
+    errorMsg.classList.remove('d-none');
+    errorMsg.innerText = `Exceeds stock! Max available: ${maxStock.toFixed(2)}`;
+    submitBtn.disabled = true;
+  } else {
+    qtyInput.classList.remove('is-invalid');
+    errorMsg.classList.add('d-none');
+    submitBtn.disabled = false;
+  }
+}
+
+// Handle previewing selected image files
+function handleImageFileSelect(input) {
+  const files = input.files;
+  const container = document.getElementById('imagePreviewContainer');
+  const prompt = document.getElementById('dropzonePrompt');
+  const err = document.getElementById('imageErrorMsg');
+
+  if (files && files.length > 0) {
+    container.innerHTML = '';
+    container.classList.remove('d-none');
+    err.classList.add('d-none');
+
+    Array.from(files).forEach((file, idx) => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const div = document.createElement('div');
+          div.className = 'position-relative d-inline-block';
+          div.innerHTML = `
+            <img src="${e.target.result}" class="rounded border shadow-sm" style="width:70px;height:70px;object-fit:cover">
+            <span class="badge bg-dark position-absolute bottom-0 start-0 m-1" style="font-size:0.55rem">${(file.size / 1024).toFixed(0)}KB</span>
+          `;
+          container.appendChild(div);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    prompt.innerHTML = `<span class="badge bg-success"><i class="fas fa-check me-1"></i>${files.length} photo(s) selected</span><br><small style="color:var(--text-muted)">Click to change photos</small>`;
+  } else {
+    container.classList.add('d-none');
+  }
+}
+
+// Handle modal form submit with AJAX for a seamless experience
+function handleSpoilageSubmit(event) {
+  event.preventDefault();
+
+  const form = document.getElementById('spoilageForm');
+  const prodSelect = document.getElementById('modalProductSelect');
+  const qtyInput = document.getElementById('modalQuantityInput');
+  const imgInput = document.getElementById('spoilageImagesInput');
+  const submitBtn = document.getElementById('submitSpoilageBtn');
+  const spinner = document.getElementById('submitSpinner');
+  const icon = document.getElementById('submitIcon');
+  const errImg = document.getElementById('imageErrorMsg');
+
+  if (!prodSelect.value) {
+    alert('Please select a product from the list.');
+    document.getElementById('productComboboxInput').focus();
+    return false;
+  }
+
+  // Verify image
+  if (!imgInput.files || imgInput.files.length === 0) {
+    errImg.classList.remove('d-none');
+    return false;
+  }
+
+  // Verify stock
+  const val = parseFloat(qtyInput.value);
+  const maxStock = getAvailableStockForSelectedSide();
+  if (val <= 0 || val > maxStock) {
+    validateQuantityInput();
+    return false;
+  }
+
+  // Loading state
+  submitBtn.disabled = true;
+  spinner.classList.remove('d-none');
+  icon.classList.add('d-none');
+
+  const formData = new FormData(form);
+  // Guarantee exact quantity entered in input is explicitly set and trimmed
+  const enteredQty = qtyInput.value ? qtyInput.value.trim() : '';
+  formData.delete('quantity');
+  formData.append('quantity', enteredQty);
+
+  fetch(form.action, {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.status === 'success') {
+      window.location.reload();
+    } else {
+      alert(data.message || 'Error declaring spoilage.');
+      submitBtn.disabled = false;
+      spinner.classList.add('d-none');
+      icon.classList.remove('d-none');
+    }
+  })
+  .catch(err => {
+    console.error("Submit error:", err);
+    alert('An unexpected error occurred. Please try again.');
+    submitBtn.disabled = false;
+    spinner.classList.add('d-none');
+    icon.classList.remove('d-none');
+  });
+
+  return false;
+}
+
+// Lightbox for photos
+function showLightbox(mainSrc, allImages) {
+  const modal = new bootstrap.Modal(document.getElementById('imageLightboxModal'));
+  const mainImg = document.getElementById('lightboxMainImg');
+  const thumbs = document.getElementById('lightboxThumbs');
+
+  mainImg.src = mainSrc;
+  thumbs.innerHTML = '';
+
+  if (allImages && allImages.length > 1) {
+    allImages.forEach(imgName => {
+      const fullUrl = `/static/uploads/spoilage/${imgName}`;
+      const thumb = document.createElement('img');
+      thumb.src = fullUrl;
+      thumb.className = `rounded border shadow-sm ${fullUrl === mainSrc ? 'border-primary border-3' : 'opacity-75'}`;
+      thumb.style.width = '55px';
+      thumb.style.height = '55px';
+      thumb.style.objectFit = 'cover';
+      thumb.style.cursor = 'pointer';
+      thumb.onclick = () => {
+        mainImg.src = fullUrl;
+        Array.from(thumbs.children).forEach(t => t.classList.remove('border-primary', 'border-3'));
+        thumb.classList.add('border-primary', 'border-3');
+      };
+      thumbs.appendChild(thumb);
+    });
+  }
+
+  modal.show();
+}
+
+let currentViewingRecordId = null;
+
+// View details modal
+function viewSpoilageDetails(spoilageId) {
+  currentViewingRecordId = spoilageId;
+  const modal = new bootstrap.Modal(document.getElementById('viewSpoilageDetailModal'));
+  const container = document.getElementById('viewDetailContent');
+  modal.show();
+
+  fetch(`/spoilage/api/record/${spoilageId}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'success') {
+        const r = data.record;
+        let imagesHtml = '';
+        if (r.images && r.images.length > 0) {
+          imagesHtml = `
+            <div class="mt-3">
+              <label class="form-label fw-bold small text-uppercase" style="color:var(--text-muted)">Proof Photo(s):</label>
+              <div class="d-flex flex-wrap gap-2">
+                ${r.images.map(img => `
+                  <img src="${img}" class="rounded border shadow-sm" style="width:110px;height:110px;object-fit:cover;cursor:pointer" onclick="showLightbox('${img}', ${JSON.stringify(r.images.map(u => u.split('/').pop()))})" title="Click to enlarge">
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        container.innerHTML = `
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="p-3 detail-card rounded-3">
+                <small class="text-uppercase d-block fw-semibold" style="color:var(--text-muted);font-size:0.7rem">Product</small>
+                <h5 class="fw-bold mb-1" style="color:var(--text-primary)">${r.product_name}</h5>
+                <span class="badge bg-secondary-subtle text-secondary font-monospace"><i class="fas fa-barcode me-1"></i>${r.product_barcode}</span>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="p-3 detail-card rounded-3">
+                <small class="text-uppercase d-block fw-semibold" style="color:var(--text-muted);font-size:0.7rem">Quantity Deducted</small>
+                <h5 class="fw-bold text-danger mb-1">-${Number(r.quantity).toFixed(2)} ${r.uom}</h5>
+                <span class="badge ${r.side === 'warehouse' ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-success-subtle text-success border border-success-subtle'}">
+                  <i class="fas ${r.side === 'warehouse' ? 'fa-warehouse' : 'fa-store'} me-1"></i>From ${r.side.toUpperCase()}
+                </span>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-4">
+              <small class="text-uppercase d-block fw-semibold" style="color:var(--text-muted);font-size:0.7rem">Date of Declaration</small>
+              <span class="fw-semibold" style="color:var(--text-primary)"><i class="far fa-calendar-day text-primary me-1"></i>${r.declaration_date || 'N/A'}</span>
+            </div>
+
+            <div class="col-6 col-md-4">
+              <small class="text-uppercase d-block fw-semibold" style="color:var(--text-muted);font-size:0.7rem">Expiry Date</small>
+              <span class="fw-semibold" style="color:var(--text-primary)">${r.exp_date ? `<i class="far fa-calendar-times text-danger me-1"></i>${r.exp_date}` : 'Not Applicable'}</span>
+            </div>
+
+            <div class="col-6 col-md-4">
+              <small class="text-uppercase d-block fw-semibold" style="color:var(--text-muted);font-size:0.7rem">Reason</small>
+              <span class="badge bg-danger-subtle text-danger">${r.reason}</span>
+            </div>
+
+            <div class="col-6 col-md-4">
+              <small class="text-uppercase d-block fw-semibold" style="color:var(--text-muted);font-size:0.7rem">Declared By</small>
+              <span class="fw-semibold" style="color:var(--text-primary)">${r.declared_by}</span>
+              <span class="badge bg-secondary-subtle text-secondary ms-1" style="font-size:0.65rem">${r.declared_by_role}</span>
+            </div>
+
+            <div class="col-12 col-md-8">
+              <small class="text-uppercase d-block fw-semibold" style="color:var(--text-muted);font-size:0.7rem">Logged In System At</small>
+              <span class="small" style="color:var(--text-primary)">${r.created_at}</span>
+            </div>
+
+            ${r.remarks ? `
+              <div class="col-12">
+                <small class="text-uppercase d-block fw-semibold" style="color:var(--text-muted);font-size:0.7rem">Remarks / Notes</small>
+                <div class="p-2 border rounded small detail-box-white">${r.remarks}</div>
+              </div>
+            ` : ''}
+
+            <div class="col-12">
+              ${imagesHtml}
+            </div>
+          </div>
+        `;
+      }
+    })
+    .catch(err => {
+      container.innerHTML = `<div class="alert alert-danger mb-0">Failed to load record details.</div>`;
+    });
+}
+
+// ── Toast Notification Helper ──
+function showSpoilageToast(msg, type = 'success') {
+  const toastEl = document.getElementById('spoilageToast');
+  const bodyEl = document.getElementById('spoilageToastBody');
+  if (!toastEl || !bodyEl) return;
+
+  const iconHtml = type === 'success' 
+    ? '<i class="fas fa-check-circle text-success fs-5"></i>' 
+    : '<i class="fas fa-exclamation-circle text-danger fs-5"></i>';
+
+  bodyEl.innerHTML = `${iconHtml}<span>${msg}</span>`;
+  const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+  toast.show();
+}
+
+// ── Helper: Generate High-Resolution Spoilage Card Canvas (Details + Photo) ──
+async function generateSpoilageCardBlob(record, bitmap) {
+  const cardWidth = 720;
+  const padding = 24;
+
+  let photoWidth = cardWidth - (padding * 2);
+  let photoHeight = 0;
+  if (bitmap) {
+    const aspect = bitmap.height / bitmap.width;
+    photoHeight = Math.round(photoWidth * aspect);
+    if (photoHeight > 540) {
+      photoHeight = 540;
+      photoWidth = Math.round(photoHeight / aspect);
+    }
+  }
+
+  const headerHeight = 65;
+  const detailsHeight = 190;
+  const photoSectionHeight = bitmap ? (photoHeight + 35) : 0;
+  const cardHeight = headerHeight + detailsHeight + photoSectionHeight + padding;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = cardWidth;
+  canvas.height = cardHeight;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, cardWidth, cardHeight);
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(1, 1, cardWidth - 2, cardHeight - 2);
+
+  // Red header banner
+  ctx.fillStyle = '#dc2626';
+  ctx.fillRect(0, 0, cardWidth, headerHeight);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 22px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('🚨 SPOILAGE DECLARATION', padding, 42);
+
+  // Side badge
+  const sideText = (record.side === 'warehouse' ? 'WAREHOUSE' : 'STORE') + ' SIDE';
+  ctx.font = 'bold 12px system-ui, -apple-system, sans-serif';
+  const badgeW = ctx.measureText(sideText).width + 20;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+  ctx.fillRect(cardWidth - padding - badgeW, 20, badgeW, 28);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(sideText, cardWidth - padding - badgeW + 10, 39);
+
+  // Product Name
+  let y = headerHeight + 36;
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 20px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  let displayName = record.product_name;
+  if (ctx.measureText(displayName).width > cardWidth - (padding * 2)) {
+    while (ctx.measureText(displayName + '...').width > cardWidth - (padding * 2) && displayName.length > 5) {
+      displayName = displayName.slice(0, -1);
+    }
+    displayName += '...';
+  }
+  ctx.fillText(displayName, padding, y);
+
+  // Barcode
+  y += 24;
+  ctx.fillStyle = '#64748b';
+  ctx.font = '14px monospace, system-ui';
+  ctx.fillText('Barcode: ' + (record.product_barcode || 'N/A'), padding, y);
+
+  // Quantity Spoiled (Bold Red)
+  y += 38;
+  ctx.fillStyle = '#dc2626';
+  ctx.font = 'bold 28px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('-' + Number(record.quantity).toFixed(2) + ' ' + record.uom, padding, y);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '12px system-ui, -apple-system, sans-serif';
+  ctx.fillText('QUANTITY SPOILED', padding, y + 16);
+
+  // Dates (Declaration Date & Expiry Date)
+  const col2X = 360;
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 15px system-ui, -apple-system, sans-serif';
+  ctx.fillText('Declaration Date:', col2X, y - 8);
+  ctx.font = '15px system-ui, -apple-system, sans-serif';
+  ctx.fillText(record.declaration_date || 'N/A', col2X + 140, y - 8);
+
+  ctx.font = 'bold 15px system-ui, -apple-system, sans-serif';
+  ctx.fillText('Expiry Date:', col2X, y + 16);
+  ctx.font = '15px system-ui, -apple-system, sans-serif';
+  ctx.fillText(record.exp_date || 'Not Applicable', col2X + 140, y + 16);
+
+  // Divider line
+  y += 36;
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillRect(padding, y, cardWidth - (padding * 2), 1);
+
+  // Reason & Declared by
+  y += 22;
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
+  ctx.fillText('Reason: ', padding, y);
+  ctx.font = '14px system-ui, -apple-system, sans-serif';
+  ctx.fillText(record.reason || 'Unspecified', padding + 65, y);
+
+  if (record.remarks) {
+    y += 20;
+    ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
+    ctx.fillText('Remarks: ', padding, y);
+    ctx.font = 'italic 14px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = '#475569';
+    let rem = record.remarks;
+    if (ctx.measureText(rem).width > cardWidth - (padding * 2) - 80) {
+      rem = rem.slice(0, 70) + '...';
+    }
+    ctx.fillText(rem, padding + 75, y);
+  }
+
+  y += 22;
+  ctx.fillStyle = '#64748b';
+  ctx.font = '13px system-ui, -apple-system, sans-serif';
+  ctx.fillText('Declared by ' + record.declared_by + ' (' + record.declared_by_role + ') at ' + record.created_at, padding, y);
+
+  // Proof Photo Section
+  if (bitmap) {
+    y += 22;
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillRect(padding - 6, y - 6, cardWidth - (padding * 2) + 12, photoHeight + 12);
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.strokeRect(padding - 6, y - 6, cardWidth - (padding * 2) + 12, photoHeight + 12);
+
+    const photoX = padding + (cardWidth - (padding * 2) - photoWidth) / 2;
+    ctx.drawImage(bitmap, photoX, y, photoWidth, photoHeight);
+  }
+
+  return await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+}
+
+// ── Copy Spoilage Record (Complete Composite Card with Photo, Date & Details) to Clipboard ──
+async function copySpoilageRecord(btnEl, spoilageId) {
+  if (!spoilageId) return;
+
+  const originalHtml = btnEl.innerHTML;
+  btnEl.disabled = true;
+  btnEl.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+
+  try {
+    const res = await fetch(`/spoilage/api/record/${spoilageId}`);
+    const data = await res.json();
+    if (data.status !== 'success') throw new Error(data.message || 'Record not found');
+
+    const r = data.record;
+    const dateLabel = r.declaration_date ? r.declaration_date : 'N/A';
+
+    let firstImgUrl = '';
+    if (r.images && r.images.length > 0) {
+      firstImgUrl = r.images[0];
+    }
+
+    // Fetch and decode proof image directly without CORS tainting
+    let photoBitmap = null;
+    let photoPngBlob = null;
+    if (firstImgUrl) {
+      try {
+        const imgResp = await fetch(firstImgUrl);
+        if (imgResp.ok) {
+          const rawBlob = await imgResp.blob();
+          photoBitmap = await createImageBitmap(rawBlob);
+          
+          // Also create a standalone photo PNG as fallback
+          const pCanvas = document.createElement('canvas');
+          pCanvas.width = photoBitmap.width;
+          pCanvas.height = photoBitmap.height;
+          pCanvas.getContext('2d').drawImage(photoBitmap, 0, 0);
+          photoPngBlob = await new Promise(res => pCanvas.toBlob(res, 'image/png'));
+        }
+      } catch (fErr) {
+        console.warn('Proof image fetch/bitmap error:', fErr);
+      }
+    }
+
+    // Generate Composite Spoilage Card Blob (includes alert banner, details, dates, and proof photo)
+    let cardBlob = null;
+    try {
+      cardBlob = await generateSpoilageCardBlob(r, photoBitmap);
+    } catch (cErr) {
+      console.warn('Card generation error:', cErr);
+    }
+
+    const primaryImgBlob = cardBlob || photoPngBlob;
+    let writeSuccess = false;
+
+    // For Facebook Messenger: Write image/png as the primary clipboard representation.
+    // When text is included in the clipboard, Messenger's input handler prioritizes text and drops the image attachment.
+    // By copying the unified Spoilage Card as an image, Messenger pastes the entire card (details, dates, and photo) directly!
+    if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem && primaryImgBlob) {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': primaryImgBlob })]);
+        writeSuccess = true;
+      } catch (errImg) {
+        console.warn('Clipboard write image/png failed:', errImg);
+      }
+    }
+
+    // Fallback: If image writing is unsupported on this device/browser, copy structured text
+    if (!writeSuccess && navigator.clipboard && navigator.clipboard.writeText) {
+      const fallbackText = 
+`🚨 SPOILAGE DECLARATION 🚨
+Product: ${r.product_name} (${r.product_barcode || 'No Barcode'})
+Inventory Side: ${r.side === 'warehouse' ? 'Warehouse' : 'Store'} Side
+Quantity Spoiled: -${Number(r.quantity).toFixed(2)} ${r.uom}
+Date of Declaration: ${dateLabel}
+Expiry Date: ${r.exp_date || 'Not Applicable'}
+Reason: ${r.reason}
+Remarks: ${r.remarks || 'None'}
+Declared By: ${r.declared_by} (${r.declared_by_role})
+Logged At: ${r.created_at}`;
+      await navigator.clipboard.writeText(fallbackText);
+      writeSuccess = true;
+    }
+
+    // Success feedback
+    btnEl.innerHTML = '<i class="fas fa-check text-success me-1"></i>Card Copied!';
+    btnEl.classList.add('border-success');
+    showSpoilageToast('Copied! Spoilage card (photo + details + date) is ready to paste into Messenger.', 'success');
+
+    setTimeout(() => {
+      btnEl.innerHTML = originalHtml;
+      btnEl.classList.remove('border-success');
+      btnEl.disabled = false;
+    }, 2500);
+
+  } catch (err) {
+    console.error('Copy spoilage error:', err);
+    btnEl.innerHTML = '<i class="fas fa-times text-danger"></i>';
+    showSpoilageToast('Failed to copy: ' + (err.message || 'Unknown error'), 'danger');
+    setTimeout(() => {
+      btnEl.innerHTML = originalHtml;
+      btnEl.disabled = false;
+    }, 2500);
+  }
+}
+
+// Backward compatibility aliases
+async function copySpoilagePhotoOnly(btnEl, spoilageId) { return copySpoilageRecord(btnEl, spoilageId); }
+async function copySpoilageTextOnly(btnEl, spoilageId) { return copySpoilageRecord(btnEl, spoilageId); }
+
+// Modal event listener to ensure clean state when opened
+document.addEventListener('DOMContentLoaded', function() {
+  const modalEl = document.getElementById('declareSpoilageModal');
+  if (modalEl) {
+    modalEl.addEventListener('show.bs.modal', function() {
+      const qtyInput = document.getElementById('modalQuantityInput');
+      if (qtyInput) qtyInput.value = '';
+      const qtyErr = document.getElementById('qtyErrorMsg');
+      if (qtyErr) qtyErr.classList.add('d-none');
+    });
+  }
+});
+</script>
+
+<!-- Toast Notification for Copy Action -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1090">
+  <div id="spoilageToast" class="toast align-items-center text-white bg-dark border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body d-flex align-items-center gap-2" id="spoilageToastBody">
+        <i class="fas fa-check-circle text-success fs-5"></i>
+        <span>Copied to clipboard!</span>
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+{% endblock %}

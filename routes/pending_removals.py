@@ -141,8 +141,11 @@ def approve_removal(removal_id):
         # Update batch quantity
         batch.quantity -= pending_removal.quantity
 
-        # Update product total quantity
-        product.quantity -= pending_removal.quantity
+        # Update product quantities (batch belongs to warehouse)
+        product.warehouse_qty -= pending_removal.quantity
+        if product.warehouse_qty < 0:
+            product.warehouse_qty = 0
+        product.quantity = product.warehouse_qty + product.store_qty
         product.last_updated = datetime.now(ZoneInfo("Asia/Manila"))
 
         # Create ProductHistory record for TRANS OUT

@@ -458,13 +458,11 @@ def delete_batch():
                 db.session.delete(removal)
             db.session.flush()  # Flush to remove the references
 
-        # Update product quantity (warehouse stock)
-        product.quantity -= batch.quantity
-        if product.quantity < 0:
-            product.quantity = 0
+        # Update product quantities (warehouse stock)
         product.warehouse_qty -= batch.quantity
         if product.warehouse_qty < 0:
             product.warehouse_qty = 0
+        product.quantity = product.warehouse_qty + product.store_qty
 
         # Delete the batch barcode image file before deleting the batch
         if batch.sub_barcode:
@@ -614,12 +612,13 @@ def update_batch():
                 return jsonify({'status': 'error', 'message': 'Quantity must be non-negative'}), 400
             batch.quantity = new_quantity
 
-        # Recalculate product total quantity from all batches to ensure consistency
+        # Recalculate product warehouse quantity from all batches and sync total
         all_batches = WarehouseProductBatch.query.filter_by(product_id=product_id).all()
-        product.quantity = sum(b.quantity for b in all_batches)
-        product.initial_quantity = product.quantity
-        product.warehouse_qty = product.quantity
-        product.warehouse_initial_qty = product.quantity
+        total_wh = sum(b.quantity for b in all_batches)
+        product.warehouse_qty = total_wh
+        product.warehouse_initial_qty = max(product.warehouse_initial_qty or 0, total_wh)
+        product.quantity = product.warehouse_qty + product.store_qty
+        product.initial_quantity = product.warehouse_initial_qty + (product.store_initial_qty or 0)
         product.last_updated = datetime.now(ZoneInfo("Asia/Manila"))
 
         # If supplier name changed, update the payee field in ProductHistory records
@@ -721,15 +720,14 @@ def add_stock():
     db.session.add(new_batch)
     db.session.flush()  # Flush to get the batch ID
 
-    # Now recalculate product quantity from all batches to ensure consistency
+    # Now recalculate product warehouse quantity from all batches and sync total
     all_batches = WarehouseProductBatch.query.filter_by(product_id=product_id).all()
     total_batch_quantity = sum(batch.quantity for batch in all_batches)
 
-    # Update product quantity to match the sum of all batch quantities
-    product.quantity = total_batch_quantity
-    product.initial_quantity = total_batch_quantity
     product.warehouse_qty = total_batch_quantity
-    product.warehouse_initial_qty = total_batch_quantity
+    product.warehouse_initial_qty = max(product.warehouse_initial_qty or 0, total_batch_quantity)
+    product.quantity = product.warehouse_qty + product.store_qty
+    product.initial_quantity = product.warehouse_initial_qty + (product.store_initial_qty or 0)
     product.last_updated = current_time
 
     # Create ProductHistory record for TRANS IN (manual addition)
@@ -1107,15 +1105,15 @@ def export_inventory_xlsx():
             
             # Get nearest expiry date
             nearest_expiry = None
-            if product.batches:
+            if product.warehouse_batches:
                 # Get batches with stock and future expiry dates
-                valid_batches = [batch for batch in product.batches if batch.quantity > 0 and batch.exp_date > now_ph.date()]
+                valid_batches = [batch for batch in product.warehouse_batches if batch.quantity > 0 and batch.exp_date > now_ph.date()]
                 if valid_batches:
                     nearest_batch = min(valid_batches, key=lambda x: x.exp_date)
                     nearest_expiry = nearest_batch.exp_date.strftime('%Y-%m-%d')
                 else:
                     # Check for expired batches
-                    expired_batches = [batch for batch in product.batches if batch.quantity > 0 and batch.exp_date <= now_ph.date()]
+                    expired_batches = [batch for batch in product.warehouse_batches if batch.quantity > 0 and batch.exp_date <= now_ph.date()]
                     if expired_batches:
                         nearest_expiry = "EXPIRED"
             
@@ -1735,10 +1733,18 @@ def approve_deletion_request(dr_id):
     if record:
         product = Product.query.get(dr.product_id)
         if product:
-            # net_change is positive for IN, negative for OUT → subtract to reverse
-            product.quantity -= record.net_change
-            if product.quantity < 0:
-                product.quantity = 0
+            # Reverse stock changes on warehouse_qty, store_qty, and total quantity
+            if record.reference_type == 'batch':
+                product.warehouse_qty -= record.net_change
+                if product.warehouse_qty < 0:
+                    product.warehouse_qty = 0
+            elif record.reference_type == 'requisition':
+                # Reversing a requisition transfer: return to warehouse, deduct from store
+                product.warehouse_qty += record.quantity_out
+                product.store_qty -= record.quantity_out
+                if product.store_qty < 0:
+                    product.store_qty = 0
+            product.quantity = product.warehouse_qty + product.store_qty
 
             # Also reverse batch-level changes if possible
             if record.reference_type == 'batch' and record.reference_id:

@@ -171,6 +171,44 @@
   border-bottom-color: var(--border);
 }
 
+/* Universal Select & Option styling (fixes white-on-white text in dark mode) */
+select option,
+.form-select option {
+  background-color: #ffffff;
+  color: #1e293b;
+}
+
+:where(.dark-mode) select,
+:where(.dark-mode) .form-select,
+[data-bs-theme="dark"] select,
+[data-bs-theme="dark"] .form-select,
+html.dark-mode select,
+html.dark-mode .form-select {
+  background-color: #16182a !important;
+  color: #f1f3f9 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+:where(.dark-mode) select option,
+:where(.dark-mode) .form-select option,
+[data-bs-theme="dark"] select option,
+[data-bs-theme="dark"] .form-select option,
+html.dark-mode select option,
+html.dark-mode .form-select option {
+  background-color: #16182a !important;
+  color: #f1f3f9 !important;
+}
+
+:where(.dark-mode) select option:checked,
+:where(.dark-mode) .form-select option:checked,
+[data-bs-theme="dark"] select option:checked,
+[data-bs-theme="dark"] .form-select option:checked,
+html.dark-mode select option:checked,
+html.dark-mode .form-select option:checked {
+  background-color: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
 * {
   box-sizing: border-box;
   font-family: 'Inter', sans-serif;

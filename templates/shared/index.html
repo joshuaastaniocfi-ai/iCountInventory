@@ -91,7 +91,6 @@
       }
     </style>
   </div>
-
   <!-- Stats Cards -->
   <div class="row g-3 mb-4" data-widget="stats">
     <div class="col-md-3">
@@ -329,16 +328,16 @@
                     <td>
                       <div class="d-flex align-items-center">
                         <div class="me-2">
-                          <div class="fw-medium">{{ product.batches[0].exp_date.strftime('%Y-%m-%d') }}</div>
+                          <div class="fw-medium">{{ product.warehouse_batches[0].exp_date.strftime('%Y-%m-%d') }}</div>
                           <small class="text-warning">
-                            <i class="fas fa-clock"></i> {{ (product.batches[0].exp_date - now.date()).days }} days left
+                            <i class="fas fa-clock"></i> {{ (product.warehouse_batches[0].exp_date - now.date()).days }} days left
                           </small>
                         </div>
                       </div>
                     </td>
                     <td>
                       <div class="d-flex flex-column gap-1">
-                        {% for batch in product.batches[:3] %}
+                        {% for batch in product.warehouse_batches[:3] %}
                           {% if batch.quantity > 0 %}
                             {% set days_until = (batch.exp_date - now.date()).days %}
                             {% if days_until <= 30 %}
@@ -355,8 +354,8 @@
                             {% endif %}
                           {% endif %}
                         {% endfor %}
-                        {% if product.batches|length > 3 %}
-                          <small class="text-muted text-center">+ {{ product.batches|length - 3 }} more batches</small>
+                        {% if product.warehouse_batches|length > 3 %}
+                          <small class="text-muted text-center">+ {{ product.warehouse_batches|length - 3 }} more batches</small>
                         {% endif %}
                       </div>
                     </td>

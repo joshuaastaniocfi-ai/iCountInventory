@@ -10,7 +10,7 @@ from flask_login import login_required, current_user
 # Local imports
 from helpers import user_redirect_to_requisition, admin_required, sys_admin_required, edit_delete_required, is_mobile_device, log_activity, assign_company, create_notification
 from extensions import db
-from models import Product, WarehouseProductBatch, StoreProductBatch, StockAudit, PendingRemoval, Requisition, RequisitionBatchDeduction, ProductHistory, BatchAudit
+from models import Product, WarehouseProductBatch, StoreProductBatch, StockAudit, PendingRemoval, Requisition, RequisitionBatchDeduction, ProductHistory, BatchAudit, ReceivingRecord
 
 # Create blueprint with URL prefix as required by project specifications
 scanner = Blueprint('scanner', __name__, url_prefix='/scanner')
@@ -245,10 +245,11 @@ def delete_batch():
                 db.session.delete(removal)
             db.session.flush()  # Flush to remove the references
 
-        # Update product quantity
-        product.quantity -= batch.quantity
-        if product.quantity < 0:
-            product.quantity = 0
+        # Update product quantities (batch belongs to warehouse)
+        product.warehouse_qty -= batch.quantity
+        if product.warehouse_qty < 0:
+            product.warehouse_qty = 0
+        product.quantity = product.warehouse_qty + product.store_qty
 
         # Delete the batch barcode image file before deleting the batch
         if batch.sub_barcode:
@@ -416,7 +417,7 @@ def mobile_requisition_fulfillment(requisition_id):
     items_with_batches = []
     for item in requisition.items:
         # Get all batches sorted by expiration date (FIFO)
-        batches = sorted(item.product.batches, key=lambda x: x.exp_date)
+        batches = sorted(item.product.warehouse_batches, key=lambda x: x.exp_date)
         # Filter out batches with no stock
         available_batches = [batch for batch in batches if batch.quantity > 0]
         
@@ -543,7 +544,7 @@ def scan_requisition_batch():
             return jsonify({'status': 'error', 'message': f'Not enough stock in batch. Available: {batch.quantity}'}), 400
         
         # Get FIFO recommended batches for this product
-        batches = sorted(requisition_item.product.batches, key=lambda x: x.exp_date)
+        batches = sorted(requisition_item.product.warehouse_batches, key=lambda x: x.exp_date)
         available_batches = [b for b in batches if b.quantity > 0]
         
         # Check if the scanned batch is among the recommended FIFO batches
@@ -662,7 +663,7 @@ def fulfill_requisition_item():
         non_compliant_batches = []
         
         # Get recommended batches for validation
-        batches = sorted(requisition_item.product.batches, key=lambda x: x.exp_date)
+        batches = sorted(requisition_item.product.warehouse_batches, key=lambda x: x.exp_date)
         available_batches = [b for b in batches if b.quantity > 0]
         
         for scanned_batch in scanned_batches:
@@ -878,7 +879,7 @@ def api_update_requisition_status():
                     warehouse_before = product.warehouse_qty
 
                     # Get all batches sorted by expiration date (first)
-                    batches = sorted(product.batches, key=lambda x: x.exp_date)
+                    batches = sorted(product.warehouse_batches, key=lambda x: x.exp_date)
 
                     # Track which batches were updated for logging
                     updated_batches = []
@@ -931,7 +932,28 @@ def api_update_requisition_status():
                     # Assign company_id to the history record
                     history_record = assign_company(history_record)
                     db.session.add(history_record)
-            
+
+                    # Record warehouse release quantity
+                    req_item.released_quantity = req_item.quantity
+                    rec = ReceivingRecord.query.filter_by(
+                        requisition_item_id=req_item.id,
+                        requisition_id=requisition.id
+                    ).first()
+                    if not rec:
+                        rec = ReceivingRecord(
+                            requisition_item_id=req_item.id,
+                            requisition_id=requisition.id,
+                            released_qty=req_item.quantity,
+                            received_qty=0.0,
+                            variance_qty=-req_item.quantity,
+                            variance_type='short',
+                            company_id=requisition.company_id,
+                            status='pending'
+                        )
+                        db.session.add(rec)
+                    else:
+                        rec.released_qty = req_item.quantity
+
             # Update status to approved and set approval date
             requisition.status = 'approved'
             requisition.date_approved = datetime.now(ZoneInfo("Asia/Manila"))

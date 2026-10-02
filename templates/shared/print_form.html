@@ -174,29 +174,39 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin: 35px 0;
-            gap: 40px;
+            margin: 30px 0;
+            gap: 20px;
         }
         
         .signature-section {
             flex: 1;
             text-align: center;
-            padding: 20px;
+            padding: 16px 10px;
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             border: 2px solid #00B4D8;
             border-radius: 8px;
         }
         
         .signature-line {
-            border-top: 3px solid #333;
-            width: 250px;
-            margin: 0 auto 5px auto;
+            border-top: 2px solid #333;
+            width: 85%;
+            max-width: 200px;
+            margin: 0 auto 6px auto;
         }
         
         .signature-label {
-            font-size: 16px;
+            font-size: 13px;
             color: #666;
-            font-weight: 600;
+            font-weight: 500;
+        }
+
+        .signature-role {
+            font-size: 15px;
+            font-weight: bold;
+            color: #004b6b;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         
@@ -292,12 +302,17 @@
             <div class="signature-section">
                 <div class="signature-line"></div>
                 <div class="signature-label">Signature over printed name</div>
-                <div class="signature-label">Received by</div>
+                <div class="signature-role">Released by</div>
             </div>
             <div class="signature-section">
                 <div class="signature-line"></div>
                 <div class="signature-label">Signature over printed name</div>
-                <div class="signature-label">Authorized by</div>
+                <div class="signature-role">Delivered by</div>
+            </div>
+            <div class="signature-section">
+                <div class="signature-line"></div>
+                <div class="signature-label">Signature over printed name</div>
+                <div class="signature-role">Received by</div>
             </div>
         </div>
 

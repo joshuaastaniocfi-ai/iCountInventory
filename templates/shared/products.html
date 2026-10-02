@@ -169,7 +169,7 @@
                 </div>
               </td>
               <td>
-                {% set nearest_batch = product.batches|sort(attribute='exp_date')|first %}
+                {% set nearest_batch = product.warehouse_batches|sort(attribute='exp_date')|first %}
                 {% if nearest_batch %}
                   {% if nearest_batch.exp_date.year >= 2099 %}
                     <span class="text-muted" style="font-size:0.85rem">—</span>
@@ -196,7 +196,7 @@
                 {% endif %}
               </td>
               <td class="text-center">
-                {% set nearest_batch = product.batches|sort(attribute='exp_date')|first %}
+                {% set nearest_batch = product.warehouse_batches|sort(attribute='exp_date')|first %}
                 {% if nearest_batch %}
                   {% if now is defined %}
                     {% set days_until = (nearest_batch.exp_date - now.date()).days %}
@@ -247,6 +247,13 @@
                         title="{{ 'Remove from favorites' if product.is_favorite else 'Add to favorites' }}">
                   <i class="{{ 'fas' if product.is_favorite else 'far' }} fa-star"></i>
                 </button>
+                {% if current_user.role in ['SYS-Admin', 'Company-Admin', 'WH-Admin', 'User'] %}
+                <a href="{{ url_for('spoilage.spoilage_records') }}?search={{ product.name|urlencode }}"
+                   class="btn btn-sm btn-outline-danger"
+                   title="Declare / View Spoilage for this product">
+                  <i class="fas fa-trash-can"></i>
+                </a>
+                {% endif %}
                 {% if current_user.role == 'SYS-Admin' or current_user.role == 'Company-Admin' %}
                 <button class="btn btn-sm btn-outline-danger" 
                         onclick="deleteProduct({{ product.id }}, '{{ product.name|e }}')"
@@ -467,7 +474,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {% for batch in product.batches|sort(attribute='exp_date') %}
+                      {% for batch in product.warehouse_batches|sort(attribute='exp_date') %}
                         {% set qty = batch.quantity or 0 %}
                         {% set int_qty = batch.int_quantity if batch.int_quantity is not none else 0 %}
                         {% set pct = (qty / int_qty * 100) if int_qty > 0 else 0 %}

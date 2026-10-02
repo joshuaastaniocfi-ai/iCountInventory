@@ -247,14 +247,14 @@ def api_expiring_products():
         for product in expiring_products:
             # Get the earliest expiring batch for this product within the date range
             earliest_batch = min(
-                [batch for batch in product.batches 
+                [batch for batch in product.warehouse_batches 
                  if batch.exp_date >= start_date and batch.exp_date <= end_date and batch.quantity > 0],
                 key=lambda x: x.exp_date
             )
             
             # Get expiring batches (limit to 3 for display)
             expiring_batches = [
-                batch for batch in product.batches 
+                batch for batch in product.warehouse_batches 
                 if batch.exp_date >= start_date and batch.exp_date <= end_date and batch.quantity > 0
             ][:3]
             
@@ -276,7 +276,7 @@ def api_expiring_products():
                     for batch in expiring_batches
                 ],
                 'total_expiring_batches': len([
-                    batch for batch in product.batches 
+                    batch for batch in product.warehouse_batches 
                     if batch.exp_date >= start_date and batch.exp_date <= end_date and batch.quantity > 0
                 ])
             })
@@ -560,7 +560,7 @@ def batch_stock_audit():
     
     # Get all batches for each product
     for product in products:
-        product.batches = WarehouseProductBatch.query.filter_by(product_id=product.id).all()
+        product.warehouse_batches = WarehouseProductBatch.query.filter_by(product_id=product.id).all()
     
     return render_template('warehouse/batch_stock_audit.html', products=products)
 
@@ -1044,10 +1044,10 @@ def settle_discrepancy(batch):
                         history_record = assign_company(history_record)
                         db.session.add(history_record)
                         
-                        # Update product total quantity
-                        product.quantity += adjustment
-                        
-                        # Update product initial quantity to match current quantity
+                        # Update product quantities (adjustment was made to warehouse batches)
+                        product.warehouse_qty += adjustment
+                        product.warehouse_initial_qty = max(product.warehouse_initial_qty or 0, product.warehouse_qty)
+                        product.quantity = product.warehouse_qty + product.store_qty
                         product.initial_quantity = product.quantity
                     
                     else:
@@ -1080,10 +1080,11 @@ def settle_discrepancy(batch):
                             history_record = assign_company(history_record)
                             db.session.add(history_record)
                     
-                    # Update product total quantity
-                    product.quantity -= shortage
-                    
-                    # Update product initial quantity to match current quantity
+                    # Update product quantities (shortage was deducted from warehouse batches)
+                    product.warehouse_qty -= shortage
+                    if product.warehouse_qty < 0:
+                        product.warehouse_qty = 0
+                    product.quantity = product.warehouse_qty + product.store_qty
                     product.initial_quantity = product.quantity
                     
                     settlement_summary.append(f"Removed {shortage} from {product.name} batches")

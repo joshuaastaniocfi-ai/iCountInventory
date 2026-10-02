@@ -211,7 +211,7 @@
                    </tr>
                  </thead>
                  <tbody>
-                   {% for batch in product.batches|sort(attribute='exp_date') %}
+                   {% for batch in product.warehouse_batches|sort(attribute='exp_date') %}
                      {% set qty = batch.quantity or 0 %}
                      {% set int_qty = batch.int_quantity if batch.int_quantity is not none else 0 %}
                      {% set pct = (qty / int_qty * 100) if int_qty > 0 else 0 %}

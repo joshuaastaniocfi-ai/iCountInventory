@@ -10,7 +10,7 @@ from flask_mail import Message
 
 # Local imports
 from extensions import db, mail
-from models import Product, Requisition, RequisitionItem, RequisitionBatchDeduction, User, ProductHistory, Company
+from models import Product, Requisition, RequisitionItem, RequisitionBatchDeduction, User, ProductHistory, Company, ReceivingRecord
 from helpers import user_redirect_to_requisition, admin_required, sys_admin_required, log_activity, assign_company, create_notification
 
 # Create blueprint with URL prefix as required by project specifications
@@ -194,19 +194,24 @@ def view_requisitions():
     search = request.args.get('q', '').strip()
     per_page = current_app.config.get('REQUISITIONS_PER_PAGE', 10)
     
-    # Base query - modified to allow SYS-Admin to see all requisitions
+    # Base query - modified to allow SYS-Admin and WH-Admin to see all requisitions
     if current_user.role == 'User':
         # Regular users can only see their own requisitions
         query = Requisition.query.filter_by(
             requested_by=current_user.full_name,
             company_id=current_user.company_id
         )
-    elif current_user.role == 'SYS-Admin':
-        # SYS-Admin can see all requisitions across all companies
+    elif current_user.role in ['SYS-Admin', 'WH-Admin']:
+        # SYS-Admin and WH-Admin can see all requisitions across all companies
         query = Requisition.query
     else:
-        # Other admins (WH-Admin, Company-Admin) can see all requisitions in their company
-        query = Requisition.query.filter_by(company_id=current_user.company_id)
+        # Other admins (Company-Admin) can see all requisitions in their company or destined to their company
+        query = Requisition.query.filter(
+            db.or_(
+                Requisition.company_id == current_user.company_id,
+                Requisition.destination_company_id == current_user.company_id
+            )
+        )
     
     # Apply status filter if provided
     if status:
@@ -338,13 +343,13 @@ def update_status(requisition_id):
 
             remaining_quantity = release_qty
 
-            if product.quantity < release_qty:
-                flash(f'Error: Not enough stock for {product.name}. Requested: {req_item.quantity}, Released: {release_qty}, Available: {product.quantity}', 'error')
+            if product.warehouse_qty < release_qty:
+                flash(f'Error: Not enough warehouse stock for {product.name}. Requested: {req_item.quantity}, Released: {release_qty}, Available in warehouse: {product.warehouse_qty}', 'error')
                 return redirect(url_for('requisitions.view_requisitions'))
 
-            total_before_deduction = product.quantity
+            warehouse_before = product.warehouse_qty
 
-            batches = sorted(product.batches, key=lambda x: x.exp_date)
+            batches = sorted(product.warehouse_batches, key=lambda x: x.exp_date)
 
             for batch in batches:
                 if remaining_quantity <= 0:
@@ -354,14 +359,44 @@ def update_status(requisition_id):
                     batch.quantity = batch.quantity - deduct_amount
                     remaining_quantity -= deduct_amount
 
-            product.quantity = product.quantity - release_qty
+            # Transfer from warehouse to store
+            product.warehouse_qty -= release_qty
+            if product.warehouse_qty < 0:
+                product.warehouse_qty = 0
+            product.store_qty += release_qty
+            product.store_initial_qty = product.store_qty
+            product.quantity = product.warehouse_qty + product.store_qty
+
+            # Record warehouse release quantity on the item
+            req_item.released_quantity = release_qty
+
+            # Create or update initial ReceivingRecord linked to this requisition
+            rec = ReceivingRecord.query.filter_by(
+                requisition_item_id=req_item.id,
+                requisition_id=requisition.id
+            ).first()
+            if not rec:
+                rec = ReceivingRecord(
+                    requisition_item_id=req_item.id,
+                    requisition_id=requisition.id,
+                    released_qty=release_qty,
+                    received_qty=0.0,
+                    variance_qty=-release_qty,
+                    variance_type='short',
+                    company_id=requisition.company_id,
+                    status='pending'
+                )
+                db.session.add(rec)
+            else:
+                rec.released_qty = release_qty
+                rec.variance_qty = (rec.received_qty or 0.0) - release_qty
 
             db.session.add(
                 RequisitionBatchDeduction(
                     requisition_item_id=req_item.id,
-                    total_current_qty=total_before_deduction,
+                    total_current_qty=warehouse_before,
                     requested_qty=req_item.quantity,
-                    remaining_qty=product.quantity
+                    remaining_qty=product.warehouse_qty
                 )
             )
 
@@ -424,15 +459,29 @@ def update_status(requisition_id):
                 requisition_id=requisition.id,
                 product_id=product_id,
                 quantity=opt_release_qty,
+                released_quantity=opt_release_qty,
                 uom=product.uom,
                 is_optional=True,
             )
             db.session.add(opt_item)
             db.session.flush()
 
+            # Create ReceivingRecord for optional item
+            opt_rec = ReceivingRecord(
+                requisition_item_id=opt_item.id,
+                requisition_id=requisition.id,
+                released_qty=opt_release_qty,
+                received_qty=0.0,
+                variance_qty=-opt_release_qty,
+                variance_type='short',
+                company_id=requisition.company_id,
+                status='pending'
+            )
+            db.session.add(opt_rec)
+
             # Deduct stock
             remaining_opt = opt_release_qty
-            opt_batches = sorted(product.batches, key=lambda x: x.exp_date)
+            opt_batches = sorted(product.warehouse_batches, key=lambda x: x.exp_date)
             for batch in opt_batches:
                 if remaining_opt <= 0:
                     break
@@ -678,3 +727,203 @@ def delete_requisition(requisition_id):
             'success': False,
             'message': 'An error occurred while deleting the requisition.'
         }), 500
+
+
+# ═══════════════════════════════════════════════════════════════════
+# WAREHOUSE ADMIN: INTER-COMPANY TRANSFER REQUISITION ROUTES
+# ═══════════════════════════════════════════════════════════════════
+
+def wh_admin_only(view_func):
+    """Ensure only WH-Admin can access inter-company transfer requisitions"""
+    from functools import wraps
+    @wraps(view_func)
+    def decorated_view(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login'))
+        if getattr(current_user, 'role', None) != 'WH-Admin':
+            flash('Access denied. Only Warehouse Administrators can request inter-company product transfers.', 'error')
+            return redirect(url_for('main.dashboard'))
+        return view_func(*args, **kwargs)
+    return decorated_view
+
+
+@requisitions.route('/transfer_form', methods=['GET'])
+@login_required
+@wh_admin_only
+def transfer_requisition_form():
+    """Display the inter-company transfer requisition wizard for WH-Admin"""
+    companies = Company.query.order_by(Company.name.asc()).all()
+    if not companies:
+        flash('No registered companies available for transfers.', 'warning')
+        return redirect(url_for('requisitions.view_requisitions'))
+
+    # Default from company (prefer current user's company or first company)
+    default_from_id = current_user.company_id if current_user.company_id else companies[0].id
+    default_to_id = None
+    for c in companies:
+        if c.id != default_from_id:
+            default_to_id = c.id
+            break
+
+    initial_products = Product.query.filter_by(company_id=default_from_id).order_by(Product.name.asc()).all()
+    now = datetime.now(ZoneInfo("Asia/Manila"))
+
+    return render_template(
+        'warehouse/transfer_requisition_form.html',
+        companies=companies,
+        default_from_id=default_from_id,
+        default_to_id=default_to_id,
+        initial_products=initial_products,
+        now=now
+    )
+
+
+@requisitions.route('/api/company_products/<int:company_id>', methods=['GET'])
+@login_required
+@wh_admin_only
+def get_company_products_api(company_id):
+    """Return available products and warehouse stock for the selected source company"""
+    company = Company.query.get_or_404(company_id)
+    products = Product.query.filter_by(company_id=company_id).order_by(Product.name.asc()).all()
+
+    product_list = []
+    for p in products:
+        product_list.append({
+            'id': p.id,
+            'name': p.name,
+            'barcode': p.barcode or '',
+            'uom': p.uom or 'unit',
+            'category': p.account_title or 'General',
+            'warehouse_qty': float(p.warehouse_qty or 0.0),
+            'store_qty': float(p.store_qty or 0.0),
+            'quantity': float(p.quantity or 0.0)
+        })
+
+    return jsonify({
+        'success': True,
+        'company': {
+            'id': company.id,
+            'name': company.name,
+            'franchise_name': company.franchise_name or ''
+        },
+        'products': product_list
+    })
+
+
+@requisitions.route('/submit_transfer_requisition', methods=['POST'])
+@login_required
+@wh_admin_only
+def submit_transfer_requisition():
+    """Submit a company-to-company transfer requisition created by WH-Admin"""
+    try:
+        from_company_id = int(request.form.get('from_company_id'))
+        to_company_id = int(request.form.get('to_company_id'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Please select valid source and destination companies.'}), 400
+
+    if from_company_id == to_company_id:
+        return jsonify({'success': False, 'message': 'Source (From) company and Destination (To) company must be different.'}), 400
+
+    from_company = Company.query.get(from_company_id)
+    to_company = Company.query.get(to_company_id)
+    if not from_company or not to_company:
+        return jsonify({'success': False, 'message': 'One or both companies could not be found.'}), 404
+
+    items_json = request.form.get('items_json')
+    if not items_json:
+        return jsonify({'success': False, 'message': 'No items selected for transfer.'}), 400
+
+    try:
+        items = json.loads(items_json)
+    except Exception:
+        return jsonify({'success': False, 'message': 'Invalid items format submitted.'}), 400
+
+    if not items or len(items) == 0:
+        return jsonify({'success': False, 'message': 'Please add at least one product with quantity > 0.'}), 400
+
+    contact_number = request.form.get('contact_number', '').strip()
+    transfer_date_str = request.form.get('transfer_date', '').strip()
+    notes = request.form.get('notes', '').strip()
+    station = request.form.get('station', '').strip() or 'Warehouse Transfer'
+
+    date_of_delivery = None
+    if transfer_date_str:
+        try:
+            date_of_delivery = datetime.strptime(transfer_date_str, '%Y-%m-%d')
+        except Exception:
+            pass
+
+    branch_desc = f"Transfer: {from_company.name} -> {to_company.name}"
+
+    try:
+        requisition = Requisition(
+            requested_by=current_user.full_name,
+            status='Pending',
+            contact_number=contact_number,
+            branch=branch_desc,
+            station=station,
+            company_id=from_company_id,
+            destination_company_id=to_company_id,
+            requisition_type='transfer',
+            date_of_delivery=date_of_delivery
+        )
+        db.session.add(requisition)
+        db.session.flush()
+
+        valid_items_count = 0
+        for item in items:
+            try:
+                qty = float(item.get('quantity', 0))
+            except (ValueError, TypeError):
+                continue
+            if qty <= 0:
+                continue
+
+            p_id = int(item['product_id'])
+            product = Product.query.filter_by(id=p_id, company_id=from_company_id).first()
+            if not product:
+                continue
+
+            ri = RequisitionItem(
+                requisition_id=requisition.id,
+                product_id=p_id,
+                quantity=qty,
+                uom=item.get('uom') or product.uom or 'unit'
+            )
+            db.session.add(ri)
+            valid_items_count += 1
+
+        if valid_items_count == 0:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': 'No valid product quantities found in the request.'}), 400
+
+        db.session.commit()
+
+        # Log activity
+        log_activity(
+            action="Transfer Requisition Submitted",
+            details=f"Transfer Requisition #{requisition.id} ({from_company.name} -> {to_company.name}) with {valid_items_count} items submitted by {current_user.full_name}"
+        )
+
+        # Notify admins
+        try:
+            create_notification(
+                title="New Transfer Requisition",
+                message=f"Warehouse Admin {current_user.full_name} submitted Transfer Requisition #{requisition.id} from {from_company.name} to {to_company.name}.",
+                user_id=None,
+                company_id=from_company_id,
+                link=url_for('requisitions.view_requisitions')
+            )
+        except Exception as notif_err:
+            print("Transfer notification error:", notif_err)
+
+        return jsonify({
+            'success': True,
+            'message': f'Transfer Requisition #{requisition.id} successfully created!',
+            'requisition_id': requisition.id
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error submitting transfer requisition: {e}")
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500

@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 import secrets
+import json
 
 # Local imports
 from extensions import db
@@ -22,10 +23,13 @@ class Company(db.Model):
     # Relationships
     users = db.relationship('User', backref='company')
     products = db.relationship('Product', backref='company')
-    requisitions = db.relationship('Requisition', backref='company')
+    requisitions = db.relationship('Requisition', foreign_keys='Requisition.company_id', backref='company')
     stock_audits = db.relationship('StockAudit', backref='company')
     product_histories = db.relationship('ProductHistory', backref='company')
     pending_removals = db.relationship('PendingRemoval', backref='company')
+    spoilages = db.relationship('Spoilage', backref='company')
+    oth_records = db.relationship('OnTheHouse', foreign_keys='OnTheHouse.company_id', backref='company')
+    store_productions = db.relationship('StoreProduction', foreign_keys='StoreProduction.company_id', backref='company')
 
 
 class User(db.Model, UserMixin):
@@ -132,7 +136,7 @@ class Requisition(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date_created = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
     requested_by = db.Column(db.String(100), nullable=False)
-    status = db.Column(db.String(20), default='Pending')
+    status = db.Column(db.String(50), default='Pending')
     contact_number = db.Column(db.String(20))
     branch = db.Column(db.String(50))
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
@@ -143,6 +147,19 @@ class Requisition(db.Model):
     date_approved = db.Column(db.DateTime, nullable=True)
     date_of_delivery = db.Column(db.DateTime, nullable=True)
     station = db.Column(db.String(50))  # Station type: Sandwich, Counter, Soda, Maincourse, Warehouse, Coffee Bar
+    # Variance tracking directly linked to requisition
+    has_variance = db.Column(db.Boolean, default=False, nullable=True)
+    variance_summary = db.Column(db.Text, nullable=True)
+    variance_resolution = db.Column(db.String(50), nullable=True)
+    variance_resolved_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    variance_resolved_at = db.Column(db.DateTime, nullable=True)
+    variance_admin_notes = db.Column(db.Text, nullable=True)
+    variance_resolver = db.relationship('User', foreign_keys=[variance_resolved_by], backref='resolved_requisition_variances')
+
+    # Transfer requisition fields (From Company -> To Company)
+    requisition_type = db.Column(db.String(50), default='store', nullable=True)  # 'store' or 'transfer'
+    destination_company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
+    destination_company = db.relationship('Company', foreign_keys=[destination_company_id], backref='incoming_transfers')
     # Note: RequisitionItem and RequisitionBatchDeduction inherit company context through relationships
 
 
@@ -150,7 +167,8 @@ class RequisitionItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     requisition_id = db.Column(db.Integer, db.ForeignKey('requisition.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    quantity = db.Column(db.Float, nullable=False, default=0.0)
+    quantity = db.Column(db.Float, nullable=False, default=0.0)  # Original quantity requested by store
+    released_quantity = db.Column(db.Float, nullable=True)        # Exact quantity released by warehouse for delivery
     uom = db.Column(db.String(50), nullable=False)
     is_optional = db.Column(db.Boolean, default=False, nullable=False)
     product = db.relationship('Product')
@@ -244,11 +262,17 @@ class ReceivingRecord(db.Model):
     confirmed_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     confirmed_at = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
     notes = db.Column(db.Text)
+    status = db.Column(db.String(30), default='approved')  # 'approved', 'pending_approval', 'resolved'
+    resolution_type = db.Column(db.String(50), nullable=True)  # 'damaged_loss', 'warehouse_miscount_charge', 'store_wrong_count', 'restore_warehouse', 'restore_store', 'recount'
+    admin_notes = db.Column(db.Text, nullable=True)
+    resolved_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    resolved_at = db.Column(db.DateTime, nullable=True)
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
 
     requisition_item = db.relationship('RequisitionItem', backref='receiving_records')
     requisition = db.relationship('Requisition', backref='receiving_records')
-    confirmed_by_user = db.relationship('User', backref='receiving_records')
+    confirmed_by_user = db.relationship('User', foreign_keys=[confirmed_by], backref='receiving_records')
+    resolved_by_user = db.relationship('User', foreign_keys=[resolved_by], backref='resolved_receiving_records')
 
 
 class PendingRemoval(db.Model):
@@ -310,3 +334,91 @@ class Notification(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
 
     user = db.relationship('User', backref='notifications')
+
+
+class Spoilage(db.Model):
+    __tablename__ = 'spoilage'
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    side = db.Column(db.String(20), nullable=False)  # 'warehouse' or 'store'
+    quantity = db.Column(db.Float, nullable=False)
+    exp_date = db.Column(db.Date, nullable=True)  # expiry date (if applicable)
+    reason = db.Column(db.String(200), nullable=True)
+    remarks = db.Column(db.Text, nullable=True)
+    images = db.Column(db.Text, nullable=True)  # JSON-encoded list of image filenames
+    declaration_date = db.Column(db.Date, nullable=True)  # date of declaration
+    declared_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
+
+    # Relationships
+    product = db.relationship('Product', backref=db.backref('spoilages', cascade="all, delete-orphan"))
+    user = db.relationship('User', backref='declared_spoilages', foreign_keys=[declared_by])
+
+    @property
+    def image_list(self):
+        if not self.images:
+            return []
+        try:
+            parsed = json.loads(self.images)
+            if isinstance(parsed, list):
+                return parsed
+            return [parsed]
+        except Exception:
+            return [s.strip() for s in self.images.split(',') if s.strip()]
+
+
+class OnTheHouse(db.Model):
+    """On The House (OTH) model for employee food and snacks privilege."""
+    __tablename__ = 'on_the_house'
+
+    id = db.Column(db.Integer, primary_key=True)
+    transaction_date = db.Column(db.Date, nullable=False, default=lambda: datetime.now(ZoneInfo("Asia/Manila")).date())
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
+    employee_name = db.Column(db.String(150), nullable=False)  # Employee receiving the OTH
+    purpose = db.Column(db.Text, nullable=False)  # Reason / purpose for the OTH
+    intended_approver = db.Column(db.String(150), nullable=True)  # Optional intended approver noted by requester
+    approver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Approver user ID
+    approver_name = db.Column(db.String(150), nullable=True)  # Full name of the approver
+    status = db.Column(db.String(50), default='Pending', nullable=False)  # 'Pending', 'Approved', 'Declined', 'Released'
+    requested_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
+    date_approved = db.Column(db.DateTime, nullable=True)
+    date_declined = db.Column(db.DateTime, nullable=True)
+    date_released = db.Column(db.DateTime, nullable=True)
+    released_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    admin_notes = db.Column(db.Text, nullable=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
+
+    # Relationships
+    product = db.relationship('Product', backref=db.backref('oth_records', lazy='dynamic'))
+    requester = db.relationship('User', foreign_keys=[requested_by], backref='requested_oth_records')
+    approver = db.relationship('User', foreign_keys=[approver_id], backref='approved_oth_records')
+    releaser = db.relationship('User', foreign_keys=[released_by], backref='released_oth_records')
+
+
+class StoreProduction(db.Model):
+    """Store-side production tracking where finished goods/portions deduct from store inventory."""
+    __tablename__ = 'store_production'
+
+    id = db.Column(db.Integer, primary_key=True)
+    batch_code = db.Column(db.String(50), nullable=False)  # e.g., 'PRD-20260930-001'
+    production_date = db.Column(db.Date, nullable=False, default=lambda: datetime.now(ZoneInfo("Asia/Manila")).date())
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    product_name = db.Column(db.String(100), nullable=False)
+    portion_formula = db.Column(db.String(100), nullable=False)  # e.g., '1order=175grams', '1pc'
+    quantity = db.Column(db.Float, nullable=False)  # Quantity produced in orders or pieces
+    unit_type = db.Column(db.String(20), default='order')  # 'order' or 'piece'
+    total_yield_grams = db.Column(db.Float, nullable=True)  # e.g. quantity * 175
+    store_qty_before = db.Column(db.Float, nullable=False, default=0.0)
+    store_qty_after = db.Column(db.Float, nullable=False, default=0.0)
+    produced_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
+
+    # Relationships
+    product = db.relationship('Product', backref=db.backref('store_productions', lazy='dynamic'))
+    producer = db.relationship('User', foreign_keys=[produced_by], backref='store_productions')

@@ -1,0 +1,433 @@
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}Store Dashboard - iCount{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+
+  <!-- ── Welcome Header ── -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-2">
+    <div>
+      <h3 class="fw-bold mb-1" style="letter-spacing:-0.03em">
+        {% if now.hour < 12 %}Good Morning{% elif now.hour < 17 %}Good Afternoon{% else %}Good Evening{% endif %},
+        <span style="color:var(--accent)">{{ current_user.full_name.split()[0] }}</span>
+      </h3>
+      <p class="text-muted mb-0" style="font-size:0.9rem">
+        {{ now.strftime('%B %d, %Y') }} &mdash; Here's your store inventory overview
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('store.production') }}" class="btn btn-primary btn-sm shadow-sm d-flex align-items-center gap-1" style="background:#059669; border-color:#059669;">
+        <i class="fas fa-kitchen-set"></i>
+        <span>Store Production</span>
+      </a>
+      <a href="{{ url_for('spoilage.spoilage_records') }}" class="btn btn-outline-danger btn-sm shadow-sm d-flex align-items-center gap-1">
+        <i class="fas fa-trash-can"></i>
+        <span>Store Spoilage</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Stat Cards ── -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="stat-card products" style="cursor:default">
+        <div class="stat-card-content">
+          <div class="stat-icon"><i class="fas fa-box-open"></i></div>
+          <div class="stat-details">
+            <span class="stat-title">Total Products</span>
+            <h3 class="stat-value">{{ total_products }}</h3>
+            <span class="stat-label">Tracked items</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card" style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#fff;border:none">
+        <div class="stat-card-content">
+          <div class="stat-icon" style="background:rgba(255,255,255,0.2)"><i class="fas fa-store"></i></div>
+          <div class="stat-details">
+            <span class="stat-title" style="color:rgba(255,255,255,0.85)">Store Stock</span>
+            <h3 class="stat-value">{{ total_store_qty|round(1) }}</h3>
+            <span class="stat-label" style="color:rgba(255,255,255,0.7)">Total units on hand</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card low-stock">
+        <div class="stat-card-content">
+          <div class="stat-icon"><i class="fas fa-triangle-exclamation"></i></div>
+          <div class="stat-details">
+            <span class="stat-title">Low Stock</span>
+            <h3 class="stat-value">{{ store_low_stock }}</h3>
+            <span class="stat-label">Below reorder level</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card" style="background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);color:#fff;border:none">
+        <div class="stat-card-content">
+          <div class="stat-icon" style="background:rgba(255,255,255,0.2)"><i class="fas fa-clipboard-list"></i></div>
+          <div class="stat-details">
+            <span class="stat-title" style="color:rgba(255,255,255,0.85)">My Requests</span>
+            <h3 class="stat-value">{{ my_pending }}</h3>
+            <span class="stat-label" style="color:rgba(255,255,255,0.7)">Pending requisitions</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Charts Row ── -->
+  <div class="row g-4 mb-4">
+    <!-- Bar: Store vs Warehouse -->
+    <div class="col-lg-8">
+      <div class="card dashboard-card">
+        <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0">
+            <i class="fas fa-chart-bar text-primary me-2"></i>Store vs Warehouse Stock
+          </h5>
+          <small class="text-muted">Top 10 products</small>
+        </div>
+        <div class="card-body">
+          <canvas id="storeVsWarehouseChart" height="280"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pie: By Account Title -->
+    <div class="col-lg-4">
+      <div class="card dashboard-card">
+        <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0">
+            <i class="fas fa-chart-pie text-warning me-2"></i>Store Stock by Category
+          </h5>
+        </div>
+        <div class="card-body">
+          {% if account_labels %}
+          <canvas id="categoryPieChart" height="280"></canvas>
+          {% else %}
+          <div class="text-center py-5">
+            <i class="fas fa-chart-pie text-muted fa-3x mb-3 opacity-25"></i>
+            <p class="text-muted mb-0">No store stock data yet</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tables Row ── -->
+  <div class="row g-4 mb-4">
+
+    <!-- Low Stock Table -->
+    <div class="col-lg-6">
+      <div class="card dashboard-card low-stock-alert">
+        <div class="card-header border-0 bg-dark text-white d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0">
+            <i class="fas fa-exclamation-triangle text-warning me-2"></i>Low Stock Alerts
+          </h5>
+          <span class="badge bg-warning text-dark">{{ low_stock_products|length }}</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 border-0">
+              <thead>
+                <tr>
+                  <th class="ps-3">Product</th>
+                  <th class="text-center">Store Qty</th>
+                  <th class="text-center">Reorder</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in low_stock_products %}
+                <tr>
+                  <td class="ps-3">
+                    <div class="fw-semibold small">{{ p.name }}</div>
+                    <small class="text-muted">{{ p.uom }}</small>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-danger rounded-pill">{{ p.store_qty }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="text-muted small">{{ p.reorder_level }}</span>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="3" class="text-center py-4">
+                    <i class="fas fa-check-circle text-success fa-2x mb-2 d-block"></i>
+                    <span class="text-muted small">All store stock levels healthy!</span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- My Requisitions -->
+    <div class="col-lg-6">
+      <div class="card dashboard-card">
+        <div class="card-header border-0 bg-dark text-white d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0">
+            <i class="fas fa-file-alt text-info me-2"></i>My Recent Requests
+          </h5>
+          <a href="{{ url_for('requisitions.view_requisitions') }}" class="btn btn-sm btn-outline-light">View All</a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 border-0">
+              <thead>
+                <tr>
+                  <th class="ps-3">Date</th>
+                  <th>Status</th>
+                  <th class="text-center">Items</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for req in my_requisitions %}
+                <tr>
+                  <td class="ps-3">
+                    <div class="small fw-medium">{{ req.date_created.strftime('%b %d, %Y') }}</div>
+                    <small class="text-muted">{{ req.date_created.strftime('%I:%M %p') }}</small>
+                  </td>
+                  <td>
+                    {% if req.status == 'Pending' %}
+                      <span class="badge bg-warning text-dark">Pending</span>
+                    {% elif req.status == 'approved' %}
+                      <span class="badge bg-success">Approved</span>
+                    {% elif req.status == 'Dispatched' %}
+                      <span class="badge bg-info">Dispatched</span>
+                    {% elif req.status == 'Delivered' %}
+                      <span class="badge bg-primary">Delivered</span>
+                    {% elif req.status == 'Rejected' %}
+                      <span class="badge bg-danger">Rejected</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{{ req.status }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    <span class="small fw-bold">{{ req.items|length }}</span>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="3" class="text-center py-4">
+                    <i class="fas fa-inbox text-muted fa-2x mb-2 d-block"></i>
+                    <span class="text-muted small">No requisitions yet</span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Bottom Row: Stock Table + Activity ── -->
+  <div class="row g-4 mb-4">
+    <!-- In-Stock Products Table -->
+    <div class="col-lg-8">
+      <div class="card dashboard-card">
+        <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0">
+            <i class="fas fa-warehouse text-success me-2"></i>Store Inventory Overview
+          </h5>
+          <a href="{{ url_for('store.inventory_count') }}" class="btn btn-sm btn-success">
+            <i class="fas fa-clipboard-check me-1"></i>Count Inventory
+          </a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 border-0">
+              <thead>
+                <tr>
+                  <th class="ps-3">Product</th>
+                  <th class="text-center">Store Qty</th>
+                  <th class="text-center">Warehouse Qty</th>
+                  <th class="text-center">Total</th>
+                  <th class="text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in in_stock_products %}
+                <tr>
+                  <td class="ps-3">
+                    <div class="fw-semibold small">{{ p.name }}</div>
+                    <small class="text-muted">{{ p.uom }}</small>
+                  </td>
+                  <td class="text-center fw-bold" style="color:#10b981">{{ p.store_qty }}</td>
+                  <td class="text-center text-muted">{{ p.warehouse_qty }}</td>
+                  <td class="text-center fw-bold">{{ p.quantity }}</td>
+                  <td class="text-center">
+                    {% if p.store_qty == 0 %}
+                      <span class="badge bg-danger">Out of Stock</span>
+                    {% elif p.is_low_stock %}
+                      <span class="badge bg-warning text-dark">Low</span>
+                    {% else %}
+                      <span class="badge bg-success">In Stock</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="5" class="text-center py-4">
+                    <i class="fas fa-box-open text-muted fa-2x mb-2 d-block"></i>
+                    <span class="text-muted small">No products with store stock</span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity Feed -->
+    <div class="col-lg-4">
+      <div class="card dashboard-card">
+        <div class="card-header border-0 bg-dark text-white">
+          <h5 class="card-title mb-0">
+            <i class="fas fa-history text-info me-2"></i>Recent Activity
+          </h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="activity-timeline" style="max-height:420px;overflow-y:auto">
+            {% for log in recent_logs %}
+            <div class="activity-item">
+              <div class="activity-content">
+                <div class="activity-icon
+                     {% if 'Add' in log.action %}bg-success
+                     {% elif 'Remove' in log.action %}bg-danger
+                     {% elif 'Count' in log.action %}bg-info
+                     {% else %}bg-primary{% endif %}">
+                  <i class="fas
+                       {% if 'Add' in log.action %}fa-plus
+                       {% elif 'Remove' in log.action %}fa-minus
+                       {% elif 'Count' in log.action %}fa-clipboard-check
+                       {% elif 'Requisition' in log.action %}fa-file-alt
+                       {% else %}fa-sync{% endif %}"></i>
+                </div>
+                <div class="activity-details">
+                  <div class="activity-header">
+                    <h6 class="mb-0 small">{{ log.action }}</h6>
+                    <span class="activity-time">{{ log.timestamp|relative_time }}</span>
+                  </div>
+                  <p class="mb-0 small text-muted">{{ log.details|safe }}</p>
+                </div>
+              </div>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+              <i class="fas fa-history text-muted fa-2x mb-2 d-block"></i>
+              <span class="text-muted small">No recent activity</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Chart.js ── -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+                 document.body.classList.contains('dark-mode');
+  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+  const textColor = isDark ? '#94a3b8' : '#64748b';
+
+  // ── Store vs Warehouse Bar Chart ──
+  const barCtx = document.getElementById('storeVsWarehouseChart');
+  if (barCtx) {
+    new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: {{ chart_labels | tojson }},
+        datasets: [
+          {
+            label: 'Store',
+            data: {{ chart_store | tojson }},
+            backgroundColor: 'rgba(16,185,129,0.8)',
+            borderColor: '#10b981',
+            borderWidth: 1,
+            borderRadius: 4
+          },
+          {
+            label: 'Warehouse',
+            data: {{ chart_warehouse | tojson }},
+            backgroundColor: 'rgba(59,130,246,0.8)',
+            borderColor: '#3b82f6',
+            borderWidth: 1,
+            borderRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: textColor, usePointStyle: true, pointStyle: 'circle', padding: 16 } },
+          tooltip: { mode: 'index', intersect: false }
+        },
+        scales: {
+          x: { ticks: { color: textColor, maxRotation: 45 }, grid: { display: false } },
+          y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  // ── Category Pie Chart ──
+  const pieCtx = document.getElementById('categoryPieChart');
+  if (pieCtx) {
+    const pieColors = [
+      '#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6',
+      '#ec4899','#06b6d4','#84cc16'
+    ];
+    new Chart(pieCtx, {
+      type: 'doughnut',
+      data: {
+        labels: {{ account_labels | tojson }},
+        datasets: [{
+          data: {{ account_values | tojson }},
+          backgroundColor: pieColors.slice(0, {{ account_labels | length }}),
+          borderWidth: 2,
+          borderColor: isDark ? '#1e293b' : '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: textColor, usePointStyle: true, pointStyle: 'circle', padding: 10, font: { size: 11 } }
+          }
+        }
+      }
+    });
+  }
+});
+</script>
+
+<style>
+  .stat-card .stat-value { font-size: 1.6rem; }
+  .stat-card .stat-label { font-size: 0.75rem; }
+  .activity-timeline { padding: 0.5rem 0; }
+  .activity-item { padding: 0.5rem 1rem; }
+  .activity-item + .activity-item { border-top: 1px solid var(--border-color, rgba(0,0,0,0.06)); }
+</style>
+{% endblock %}

@@ -124,7 +124,7 @@ def collect_report_data(week_start, week_end):
     
     # Debug: Show expired product details
     for product in expired_products:
-        expired_batches = [batch for batch in product.batches if batch.exp_date <= today and batch.quantity > 0]
+        expired_batches = [batch for batch in product.warehouse_batches if batch.exp_date <= today and batch.quantity > 0]
         total_expired_qty = sum(batch.quantity for batch in expired_batches)
         print(f"   ❌ {product.name}: {total_expired_qty} {product.uom} expired (batches: {len(expired_batches)})")
     
@@ -191,7 +191,7 @@ def format_report(data, week_start, week_end):
     expired_html = ""
     for product in data['expired_products']:
         # Get total expired quantity from batches
-        expired_qty = sum(batch.quantity for batch in product.batches if batch.exp_date <= datetime.now(ZoneInfo("Asia/Manila")).date() and batch.quantity > 0)
+        expired_qty = sum(batch.quantity for batch in product.warehouse_batches if batch.exp_date <= datetime.now(ZoneInfo("Asia/Manila")).date() and batch.quantity > 0)
         expired_html += f"<tr><td>{product.name}</td><td>{expired_qty} {product.uom}</td><td>{product.account_title}</td></tr>"
     
     # Format expiring products within 3 months
@@ -202,7 +202,7 @@ def format_report(data, week_start, week_end):
         three_months_from_now = today + timedelta(days=90)
         
         # Find batches expiring within 3 months
-        expiring_batches = [batch for batch in product.batches 
+        expiring_batches = [batch for batch in product.warehouse_batches 
                            if batch.quantity > 0 
                            and batch.exp_date > today 
                            and batch.exp_date <= three_months_from_now]

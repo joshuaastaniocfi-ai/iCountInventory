@@ -1,0 +1,942 @@
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}Store Production - iCount{% endblock %}
+
+{% block styles %}
+<style>
+  :root {
+    --prod-emerald: #059669;
+    --prod-emerald-light: #ecfdf5;
+    --prod-emerald-border: #a7f3d0;
+    --prod-card-bg: #ffffff;
+    --prod-surface-bg: #f8fafc;
+    --prod-border: #e2e8f0;
+    --prod-text-main: #0f172a;
+    --prod-text-muted: #64748b;
+    --prod-hero-bg: linear-gradient(135deg, rgba(5, 150, 105, 0.08) 0%, rgba(13, 148, 136, 0.04) 100%);
+    --prod-row-bg: #f8fafc;
+    --prod-row-hover: #ffffff;
+  }
+
+  body.dark-mode,
+  html.dark-mode,
+  .dark-mode,
+  [data-bs-theme="dark"],
+  body.dark-mode :root,
+  html.dark-mode :root {
+    --prod-card-bg: #121523;
+    --prod-surface-bg: #161a2c;
+    --prod-border: rgba(255, 255, 255, 0.08);
+    --prod-text-main: #f1f5f9;
+    --prod-text-muted: #94a3b8;
+    --prod-hero-bg: linear-gradient(135deg, rgba(5, 150, 105, 0.18) 0%, rgba(13, 148, 136, 0.08) 100%);
+    --prod-row-bg: #161a2c;
+    --prod-row-hover: #1c2137;
+  }
+
+  .prod-hero {
+    background: var(--prod-hero-bg);
+    border: 1px solid var(--prod-border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  }
+  body.dark-mode .prod-hero,
+  html.dark-mode .prod-hero,
+  [data-bs-theme="dark"] .prod-hero {
+    border-color: rgba(5, 150, 105, 0.3) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+  }
+  .prod-hero-title {
+    color: var(--prod-text-main) !important;
+  }
+
+  /* KPI Cards */
+  .prod-kpi-card {
+    background: var(--prod-card-bg);
+    border: 1px solid var(--prod-border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+    transition: all 0.25s ease;
+    height: 100%;
+  }
+  .prod-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+  }
+  .prod-kpi-val {
+    font-size: 1.75rem;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--prod-text-main);
+  }
+  .prod-kpi-lbl {
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--prod-text-muted);
+  }
+  .prod-kpi-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+  }
+
+  /* Catalog Pills */
+  .catalog-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: var(--prod-surface-bg);
+    border: 1px solid var(--prod-border);
+    color: var(--prod-text-main);
+    transition: all 0.2s ease;
+  }
+  .catalog-pill:hover {
+    border-color: #059669;
+    background: rgba(5, 150, 105, 0.12);
+  }
+  body.dark-mode .catalog-pill,
+  html.dark-mode .catalog-pill,
+  [data-bs-theme="dark"] .catalog-pill {
+    background: #181d30 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #e2e8f0 !important;
+  }
+  .catalog-pill .stock-badge {
+    padding: 2px 7px;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  /* Section Cards */
+  .prod-section-card {
+    border: 1px solid var(--prod-border) !important;
+    border-radius: 14px;
+    background: var(--prod-card-bg) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+    overflow: hidden;
+  }
+  .prod-section-header {
+    background: var(--prod-card-bg) !important;
+    border-bottom: 1px solid var(--prod-border) !important;
+    color: var(--prod-text-main) !important;
+  }
+  body.dark-mode .prod-section-card,
+  html.dark-mode .prod-section-card,
+  [data-bs-theme="dark"] .prod-section-card {
+    background: var(--prod-card-bg) !important;
+    border-color: var(--prod-border) !important;
+  }
+  body.dark-mode .prod-section-header,
+  html.dark-mode .prod-section-header,
+  [data-bs-theme="dark"] .prod-section-header {
+    background: var(--prod-card-bg) !important;
+    border-color: var(--prod-border) !important;
+    color: var(--prod-text-main) !important;
+  }
+
+  /* Table styling */
+  .prod-table-card {
+    border: 1px solid var(--prod-border) !important;
+    border-radius: 14px;
+    background: var(--prod-card-bg) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+    overflow: hidden;
+  }
+  .prod-table {
+    color: var(--prod-text-main) !important;
+  }
+  .prod-table th {
+    background: var(--prod-surface-bg) !important;
+    color: var(--prod-text-muted) !important;
+    font-size: 0.73rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--prod-border) !important;
+  }
+  .prod-table td {
+    padding: 14px 16px;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--prod-border) !important;
+    font-size: 0.88rem;
+    color: var(--prod-text-main) !important;
+    background: transparent !important;
+  }
+  .prod-table tr:hover td {
+    background-color: rgba(99, 102, 241, 0.06) !important;
+  }
+  body.dark-mode .prod-table tr:hover td,
+  html.dark-mode .prod-table tr:hover td,
+  [data-bs-theme="dark"] .prod-table tr:hover td {
+    background-color: rgba(255, 255, 255, 0.04) !important;
+  }
+
+  /* Title text helper */
+  .prod-text-title {
+    color: var(--prod-text-main) !important;
+  }
+
+  /* Input Addon */
+  .prod-input-addon {
+    background-color: var(--prod-surface-bg) !important;
+    border-color: var(--prod-border) !important;
+    color: var(--prod-text-muted) !important;
+  }
+
+  /* Inputs & Forms in Dark Mode */
+  body.dark-mode .form-control,
+  body.dark-mode .form-select,
+  html.dark-mode .form-control,
+  html.dark-mode .form-select,
+  [data-bs-theme="dark"] .form-control,
+  [data-bs-theme="dark"] .form-select {
+    background-color: #161a2c !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #f1f5f9 !important;
+  }
+  body.dark-mode .form-control:focus,
+  body.dark-mode .form-select:focus,
+  html.dark-mode .form-control:focus,
+  html.dark-mode .form-select:focus,
+  [data-bs-theme="dark"] .form-control:focus,
+  [data-bs-theme="dark"] .form-select:focus {
+    background-color: #1a1f35 !important;
+    border-color: #10b981 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25) !important;
+  }
+  body.dark-mode .input-group-text,
+  html.dark-mode .input-group-text,
+  [data-bs-theme="dark"] .input-group-text {
+    background-color: #1a1f35 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #94a3b8 !important;
+  }
+
+  /* Dynamic Form Row */
+  .entry-row {
+    background: var(--prod-row-bg);
+    border: 1px solid var(--prod-border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    position: relative;
+    transition: all 0.2s ease;
+  }
+  .entry-row:hover {
+    border-color: #059669;
+    background: var(--prod-row-hover);
+  }
+  .btn-remove-row {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+  }
+
+  /* Modals in Dark Mode */
+  body.dark-mode .modal-content,
+  html.dark-mode .modal-content,
+  [data-bs-theme="dark"] .modal-content {
+    background-color: #121523 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #f1f5f9 !important;
+  }
+  body.dark-mode .modal-footer,
+  html.dark-mode .modal-footer,
+  [data-bs-theme="dark"] .modal-footer {
+    background-color: #161a2c !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4 py-3">
+
+  <!-- ── 1. Page Header ── -->
+  <div class="prod-hero">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge" style="background: rgba(5, 150, 105, 0.15); color: #059669; font-weight: 700; font-size: 0.8rem; letter-spacing: 0.04em;">
+            <i class="fas fa-kitchen-set me-1"></i>STORE PRODUCTION
+          </span>
+          <span class="text-muted small">&bull; Daily Meal &amp; Portion Output</span>
+        </div>
+        <h3 class="fw-bold mb-1 prod-hero-title" style="letter-spacing: -0.02em;">
+          Store Production &amp; Inventory Deductions
+        </h3>
+        <p class="text-muted small mb-0">
+          <i class="fas fa-circle-info me-1" style="color: #059669;"></i>
+          Recording production for authorized recipe items automatically deducts portions from store inventory stocks.
+        </p>
+      </div>
+
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2 px-3 py-2 fw-semibold"
+                style="background: linear-gradient(135deg, #059669 0%, #047857 100%); border: none; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);"
+                data-bs-toggle="modal" data-bs-target="#newProductionModal">
+          <i class="fas fa-plus-circle"></i>
+          <span>Record Production</span>
+        </button>
+        <a href="{{ url_for('requisitions.requisition_form') }}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2 px-3 py-2">
+          <i class="fas fa-boxes-stacked"></i>
+          <span>Store Inventory</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 2. KPI Cards ── -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="prod-kpi-card">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="prod-kpi-val text-success">{{ today_count }}</div>
+            <div class="prod-kpi-lbl">Today's Batches</div>
+          </div>
+          <div class="prod-kpi-icon" style="background: rgba(5, 150, 105, 0.12); color: #059669;">
+            <i class="fas fa-calendar-day"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="prod-kpi-card">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="prod-kpi-val text-primary">{{ today_qty_sum }}</div>
+            <div class="prod-kpi-lbl">Today's Portions / Orders</div>
+          </div>
+          <div class="prod-kpi-icon" style="background: rgba(59, 130, 246, 0.12); color: #2563eb;">
+            <i class="fas fa-utensils"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="prod-kpi-card">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="prod-kpi-val text-warning">{{ today_grams_sum }}g</div>
+            <div class="prod-kpi-lbl">Today's Yield (Grams)</div>
+          </div>
+          <div class="prod-kpi-icon" style="background: rgba(245, 158, 11, 0.12); color: #d97706;">
+            <i class="fas fa-weight-scale"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="prod-kpi-card">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="prod-kpi-val prod-text-title">{{ allowed_products|length }}</div>
+            <div class="prod-kpi-lbl">Configured Items</div>
+          </div>
+          <div class="prod-kpi-icon" style="background: rgba(99, 102, 241, 0.12); color: #4f46e5;">
+            <i class="fas fa-list-check"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 3. Production Products Catalog Strip ── -->
+  <div class="prod-section-card mb-4">
+    <div class="prod-section-header py-3 px-3 d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center gap-2">
+        <i class="fas fa-utensils text-success"></i>
+        <span class="fw-bold prod-text-title" style="font-size: 0.92rem;">Authorized Production Menu ({{ allowed_products|length }} Items)</span>
+      </div>
+      <button class="btn btn-sm btn-link text-muted p-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#catalogCollapse" aria-expanded="false">
+        <i class="fas fa-chevron-down me-1"></i>Toggle Catalog Overview
+      </button>
+    </div>
+    <div class="collapse show" id="catalogCollapse">
+      <div class="p-3">
+        <div class="d-flex flex-wrap gap-2">
+          {% for p in allowed_products %}
+          <div class="catalog-pill" title="Store Stock: {{ p.store_qty }} {{ p.uom }}">
+            <span class="fw-semibold">{{ p.name }}</span>
+            <span class="text-muted" style="font-size: 0.72rem;">({{ p.formula }})</span>
+            <span class="stock-badge {% if p.store_qty > 10 %}bg-success text-white{% elif p.store_qty > 0 %}bg-warning text-dark{% else %}bg-danger text-white{% endif %}">
+              {{ p.store_qty }} {{ p.uom }}
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 4. Filters & Search Bar ── -->
+  <div class="prod-section-card mb-4">
+    <div class="p-3">
+      <form method="GET" action="{{ url_for('store.production') }}" class="row g-2 align-items-center">
+        <!-- Date From -->
+        <div class="col-12 col-sm-6 col-md-3">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text prod-input-addon"><i class="far fa-calendar-alt"></i></span>
+            <input type="date" name="date_from" class="form-control" value="{{ date_from }}" placeholder="From date">
+          </div>
+        </div>
+
+        <!-- Date To -->
+        <div class="col-12 col-sm-6 col-md-3">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text prod-input-addon"><i class="far fa-calendar-alt"></i></span>
+            <input type="date" name="date_to" class="form-control" value="{{ date_to }}" placeholder="To date">
+          </div>
+        </div>
+
+        <!-- Product Selector -->
+        <div class="col-12 col-sm-6 col-md-3">
+          <select name="product_id" class="form-select form-select-sm">
+            <option value="">-- All Production Products --</option>
+            {% for p in allowed_products %}
+              <option value="{{ p.id }}" {% if filter_prod_id == p.id|string %}selected{% endif %}>
+                {{ p.name }} ({{ p.formula }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Search Text -->
+        <div class="col-12 col-sm-6 col-md-2">
+          <input type="text" name="search" class="form-control form-control-sm" placeholder="Search batch/notes..." value="{{ search }}">
+        </div>
+
+        <!-- Submit & Reset Buttons -->
+        <div class="col-12 col-md-1 d-flex gap-1">
+          <button type="submit" class="btn btn-sm btn-primary w-100" style="background: #059669; border-color: #059669;" title="Filter">
+            <i class="fas fa-filter"></i>
+          </button>
+          {% if date_from or date_to or filter_prod_id or search %}
+          <a href="{{ url_for('store.production') }}" class="btn btn-sm btn-outline-secondary" title="Clear Filters">
+            <i class="fas fa-rotate-left"></i>
+          </a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── 5. Production History Table ── -->
+  <div class="prod-table-card">
+    <div class="prod-section-header d-flex justify-content-between align-items-center p-3">
+      <div>
+        <h6 class="fw-bold mb-0 prod-text-title">
+          <i class="fas fa-history me-1 text-success"></i>Production Logs &amp; Deductions
+        </h6>
+        <small class="text-muted">Showing {{ records|length }} record(s)</small>
+      </div>
+      <button class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#newProductionModal">
+        <i class="fas fa-plus"></i>
+        <span>Add Entry</span>
+      </button>
+    </div>
+
+    {% if records %}
+    <div class="table-responsive">
+      <table class="table prod-table mb-0">
+        <thead>
+          <tr>
+            <th style="width: 14%;">Date &amp; Batch</th>
+            <th style="width: 25%;">Product Name &amp; Portion</th>
+            <th style="width: 15%; text-align: center;">Production Qty</th>
+            <th style="width: 18%;">Store Stock Impact</th>
+            <th style="width: 14%;">Produced By</th>
+            <th style="width: 14%; text-align: center;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+          <tr id="prod-row-{{ r.id }}">
+            <!-- 1. Date & Batch Code -->
+            <td>
+              <div class="fw-bold" style="color: #059669;">{{ r.batch_code }}</div>
+              <div class="small text-muted">
+                <i class="far fa-calendar-alt me-1"></i>{{ r.production_date.strftime('%b %d, %Y') if r.production_date else '—' }}
+              </div>
+            </td>
+
+            <!-- 2. Product Name & Formula -->
+            <td>
+              <div class="fw-semibold prod-text-title">{{ r.product_name }}</div>
+              <div class="small text-muted d-flex align-items-center gap-1">
+                <span class="badge" style="background: rgba(5, 150, 105, 0.12); color: #059669; border: 1px solid rgba(5, 150, 105, 0.25); font-size: 0.72rem;">
+                  <i class="fas fa-scale-balanced me-1"></i>{{ r.portion_formula }}
+                </span>
+                {% if r.notes %}
+                  &bull; <span class="text-truncate" style="max-width: 180px;" title="{{ r.notes }}">{{ r.notes }}</span>
+                {% endif %}
+              </div>
+            </td>
+
+            <!-- 3. Quantity Produced & Yield -->
+            <td class="text-center">
+              <span class="fs-6 fw-bold" style="color: #059669;">{{ r.quantity }}</span>
+              <span class="text-muted small"> {{ r.unit_type or 'order' }}(s)</span>
+              {% if r.total_yield_grams %}
+                <div class="text-muted" style="font-size: 0.74rem;">
+                  <strong>{{ r.total_yield_grams }}</strong> grams yield
+                </div>
+              {% endif %}
+            </td>
+
+            <!-- 4. Store Stock Impact -->
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small">{{ r.store_qty_before }}</span>
+                <i class="fas fa-arrow-right text-muted" style="font-size: 0.7rem;"></i>
+                <span class="fw-bold {% if r.store_qty_after > 0 %}text-success{% else %}text-danger{% endif %}">
+                  {{ r.store_qty_after }}
+                </span>
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.7rem;">
+                  -{{ r.quantity }} {{ r.product.uom if r.product else 'piece/s' }}
+                </span>
+              </div>
+            </td>
+
+            <!-- 5. Produced By -->
+            <td>
+              <div class="fw-semibold small prod-text-title">{{ r.producer.full_name if r.producer else 'Store Staff' }}</div>
+              <div class="text-muted" style="font-size: 0.72rem;">
+                {{ r.created_at.strftime('%H:%M %p') if r.created_at else '' }}
+              </div>
+            </td>
+
+            <!-- 6. Actions -->
+            <td class="text-center">
+              <div class="d-flex align-items-center justify-content-center gap-1">
+                <a href="{{ url_for('store.production_slip', batch_code=r.batch_code) }}" target="_blank" class="btn btn-sm btn-outline-secondary px-2 py-1" title="Print Slip">
+                  <i class="fas fa-print"></i>
+                </a>
+                {% if current_user.role in ['SYS-Admin', 'Company-Admin', 'User'] %}
+                <button type="button" class="btn btn-sm btn-outline-danger px-2 py-1" title="Delete & Restore Store Stock" onclick="deleteProductionEntry({{ r.id }}, '{{ r.product_name|escape }}', {{ r.quantity }})">
+                  <i class="fas fa-trash-can"></i>
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+      <div class="mb-3 text-muted" style="font-size: 3rem; opacity: 0.35;">
+        <i class="fas fa-kitchen-set"></i>
+      </div>
+      <h5 class="fw-bold prod-text-title">No Production Records Found</h5>
+      <p class="text-muted small mb-3">No meal productions have been logged yet for the selected criteria.</p>
+      <button class="btn btn-primary btn-sm px-3" style="background: #059669; border-color: #059669;" data-bs-toggle="modal" data-bs-target="#newProductionModal">
+        <i class="fas fa-plus-circle me-1"></i>Record First Production
+      </button>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL: RECORD STORE PRODUCTION                                        -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="newProductionModal" tabindex="-1" aria-labelledby="newProductionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow" style="border-radius: 16px;">
+      <div class="modal-header text-white" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); border-radius: 16px 16px 0 0;">
+        <h5 class="modal-title fw-bold" id="newProductionModalLabel">
+          <i class="fas fa-kitchen-set me-2"></i>Record Store Production
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form id="productionForm" onsubmit="submitProductionForm(event)">
+        <div class="modal-body p-4">
+          <div class="alert d-flex align-items-center gap-2 mb-3 py-2 small" style="background-color: rgba(5, 150, 105, 0.12); border: 1px solid rgba(5, 150, 105, 0.25); color: #10b981;">
+            <i class="fas fa-info-circle fs-5"></i>
+            <div>
+              <strong>Store Stock Deduction:</strong> Once submitted, the entered quantities will be automatically deducted from your store inventory stocks. Only the 21 authorized production menu items are eligible.
+            </div>
+          </div>
+
+          <!-- Production Date -->
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-muted">
+              Production Date <span class="text-danger">*</span>
+            </label>
+            <div class="input-group">
+              <span class="input-group-text prod-input-addon"><i class="far fa-calendar-alt text-muted"></i></span>
+              <input type="date" name="production_date" id="prod_date" class="form-control" value="{{ today_str }}" required>
+            </div>
+          </div>
+
+          <!-- Dynamic Entry Items Container -->
+          <label class="form-label small fw-bold text-uppercase text-muted d-flex justify-content-between align-items-center">
+            <span>Production Items &amp; Quantities <span class="text-danger">*</span></span>
+            <button type="button" class="btn btn-sm btn-outline-success py-0 px-2 fw-semibold" onclick="addNewEntryRow()" style="font-size: 0.75rem;">
+              <i class="fas fa-plus me-1"></i>Add Another Item
+            </button>
+          </label>
+
+          <div id="entryRowsContainer">
+            <!-- First Row (Default) -->
+            <div class="entry-row" data-row-idx="0">
+              <div class="row g-2 align-items-center">
+                <!-- Product Dropdown -->
+                <div class="col-md-6">
+                  <label class="small text-muted fw-semibold mb-1">Recipe / Product</label>
+                  <select class="form-select prod-select" required onchange="handleProductRowChange(this)">
+                    <option value="">-- Choose Production Item --</option>
+                    {% for p in allowed_products %}
+                      <option value="{{ p.id }}"
+                              data-formula="{{ p.formula }}"
+                              data-grams="{{ p.grams or 0 }}"
+                              data-pieces="{{ p.pieces or 0 }}"
+                              data-unittype="{{ p.unit_type }}"
+                              data-storeqty="{{ p.store_qty }}"
+                              data-uom="{{ p.uom }}">
+                        {{ p.name }} &bull; ({{ p.formula }})
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <!-- Quantity Input -->
+                <div class="col-md-3">
+                  <label class="small text-muted fw-semibold mb-1">Qty Produced</label>
+                  <div class="input-group">
+                    <input type="number" class="form-control prod-qty" step="any" min="0.01" placeholder="e.g. 5" required oninput="handleQtyInput(this)">
+                    <span class="input-group-text prod-input-addon prod-unit-label" style="font-size: 0.78rem;">order</span>
+                  </div>
+                </div>
+
+                <!-- Shift / Notes -->
+                <div class="col-md-3">
+                  <label class="small text-muted fw-semibold mb-1">Shift / Remarks</label>
+                  <input type="text" class="form-control prod-notes" placeholder="e.g. Morning shift">
+                </div>
+              </div>
+
+              <!-- Live Yield & Stock Indicator -->
+              <div class="row-indicator mt-2 small d-none d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(5, 150, 105, 0.05); border: 1px dashed rgba(5, 150, 105, 0.3);">
+                <div>
+                  <span class="text-muted">Current Store Stock:</span>
+                  <strong class="row-stock-val prod-text-title">0</strong>
+                  <span class="text-muted ms-2">Remaining After Deduction:</span>
+                  <strong class="row-rem-val text-success">0</strong>
+                </div>
+                <div>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle row-yield-badge">
+                    Yield: 0g
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="modal-footer p-3">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" id="btnSubmitProduction" class="btn btn-primary px-4 fw-semibold" style="background: #059669; border-color: #059669;">
+            <i class="fas fa-check-double me-1"></i>Confirm &amp; Deduct Store Stock
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Allowed products data for cloning dynamic rows
+const allowedProductsData = [
+  {% for p in allowed_products %}
+  {
+    id: {{ p.id }},
+    name: "{{ p.name|escape }}",
+    formula: "{{ p.formula|escape }}",
+    grams: {{ p.grams or 0 }},
+    pieces: {{ p.pieces or 0 }},
+    unit_type: "{{ p.unit_type }}",
+    store_qty: {{ p.store_qty }},
+    uom: "{{ p.uom|escape }}"
+  },
+  {% endfor %}
+];
+
+let rowCounter = 1;
+
+// Add another item row to modal
+function addNewEntryRow() {
+  const container = document.getElementById('entryRowsContainer');
+  const rowId = rowCounter++;
+
+  let optionsHtml = '<option value="">-- Choose Production Item --</option>';
+  allowedProductsData.forEach(p => {
+    optionsHtml += `<option value="${p.id}"
+                            data-formula="${p.formula}"
+                            data-grams="${p.grams}"
+                            data-pieces="${p.pieces}"
+                            data-unittype="${p.unit_type}"
+                            data-storeqty="${p.store_qty}"
+                            data-uom="${p.uom}">
+                      ${p.name} &bull; (${p.formula})
+                    </option>`;
+  });
+
+  const rowDiv = document.createElement('div');
+  rowDiv.className = 'entry-row';
+  rowDiv.setAttribute('data-row-idx', rowId);
+  rowDiv.innerHTML = `
+    <button type="button" class="btn btn-danger btn-remove-row" onclick="removeEntryRow(this)" title="Remove row">
+      <i class="fas fa-times"></i>
+    </button>
+    <div class="row g-2 align-items-center">
+      <div class="col-md-6">
+        <label class="small text-muted fw-semibold mb-1">Recipe / Product</label>
+        <select class="form-select prod-select" required onchange="handleProductRowChange(this)">
+          ${optionsHtml}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="small text-muted fw-semibold mb-1">Qty Produced</label>
+        <div class="input-group">
+          <input type="number" class="form-control prod-qty" step="any" min="0.01" placeholder="e.g. 5" required oninput="handleQtyInput(this)">
+          <span class="input-group-text prod-input-addon prod-unit-label" style="font-size: 0.78rem;">order</span>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <label class="small text-muted fw-semibold mb-1">Shift / Remarks</label>
+        <input type="text" class="form-control prod-notes" placeholder="e.g. Morning shift">
+      </div>
+    </div>
+    <div class="row-indicator mt-2 small d-none d-flex justify-content-between align-items-center p-2 rounded" style="background: rgba(5, 150, 105, 0.05); border: 1px dashed rgba(5, 150, 105, 0.3);">
+      <div>
+        <span class="text-muted">Current Store Stock:</span>
+        <strong class="row-stock-val prod-text-title">0</strong>
+        <span class="text-muted ms-2">Remaining After Deduction:</span>
+        <strong class="row-rem-val text-success">0</strong>
+      </div>
+      <div>
+        <span class="badge bg-success-subtle text-success border border-success-subtle row-yield-badge">
+          Yield: 0g
+        </span>
+      </div>
+    </div>
+  `;
+
+  container.appendChild(rowDiv);
+}
+
+// Remove an entry row
+function removeEntryRow(btn) {
+  const row = btn.closest('.entry-row');
+  if (row) {
+    row.remove();
+  }
+}
+
+// Handle product change in row
+function handleProductRowChange(select) {
+  const row = select.closest('.entry-row');
+  const unitLabel = row.querySelector('.prod-unit-label');
+  const indicator = row.querySelector('.row-indicator');
+  const stockValEl = row.querySelector('.row-stock-val');
+  const qtyInput = row.querySelector('.prod-qty');
+
+  const selectedOpt = select.options[select.selectedIndex];
+  if (select.value) {
+    const unitType = selectedOpt.getAttribute('data-unittype') || 'order';
+    const storeQty = parseFloat(selectedOpt.getAttribute('data-storeqty') || 0);
+    const uom = selectedOpt.getAttribute('data-uom') || 'piece/s';
+
+    unitLabel.innerText = unitType;
+    stockValEl.innerText = `${storeQty} ${uom}`;
+    indicator.classList.remove('d-none');
+    updateRowCalculations(row);
+  } else {
+    indicator.classList.add('d-none');
+    unitLabel.innerText = 'order';
+  }
+}
+
+// Handle qty typing in row
+function handleQtyInput(input) {
+  const row = input.closest('.entry-row');
+  updateRowCalculations(row);
+}
+
+// Update row live calculations
+function updateRowCalculations(row) {
+  const select = row.querySelector('.prod-select');
+  const qtyInput = row.querySelector('.prod-qty');
+  const remValEl = row.querySelector('.row-rem-val');
+  const yieldBadge = row.querySelector('.row-yield-badge');
+
+  if (!select.value) return;
+
+  const selectedOpt = select.options[select.selectedIndex];
+  const storeQty = parseFloat(selectedOpt.getAttribute('data-storeqty') || 0);
+  const grams = parseFloat(selectedOpt.getAttribute('data-grams') || 0);
+  const pieces = parseFloat(selectedOpt.getAttribute('data-pieces') || 0);
+  const uom = selectedOpt.getAttribute('data-uom') || 'piece/s';
+  const qty = parseFloat(qtyInput.value) || 0;
+
+  const remaining = Math.max(0, storeQty - qty);
+  remValEl.innerText = `${remaining.toFixed(1)} ${uom}`;
+  if (storeQty - qty < 0) {
+    remValEl.className = 'row-rem-val text-danger fw-bold';
+  } else {
+    remValEl.className = 'row-rem-val text-success fw-bold';
+  }
+
+  if (grams > 0 && qty > 0) {
+    const totalGrams = (qty * grams).toFixed(0);
+    yieldBadge.innerText = `Total Yield: ${totalGrams}g`;
+    yieldBadge.className = 'badge bg-success-subtle text-success border border-success-subtle row-yield-badge';
+  } else if (pieces > 0 && qty > 0) {
+    const totalPcs = (qty * pieces).toFixed(0);
+    yieldBadge.innerText = `Total Pieces: ${totalPcs}pcs`;
+    yieldBadge.className = 'badge bg-info-subtle text-info border border-info-subtle row-yield-badge';
+  } else {
+    yieldBadge.innerText = `Portions: ${qty}`;
+  }
+}
+
+// Submit production form
+function submitProductionForm(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnSubmitProduction');
+  const prodDate = document.getElementById('prod_date').value;
+
+  const rowDivs = document.querySelectorAll('#entryRowsContainer .entry-row');
+  const items = [];
+
+  for (let row of rowDivs) {
+    const select = row.querySelector('.prod-select');
+    const qtyInput = row.querySelector('.prod-qty');
+    const notesInput = row.querySelector('.prod-notes');
+
+    if (!select.value) {
+      alert('Please select a production product for all added rows.');
+      select.focus();
+      return;
+    }
+
+    const qty = parseFloat(qtyInput.value);
+    if (!qty || qty <= 0) {
+      alert('Please enter a valid positive quantity for all rows.');
+      qtyInput.focus();
+      return;
+    }
+
+    items.push({
+      product_id: parseInt(select.value),
+      quantity: qty,
+      notes: (notesInput.value || '').trim()
+    });
+  }
+
+  if (items.length === 0) {
+    alert('Please add at least one production item.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving & Deducting Stock...';
+
+  const payload = {
+    production_date: prodDate,
+    items: items
+  };
+
+  fetch("{{ url_for('store.submit_production') }}", {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      const modalEl = document.getElementById('newProductionModal');
+      const modalInstance = bootstrap.Modal.getInstance(modalEl);
+      if (modalInstance) {
+        modalInstance.hide();
+      }
+      alert('✅ ' + data.message);
+      window.location.reload();
+    } else {
+      alert('Error: ' + data.message);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check-double me-1"></i>Confirm & Deduct Store Stock';
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert('An unexpected error occurred while saving production.');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-double me-1"></i>Confirm & Deduct Store Stock';
+  });
+}
+
+// Delete / Undo production entry
+function deleteProductionEntry(id, name, qty) {
+  if (!confirm(`Are you sure you want to delete production entry #${id} (${qty} of ${name})?\n\nThis will restore the deducted store stock.`)) {
+    return;
+  }
+
+  fetch(`/store/production/${id}/delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ ' + data.message);
+      const row = document.getElementById(`prod-row-${id}`);
+      if (row) row.remove();
+      setTimeout(() => window.location.reload(), 500);
+    } else {
+      alert('Error: ' + data.message);
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert('Failed to delete production entry.');
+  });
+}
+</script>
+{% endblock %}

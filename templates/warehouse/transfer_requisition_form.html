@@ -1,0 +1,939 @@
+{% extends 'layouts/base-sidebar.html' %}
+{% block title %}Transfer Requisition - iCount{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4 py-3">
+
+  <!-- Header & Breadcrumbs -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <a href="{{ url_for('requisitions.view_requisitions') }}" class="text-decoration-none text-muted small">
+          <i class="fas fa-arrow-left me-1"></i> Requisitions
+        </a>
+        <span class="text-muted small">/</span>
+        <span class="text-muted small">Inter-Company Transfer</span>
+      </div>
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <div class="transfer-hero-icon">
+          <i class="fas fa-arrow-right-arrow-left"></i>
+        </div>
+        <div>
+          <h4 class="fw-bold mb-0 text-dark-mode-light">Inter-Company Product Transfer</h4>
+          <p class="text-muted small mb-0">Request products from one company to transfer to another company</p>
+        </div>
+        <span class="badge bg-purple-subtle text-purple border border-purple-subtle py-1 px-2.5 rounded-pill ms-md-2">
+          <i class="fas fa-warehouse me-1"></i>Warehouse Admin Exclusive
+        </span>
+      </div>
+    </div>
+    <div>
+      <a href="{{ url_for('requisitions.view_requisitions') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-list me-1"></i> View Requisitions
+      </a>
+    </div>
+  </div>
+
+  <!-- Wizard Navigation Tabs -->
+  <div class="card border-0 shadow-sm mb-4 wizard-card">
+    <div class="wizard-steps-header">
+      <button type="button" class="wizard-step-tab active" id="stepTab1" onclick="goToStep(1)">
+        <span class="step-num">1</span>
+        <span class="step-text">Companies &amp; Details</span>
+      </button>
+      <div class="wizard-step-line"></div>
+      <button type="button" class="wizard-step-tab" id="stepTab2" onclick="goToStep(2)">
+        <span class="step-num">2</span>
+        <span class="step-text">Select Products</span>
+        <span class="badge bg-primary rounded-pill ms-1 d-none" id="cartCountBadge">0</span>
+      </button>
+      <div class="wizard-step-line"></div>
+      <button type="button" class="wizard-step-tab" id="stepTab3" onclick="goToStep(3)">
+        <span class="step-num">3</span>
+        <span class="step-text">Review &amp; Submit</span>
+      </button>
+    </div>
+
+    <div class="card-body p-4">
+
+      <!-- ══════════════════════════════════════════════════════════ -->
+      <!-- STEP 1: COMPANIES & TRANSFER DETAILS                       -->
+      <!-- ══════════════════════════════════════════════════════════ -->
+      <div class="wizard-pane active" id="wizardStep1">
+        <div class="row justify-content-center">
+          <div class="col-12 col-xl-10">
+
+            <!-- From & To Company Bridge Card -->
+            <div class="card company-bridge-card border-0 shadow-sm mb-4">
+              <div class="card-body p-4">
+                <div class="row align-items-center g-3">
+                  <!-- From Company -->
+                  <div class="col-12 col-md-5">
+                    <label class="form-label fw-bold text-uppercase small text-muted tracking-wider">
+                      <i class="fas fa-box text-primary me-1"></i> From Company (Source / Releasing)
+                    </label>
+                    <select class="form-select form-select-lg" id="fromCompanySelect" onchange="onFromCompanyChange()">
+                      {% for c in companies %}
+                        <option value="{{ c.id }}" {% if c.id == default_from_id %}selected{% endif %}>
+                          {{ c.name }}{% if c.franchise_name %} ({{ c.franchise_name }}){% endif %}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <div class="form-text small text-muted mt-1">
+                      Warehouse products will be loaded and requested from this company.
+                    </div>
+                  </div>
+
+                  <!-- Visual Bridge Arrow -->
+                  <div class="col-12 col-md-2 text-center py-2">
+                    <div class="bridge-arrow-circle mx-auto">
+                      <i class="fas fa-arrow-right d-none d-md-inline-block"></i>
+                      <i class="fas fa-arrow-down d-md-none"></i>
+                    </div>
+                    <span class="d-block small text-muted mt-1 fw-semibold">TRANSFER</span>
+                  </div>
+
+                  <!-- To Company -->
+                  <div class="col-12 col-md-5">
+                    <label class="form-label fw-bold text-uppercase small text-muted tracking-wider">
+                      <i class="fas fa-truck-ramp-box text-success me-1"></i> To Company (Destination / Receiving)
+                    </label>
+                    <select class="form-select form-select-lg" id="toCompanySelect" onchange="onToCompanyChange()">
+                      {% for c in companies %}
+                        <option value="{{ c.id }}" {% if c.id == default_to_id %}selected{% endif %}>
+                          {{ c.name }}{% if c.franchise_name %} ({{ c.franchise_name }}){% endif %}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <div class="form-text small text-muted mt-1">
+                      This company will be declared as the recipient of the transfer.
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Same company error alert -->
+                <div class="alert alert-danger align-items-center gap-2 mt-3 mb-0 d-none" id="sameCompanyAlert">
+                  <i class="fas fa-exclamation-triangle fs-5"></i>
+                  <div>
+                    <strong>Invalid Selection:</strong> Source Company and Destination Company cannot be the same. Please choose two different companies.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transfer Meta Details -->
+            <div class="card border-0 shadow-sm mb-4">
+              <div class="card-header bg-transparent border-bottom py-3">
+                <span class="fw-bold fs-6 text-dark-mode-light">
+                  <i class="fas fa-info-circle text-primary me-1"></i> Transfer Requisition Information
+                </span>
+              </div>
+              <div class="card-body p-4">
+                <div class="row g-3">
+                  <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold small text-muted">Requested By</label>
+                    <input type="text" class="form-control" id="requesterNameInput" value="{{ current_user.full_name }}" readonly>
+                    <div class="form-text small text-muted">Logged in as Warehouse Admin</div>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold small text-muted">Contact Number</label>
+                    <input type="text" class="form-control" id="contactNumberInput" placeholder="e.g. 09171234567" value="{{ current_user.branch or '' }}">
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold small text-muted">Expected Transfer / Delivery Date</label>
+                    <input type="date" class="form-control" id="transferDateInput" value="{{ now.strftime('%Y-%m-%d') }}">
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold small text-muted">Station / Transfer Category</label>
+                    <input type="text" class="form-control" id="stationInput" value="Warehouse Transfer" placeholder="e.g. Inter-Company Replenishment">
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold small text-muted">Notes / Purpose (Optional)</label>
+                    <input type="text" class="form-control" id="notesInput" placeholder="e.g. Balancing low stock for upcoming holiday rush">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 1 Actions -->
+            <div class="d-flex justify-content-end">
+              <button type="button" class="btn btn-primary px-4 py-2" onclick="validateStep1AndProceed()">
+                <span>Proceed to Select Products</span>
+                <i class="fas fa-arrow-right ms-2"></i>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ══════════════════════════════════════════════════════════ -->
+      <!-- STEP 2: SELECT PRODUCTS FROM SOURCE COMPANY                -->
+      <!-- ══════════════════════════════════════════════════════════ -->
+      <div class="wizard-pane d-none" id="wizardStep2">
+        <div class="row g-4">
+
+          <!-- Left Column: Product Catalog -->
+          <div class="col-12 col-lg-8">
+            <div class="card border-0 shadow-sm h-100">
+              <div class="card-header bg-transparent border-bottom p-3">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                  <div>
+                    <span class="fw-bold fs-6 text-dark-mode-light">
+                      <i class="fas fa-boxes text-primary me-1"></i> Products Catalog
+                    </span>
+                    <span class="text-muted small ms-1" id="catalogSourceLabel">
+                      (from <strong id="catalogSourceCompanyName">Company</strong>)
+                    </span>
+                  </div>
+                  <span class="badge bg-secondary-subtle text-secondary rounded-pill" id="catalogCountBadge">0 products</span>
+                </div>
+
+                <!-- Search and Category Filters -->
+                <div class="row g-2 mt-2">
+                  <div class="col-12 col-sm-7">
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
+                      <input type="text" class="form-control border-start-0 ps-0" id="productSearchInput" placeholder="Search by product name, barcode..." oninput="filterProductCatalog()">
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-5">
+                    <select class="form-select form-select-sm" id="categoryFilterSelect" onchange="filterProductCatalog()">
+                      <option value="all" selected>All Categories</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Product List Table -->
+              <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+                <table class="table table-hover align-middle mb-0" id="catalogTable">
+                  <thead class="table-light sticky-top">
+                    <tr>
+                      <th class="ps-3" style="width: 40%;">Product Details</th>
+                      <th style="width: 20%;">Category</th>
+                      <th class="text-end" style="width: 18%;">Available Stock</th>
+                      <th class="text-center pe-3" style="width: 22%;">Transfer Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody id="catalogTableBody">
+                    <tr>
+                      <td colspan="4" class="text-center py-5 text-muted">
+                        <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                        Loading company products...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Transfer Manifest Cart -->
+          <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm h-100 transfer-cart-card">
+              <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center p-3">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="fw-bold fs-6 text-dark-mode-light">
+                    <i class="fas fa-cart-flatbed text-success me-1"></i> Transfer Manifest
+                  </span>
+                  <span class="badge bg-success rounded-pill" id="manifestBadge">0</span>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="clearTransferCart()" id="clearCartBtn" style="display: none;">
+                  Clear
+                </button>
+              </div>
+
+              <div class="card-body p-3 d-flex flex-column">
+                <div class="flex-grow-1 overflow-auto" style="max-height: 440px;" id="cartItemsContainer">
+                  <div class="text-center py-5 text-muted empty-cart-msg">
+                    <i class="fas fa-dolly fa-3x mb-3 opacity-25 d-block"></i>
+                    <div class="fw-semibold">No products selected</div>
+                    <div class="small text-muted mt-1">Specify quantities on the left to add items to this transfer.</div>
+                  </div>
+                </div>
+
+                <div class="border-top pt-3 mt-3">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small">Total Products</span>
+                    <span class="fw-bold" id="cartTotalItemsCount">0</span>
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted small">Total Quantity Units</span>
+                    <span class="fw-bold text-success fs-6" id="cartTotalUnitsCount">0.00</span>
+                  </div>
+
+                  <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary w-50" onclick="goToStep(1)">
+                      <i class="fas fa-arrow-left me-1"></i> Back
+                    </button>
+                    <button type="button" class="btn btn-primary w-50" onclick="validateStep2AndProceed()">
+                      <span>Review</span>
+                      <i class="fas fa-arrow-right ms-1"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+
+      <!-- ══════════════════════════════════════════════════════════ -->
+      <!-- STEP 3: REVIEW & SUBMIT TRANSFER REQUISITION               -->
+      <!-- ══════════════════════════════════════════════════════════ -->
+      <div class="wizard-pane d-none" id="wizardStep3">
+        <div class="row justify-content-center">
+          <div class="col-12 col-xl-10">
+
+            <!-- Confirmation Route Banner -->
+            <div class="card border-0 shadow-sm mb-4 review-route-card">
+              <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="company-badge-icon bg-primary text-white">
+                      <i class="fas fa-building"></i>
+                    </div>
+                    <div>
+                      <div class="text-muted small text-uppercase fw-bold">Source Company (From)</div>
+                      <div class="fs-5 fw-bold text-dark-mode-light" id="reviewFromCompanyName">Company A</div>
+                    </div>
+                  </div>
+
+                  <div class="review-arrow-divider text-center px-3">
+                    <i class="fas fa-arrow-right fa-2x text-primary d-none d-md-block"></i>
+                    <i class="fas fa-arrow-down fa-2x text-primary d-md-none"></i>
+                    <span class="badge bg-primary-subtle text-primary rounded-pill mt-1">Inter-Company Transfer</span>
+                  </div>
+
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="company-badge-icon bg-success text-white">
+                      <i class="fas fa-shop"></i>
+                    </div>
+                    <div>
+                      <div class="text-muted small text-uppercase fw-bold">Destination Company (To)</div>
+                      <div class="fs-5 fw-bold text-dark-mode-light" id="reviewToCompanyName">Company B</div>
+                    </div>
+                  </div>
+                </div>
+
+                <hr class="my-3 opacity-20">
+
+                <div class="row g-3 small">
+                  <div class="col-6 col-md-3">
+                    <span class="text-muted d-block">Requested By:</span>
+                    <strong class="text-dark-mode-light" id="reviewRequester">Admin</strong>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <span class="text-muted d-block">Contact Number:</span>
+                    <strong class="text-dark-mode-light" id="reviewContact">—</strong>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <span class="text-muted d-block">Transfer Date:</span>
+                    <strong class="text-dark-mode-light" id="reviewDate">—</strong>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <span class="text-muted d-block">Station / Purpose:</span>
+                    <strong class="text-dark-mode-light" id="reviewStation">Warehouse Transfer</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Items Review Table -->
+            <div class="card border-0 shadow-sm mb-4">
+              <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center p-3">
+                <span class="fw-bold fs-6 text-dark-mode-light">
+                  <i class="fas fa-list-check text-success me-1"></i> Products to be Transferred
+                </span>
+                <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1" id="reviewItemsCountBadge">0 items</span>
+              </div>
+              <div class="table-responsive">
+                <table class="table align-middle mb-0" id="reviewTable">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="ps-3" style="width: 5%;">#</th>
+                      <th style="width: 45%;">Product Details</th>
+                      <th class="text-end" style="width: 25%;">Available Warehouse Stock</th>
+                      <th class="text-end pe-3" style="width: 25%;">Transfer Quantity Requested</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reviewTableBody">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Submission Actions -->
+            <div class="d-flex justify-content-between align-items-center pt-2">
+              <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="goToStep(2)">
+                <i class="fas fa-arrow-left me-1"></i> Back to Products
+              </button>
+              <button type="button" class="btn btn-success btn-lg px-5 py-2.5 shadow-sm" id="submitTransferBtn" onclick="submitTransferRequisition()">
+                <span class="btn-spinner spinner-border spinner-border-sm me-2 d-none" id="submitSpinner"></span>
+                <i class="fas fa-paper-plane me-2" id="submitBtnIcon"></i>
+                <span id="submitBtnText">Submit Transfer Request</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Styles -->
+<style>
+  .transfer-hero-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.3);
+  }
+  .bg-purple-subtle {
+    background-color: rgba(139, 92, 246, 0.12) !important;
+  }
+  .text-purple {
+    color: #7c3aed !important;
+  }
+  .border-purple-subtle {
+    border-color: rgba(139, 92, 246, 0.25) !important;
+  }
+
+  /* Wizard navigation header */
+  .wizard-steps-header {
+    display: flex;
+    align-items: center;
+    background: var(--table-header-bg, #f8fafc);
+    border-bottom: 1px solid var(--border, #e2e8f0);
+    padding: 0.5rem 1rem;
+  }
+  .wizard-step-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #64748b);
+    font-weight: 600;
+    font-size: 0.88rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .wizard-step-tab:hover {
+    color: var(--accent, #6366f1);
+    background: rgba(99, 102, 241, 0.06);
+  }
+  .wizard-step-tab.active {
+    color: var(--accent, #6366f1);
+    background: rgba(99, 102, 241, 0.12);
+  }
+  .wizard-step-tab .step-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--border, #cbd5e1);
+    color: #fff;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+  .wizard-step-tab.active .step-num {
+    background: var(--accent, #6366f1);
+  }
+  .wizard-step-line {
+    flex: 1;
+    height: 2px;
+    background: var(--border, #e2e8f0);
+    margin: 0 8px;
+  }
+
+  /* Bridge card */
+  .company-bridge-card {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.04) 0%, rgba(16, 185, 129, 0.04) 100%);
+    border: 1px solid var(--border, #e2e8f0) !important;
+  }
+  .bridge-arrow-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--border, #cbd5e1);
+    color: var(--accent, #6366f1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  /* Company badge icons */
+  .company-badge-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+  }
+
+  /* Cart item card */
+  .cart-item-row {
+    padding: 10px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: #fff;
+    transition: background 0.15s ease;
+  }
+  .cart-item-row:hover {
+    background: rgba(99, 102, 241, 0.02);
+  }
+
+  /* Dark mode overrides */
+  :where(.dark-mode) .company-bridge-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+  :where(.dark-mode) .bridge-arrow-circle {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #818cf8;
+  }
+  :where(.dark-mode) .wizard-steps-header {
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+  :where(.dark-mode) .cart-item-row {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  :where(.dark-mode) .text-dark-mode-light {
+    color: #f1f5f9 !important;
+  }
+</style>
+
+<!-- Wizard JavaScript Logic -->
+<script>
+  // State
+  let currentStep = 1;
+  let allCompanyProducts = [];
+  let transferCart = {}; // { productId: { id, name, barcode, uom, category, warehouse_qty, quantity } }
+  let companiesMap = {};
+
+  {% for c in companies %}
+    companiesMap[{{ c.id }}] = "{{ c.name }}";
+  {% endfor %}
+
+  document.addEventListener('DOMContentLoaded', function() {
+    loadProductsForFromCompany();
+  });
+
+  function goToStep(step) {
+    if (step === 2) {
+      if (!validateStep1()) return;
+    } else if (step === 3) {
+      if (!validateStep1() || !validateStep2()) return;
+      populateReviewStep();
+    }
+
+    currentStep = step;
+    document.querySelectorAll('.wizard-pane').forEach(p => p.classList.add('d-none'));
+    document.querySelectorAll('.wizard-step-tab').forEach(t => t.classList.remove('active'));
+
+    document.getElementById('wizardStep' + step).classList.remove('d-none');
+    document.getElementById('stepTab' + step).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function validateStep1() {
+    const fromId = document.getElementById('fromCompanySelect').value;
+    const toId = document.getElementById('toCompanySelect').value;
+    const alertBox = document.getElementById('sameCompanyAlert');
+
+    if (fromId === toId) {
+      alertBox.classList.remove('d-none');
+      return false;
+    } else {
+      alertBox.classList.add('d-none');
+    }
+    return true;
+  }
+
+  function validateStep1AndProceed() {
+    if (validateStep1()) {
+      goToStep(2);
+    }
+  }
+
+  function validateStep2() {
+    const keys = Object.keys(transferCart);
+    if (keys.length === 0) {
+      alert('Please add at least one product with quantity > 0 before proceeding.');
+      return false;
+    }
+    return true;
+  }
+
+  function validateStep2AndProceed() {
+    if (validateStep2()) {
+      goToStep(3);
+    }
+  }
+
+  function onFromCompanyChange() {
+    validateStep1();
+    if (Object.keys(transferCart).length > 0) {
+      if (confirm('Changing the Source Company will clear your current selected products. Do you want to proceed?')) {
+        transferCart = {};
+        updateCartUI();
+        loadProductsForFromCompany();
+      } else {
+        // revert select
+      }
+    } else {
+      loadProductsForFromCompany();
+    }
+  }
+
+  function onToCompanyChange() {
+    validateStep1();
+  }
+
+  function loadProductsForFromCompany() {
+    const fromId = document.getElementById('fromCompanySelect').value;
+    const fromName = companiesMap[fromId] || 'Company';
+    document.getElementById('catalogSourceCompanyName').textContent = fromName;
+
+    const tbody = document.getElementById('catalogTableBody');
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" class="text-center py-5 text-muted">
+          <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+          Loading products from ${fromName}...
+        </td>
+      </tr>
+    `;
+
+    fetch(`/requisitions/api/company_products/${fromId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) {
+          tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-danger">${data.message || 'Error loading products'}</td></tr>`;
+          return;
+        }
+
+        allCompanyProducts = data.products || [];
+        populateCategoryFilter(allCompanyProducts);
+        renderCatalogTable(allCompanyProducts);
+        document.getElementById('catalogCountBadge').textContent = `${allCompanyProducts.length} products`;
+      })
+      .catch(err => {
+        console.error('Fetch error:', err);
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-danger">Failed to load company products. Please check connection.</td></tr>`;
+      });
+  }
+
+  function populateCategoryFilter(products) {
+    const select = document.getElementById('categoryFilterSelect');
+    const categories = new Set();
+    products.forEach(p => {
+      if (p.category) categories.add(p.category);
+    });
+
+    let html = '<option value="all" selected>All Categories</option>';
+    categories.forEach(cat => {
+      html += `<option value="${cat}">${cat}</option>`;
+    });
+    select.innerHTML = html;
+  }
+
+  function filterProductCatalog() {
+    const q = (document.getElementById('productSearchInput').value || '').toLowerCase().trim();
+    const cat = document.getElementById('categoryFilterSelect').value;
+
+    const filtered = allCompanyProducts.filter(p => {
+      const matchQuery = !q || p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.toLowerCase().includes(q));
+      const matchCat = cat === 'all' || p.category === cat;
+      return matchQuery && matchCat;
+    });
+
+    renderCatalogTable(filtered);
+  }
+
+  function renderCatalogTable(products) {
+    const tbody = document.getElementById('catalogTableBody');
+    if (!products || products.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="4" class="text-center py-5 text-muted">
+            <i class="fas fa-boxes-stacked fa-2x mb-2 d-block opacity-25"></i>
+            No products found matching your search.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    let html = '';
+    products.forEach(p => {
+      const inCart = transferCart[p.id];
+      const cartQty = inCart ? inCart.quantity : '';
+      const stockBadgeClass = p.warehouse_qty > 0 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger';
+
+      html += `
+        <tr>
+          <td class="ps-3">
+            <div class="fw-semibold text-dark-mode-light">${escHtml(p.name)}</div>
+            <div class="text-muted small" style="font-size: 0.72rem;">${escHtml(p.barcode || '—')} &bull; ${escHtml(p.uom)}</div>
+          </td>
+          <td>
+            <span class="badge bg-light text-secondary border small">${escHtml(p.category)}</span>
+          </td>
+          <td class="text-end font-monospace">
+            <span class="badge ${stockBadgeClass} px-2 py-1">${p.warehouse_qty.toFixed(2)} ${escHtml(p.uom)}</span>
+          </td>
+          <td class="text-center pe-3">
+            <div class="input-group input-group-sm justify-content-center" style="max-width: 140px; margin: 0 auto;">
+              <input type="number" min="0" step="any" class="form-control text-center" 
+                     id="qtyInput_${p.id}" value="${cartQty}" placeholder="0" 
+                     onchange="updateProductQty(${p.id}, this.value)"
+                     onkeyup="if(event.key === 'Enter') updateProductQty(${p.id}, this.value)">
+              <button class="btn btn-outline-primary" type="button" onclick="stepAddQty(${p.id})">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+  }
+
+  function stepAddQty(productId) {
+    const input = document.getElementById(`qtyInput_${productId}`);
+    const current = parseFloat(input.value) || 0;
+    const next = current + 1;
+    input.value = next;
+    updateProductQty(productId, next);
+  }
+
+  function updateProductQty(productId, qtyVal) {
+    const qty = parseFloat(qtyVal);
+    const prod = allCompanyProducts.find(p => p.id === productId);
+    if (!prod) return;
+
+    if (!qty || qty <= 0) {
+      delete transferCart[productId];
+    } else {
+      transferCart[productId] = {
+        id: prod.id,
+        name: prod.name,
+        barcode: prod.barcode,
+        uom: prod.uom,
+        category: prod.category,
+        warehouse_qty: prod.warehouse_qty,
+        quantity: qty
+      };
+    }
+
+    updateCartUI();
+  }
+
+  function updateCartUI() {
+    const container = document.getElementById('cartItemsContainer');
+    const clearBtn = document.getElementById('clearCartBtn');
+    const badge = document.getElementById('manifestBadge');
+    const tabBadge = document.getElementById('cartCountBadge');
+    const totalItems = document.getElementById('cartTotalItemsCount');
+    const totalUnits = document.getElementById('cartTotalUnitsCount');
+
+    const items = Object.values(transferCart);
+    badge.textContent = items.length;
+    tabBadge.textContent = items.length;
+    if (items.length > 0) {
+      tabBadge.classList.remove('d-none');
+      clearBtn.style.display = 'inline-block';
+    } else {
+      tabBadge.classList.add('d-none');
+      clearBtn.style.display = 'none';
+    }
+
+    totalItems.textContent = items.length;
+    let sumUnits = 0;
+    items.forEach(i => sumUnits += i.quantity);
+    totalUnits.textContent = sumUnits.toFixed(2);
+
+    if (items.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-5 text-muted empty-cart-msg">
+          <i class="fas fa-dolly fa-3x mb-3 opacity-25 d-block"></i>
+          <div class="fw-semibold">No products selected</div>
+          <div class="small text-muted mt-1">Specify quantities on the left to add items to this transfer.</div>
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+    items.forEach(item => {
+      html += `
+        <div class="cart-item-row d-flex justify-content-between align-items-center">
+          <div class="overflow-hidden me-2">
+            <div class="fw-semibold text-truncate small text-dark-mode-light">${escHtml(item.name)}</div>
+            <div class="text-muted" style="font-size: 0.72rem;">Available: ${item.warehouse_qty.toFixed(1)} ${escHtml(item.uom)}</div>
+          </div>
+          <div class="d-flex align-items-center gap-1 flex-shrink-0">
+            <input type="number" min="0.1" step="any" class="form-control form-control-sm text-end font-monospace" style="width: 70px;" 
+                   value="${item.quantity}" onchange="updateProductQty(${item.id}, this.value)">
+            <span class="small text-muted me-1">${escHtml(item.uom)}</span>
+            <button class="btn btn-sm btn-link text-danger p-0 ms-1" title="Remove item" onclick="updateProductQty(${item.id}, 0)">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  }
+
+  function clearTransferCart() {
+    if (confirm('Clear all selected items from transfer manifest?')) {
+      transferCart = {};
+      updateCartUI();
+      renderCatalogTable(allCompanyProducts);
+    }
+  }
+
+  function populateReviewStep() {
+    const fromId = document.getElementById('fromCompanySelect').value;
+    const toId = document.getElementById('toCompanySelect').value;
+
+    document.getElementById('reviewFromCompanyName').textContent = companiesMap[fromId] || 'Source Company';
+    document.getElementById('reviewToCompanyName').textContent = companiesMap[toId] || 'Destination Company';
+    document.getElementById('reviewRequester').textContent = document.getElementById('requesterNameInput').value;
+    document.getElementById('reviewContact').textContent = document.getElementById('contactNumberInput').value || '—';
+    document.getElementById('reviewDate').textContent = document.getElementById('transferDateInput').value || '—';
+    document.getElementById('reviewStation').textContent = document.getElementById('stationInput').value || 'Warehouse Transfer';
+
+    const items = Object.values(transferCart);
+    document.getElementById('reviewItemsCountBadge').textContent = `${items.length} items`;
+
+    const tbody = document.getElementById('reviewTableBody');
+    let html = '';
+    items.forEach((item, idx) => {
+      html += `
+        <tr>
+          <td class="ps-3 text-muted small">${idx + 1}</td>
+          <td>
+            <div class="fw-semibold text-dark-mode-light">${escHtml(item.name)}</div>
+            <div class="text-muted small" style="font-size: 0.72rem;">${escHtml(item.barcode || '—')} &bull; Category: ${escHtml(item.category || 'General')}</div>
+          </td>
+          <td class="text-end font-monospace">
+            <span class="badge bg-light text-secondary border px-2 py-1">${item.warehouse_qty.toFixed(2)} ${escHtml(item.uom)}</span>
+          </td>
+          <td class="text-end pe-3 font-monospace">
+            <span class="badge bg-success-subtle text-success fs-6 px-3 py-1.5 border border-success-subtle">
+              ${item.quantity.toFixed(2)} ${escHtml(item.uom)}
+            </span>
+          </td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+  }
+
+  function submitTransferRequisition() {
+    if (!validateStep1() || !validateStep2()) return;
+
+    const fromId = document.getElementById('fromCompanySelect').value;
+    const toId = document.getElementById('toCompanySelect').value;
+    const contact = document.getElementById('contactNumberInput').value;
+    const date = document.getElementById('transferDateInput').value;
+    const station = document.getElementById('stationInput').value;
+    const notes = document.getElementById('notesInput').value;
+
+    const items = Object.values(transferCart).map(i => ({
+      product_id: i.id,
+      quantity: i.quantity,
+      uom: i.uom
+    }));
+
+    const btn = document.getElementById('submitTransferBtn');
+    const spinner = document.getElementById('submitSpinner');
+    const icon = document.getElementById('submitBtnIcon');
+    const btnText = document.getElementById('submitBtnText');
+
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    icon.classList.add('d-none');
+    btnText.textContent = 'Submitting Transfer Request...';
+
+    const formData = new FormData();
+    formData.append('from_company_id', fromId);
+    formData.append('to_company_id', toId);
+    formData.append('contact_number', contact);
+    formData.append('transfer_date', date);
+    formData.append('station', station);
+    formData.append('notes', notes);
+    formData.append('items_json', JSON.stringify(items));
+
+    fetch("{{ url_for('requisitions.submit_transfer_requisition') }}", {
+      method: 'POST',
+      body: formData
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) {
+          alert('Submission Error: ' + (data.message || 'Failed to submit transfer request.'));
+          btn.disabled = false;
+          spinner.classList.add('d-none');
+          icon.classList.remove('d-none');
+          btnText.textContent = 'Submit Transfer Request';
+          return;
+        }
+
+        alert(data.message || 'Transfer Requisition created successfully!');
+        window.location.href = "{{ url_for('requisitions.view_requisitions') }}";
+      })
+      .catch(err => {
+        console.error('Error submitting requisition:', err);
+        alert('An unexpected network error occurred while submitting.');
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+        icon.classList.remove('d-none');
+        btnText.textContent = 'Submit Transfer Request';
+      });
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+</script>
+{% endblock %}

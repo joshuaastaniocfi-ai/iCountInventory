@@ -137,7 +137,7 @@ def dashboard():
     
     # Process expired products to get the necessary data
     for product in all_expired_products:
-        expired_batches = [batch for batch in product.batches if batch.exp_date <= today and batch.quantity > 0]
+        expired_batches = [batch for batch in product.warehouse_batches if batch.exp_date <= today and batch.quantity > 0]
         if expired_batches:
             # Sort batches by expiration date (oldest first)
             expired_batches.sort(key=lambda x: x.exp_date)
@@ -394,14 +394,14 @@ def send_weekly_report():
             
             expired_html = ""
             for product in data['expired_products']:
-                expired_qty = sum(batch.quantity for batch in product.batches if batch.exp_date <= datetime.now(ZoneInfo("Asia/Manila")).date() and batch.quantity > 0)
+                expired_qty = sum(batch.quantity for batch in product.warehouse_batches if batch.exp_date <= datetime.now(ZoneInfo("Asia/Manila")).date() and batch.quantity > 0)
                 expired_html += f"<tr><td>{product.name}</td><td>{expired_qty} {product.uom}</td><td>{product.account_title}</td></tr>"
             
             expiring_html = ""
             for product in data['expiring_3months']:
                 today = datetime.now(ZoneInfo("Asia/Manila")).date()
                 three_months_from_now = today + timedelta(days=90)
-                expiring_batches = [batch for batch in product.batches if batch.quantity > 0 and batch.exp_date > today and batch.exp_date <= three_months_from_now]
+                expiring_batches = [batch for batch in product.warehouse_batches if batch.quantity > 0 and batch.exp_date > today and batch.exp_date <= three_months_from_now]
                 if expiring_batches:
                     earliest_batch = min(expiring_batches, key=lambda x: x.exp_date)
                     days_left = (earliest_batch.exp_date - today).days
@@ -573,14 +573,14 @@ def send_purchaser_report():
             
             expired_html = ""
             for product in data['expired_products']:
-                expired_qty = sum(batch.quantity for batch in product.batches if batch.exp_date <= datetime.now(ZoneInfo("Asia/Manila")).date() and batch.quantity > 0)
+                expired_qty = sum(batch.quantity for batch in product.warehouse_batches if batch.exp_date <= datetime.now(ZoneInfo("Asia/Manila")).date() and batch.quantity > 0)
                 expired_html += f"<tr><td>{product.name}</td><td>{expired_qty} {product.uom}</td><td>{product.account_title}</td></tr>"
             
             expiring_html = ""
             for product in data['expiring_3months']:
                 today = datetime.now(ZoneInfo("Asia/Manila")).date()
                 three_months_from_now = today + timedelta(days=90)
-                expiring_batches = [batch for batch in product.batches if batch.quantity > 0 and batch.exp_date > today and batch.exp_date <= three_months_from_now]
+                expiring_batches = [batch for batch in product.warehouse_batches if batch.quantity > 0 and batch.exp_date > today and batch.exp_date <= three_months_from_now]
                 if expiring_batches:
                     earliest_batch = min(expiring_batches, key=lambda x: x.exp_date)
                     days_left = (earliest_batch.exp_date - today).days
