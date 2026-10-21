@@ -36,7 +36,7 @@ def get_redirect_url_for_user(user, user_agent):
     is_mobile = is_mobile_device(user_agent)
     
     if user.role == 'User':
-        return url_for('requisitions.requisition_form', login_success='true')
+        return url_for('requisitions.store_inventory', login_success='true')
     elif user.role in ['SYS-Admin', 'WH-Admin', 'Company-Admin']:
         if is_mobile:
             return url_for('scanner.mobile_scanner')
@@ -47,11 +47,11 @@ def get_redirect_url_for_user(user, user_agent):
 
 
 def user_redirect_to_requisition(view_func):
-    """Decorator to redirect User role to requisition form"""
+    """Decorator to redirect User role to store inventory"""
     @wraps(view_func)
     def decorated_view(*args, **kwargs):
         if current_user.is_authenticated and current_user.role == 'User':
-            return redirect(url_for('requisitions.requisition_form'))
+            return redirect(url_for('requisitions.store_inventory'))
         return view_func(*args, **kwargs)
     return decorated_view
 

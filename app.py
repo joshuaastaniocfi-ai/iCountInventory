@@ -611,6 +611,18 @@ def create_app(config_name='default'):
                 db.session.rollback()
                 app.logger.warning(f"Requisition item/variance migration note: {e}")
 
+            # ── Add is_banned to user table ──
+            try:
+                inspector = inspect(db.engine)
+                user_cols = [c['name'] for c in inspector.get_columns('user')]
+                if 'is_banned' not in user_cols:
+                    db.session.execute(text('ALTER TABLE user ADD COLUMN is_banned BOOLEAN DEFAULT 0'))
+                    db.session.commit()
+                    app.logger.info("Added is_banned column to user table")
+            except Exception as e:
+                db.session.rollback()
+                app.logger.warning(f"User is_banned migration note: {e}")
+
             # ── Auto-heal: Ensure warehouse_qty matches batch sums and quantity == warehouse_qty + store_qty ──
             try:
                 # Sync warehouse_qty to sum of warehouse batches for products that have batches

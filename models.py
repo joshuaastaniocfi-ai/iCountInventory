@@ -41,6 +41,7 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(50), default='User')
     email_verified = db.Column(db.Boolean, default=False)
+    is_banned = db.Column(db.Boolean, default=False)
     verification_token = db.Column(db.String(100), unique=True)
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
 
@@ -50,10 +51,10 @@ class User(db.Model, UserMixin):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
     
-    # Treat unverified users as inactive so Flask-Login refuses to log them in
+    # Treat unverified or banned users as inactive so Flask-Login refuses login
     @property
     def is_active(self):  # type: ignore[override]
-        return bool(self.email_verified)
+        return bool(self.email_verified and not self.is_banned)
 
     def generate_verification_token(self):
         self.verification_token = secrets.token_urlsafe(32)

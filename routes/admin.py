@@ -1,5 +1,6 @@
 # Standard library imports
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 # Third-party imports
 from flask import Blueprint, render_template, request, redirect, url_for, flash
@@ -22,14 +23,31 @@ def admin_users():
     page = request.args.get('page', 1, type=int)
     per_page = 10
     search = request.args.get('q', '').strip()
+    role_filter = request.args.get('role', '').strip()
+    status_filter = request.args.get('status', '').strip()
+    company_filter = request.args.get('company_id', '').strip()
 
     # For SYS-Admin users with null company_id, show all users across all companies
     # For Company-Admin and other admins, show only users in their company
     if current_user.role == 'SYS-Admin' and current_user.company_id is None:
-        query = User.query
+        base_query = User.query
     else:
-        query = User.query.filter_by(company_id=current_user.company_id)
-        
+        base_query = User.query.filter_by(company_id=current_user.company_id)
+
+    # Compute overview stats across the base scope before filters are applied
+    base_users = base_query.all()
+    stats = {
+        'total': len(base_users),
+        'sys_admin': sum(1 for u in base_users if u.role == 'SYS-Admin'),
+        'company_admin': sum(1 for u in base_users if u.role == 'Company-Admin'),
+        'wh_admin': sum(1 for u in base_users if u.role == 'WH-Admin'),
+        'purchaser': sum(1 for u in base_users if u.role == 'Purchaser'),
+        'regular': sum(1 for u in base_users if u.role == 'User'),
+        'unverified': sum(1 for u in base_users if not u.email_verified),
+        'banned': sum(1 for u in base_users if getattr(u, 'is_banned', False)),
+    }
+
+    query = base_query
     if search:
         like = f"%{search}%"
         query = query.filter(db.or_(
@@ -39,6 +57,27 @@ def admin_users():
             User.branch.ilike(like),
             User.role.ilike(like)
         ))
+
+    if role_filter:
+        if role_filter.lower() == 'admins':
+            query = query.filter(User.role.in_(['SYS-Admin', 'Company-Admin']))
+        else:
+            query = query.filter(User.role == role_filter)
+
+    if status_filter:
+        if status_filter.lower() == 'banned':
+            query = query.filter(User.is_banned == True)
+        elif status_filter.lower() == 'unverified':
+            query = query.filter(User.email_verified == False)
+        elif status_filter.lower() == 'verified':
+            query = query.filter(User.email_verified == True, User.is_banned == False)
+
+    if company_filter and current_user.role == 'SYS-Admin' and current_user.company_id is None:
+        try:
+            cid = int(company_filter)
+            query = query.filter(User.company_id == cid)
+        except ValueError:
+            pass
 
     all_users = query.all()
 
@@ -57,7 +96,7 @@ def admin_users():
 
     # Pagination logic
     total_users = len(other_users)
-    total_pages = (total_users + per_page - 1) // per_page  # Ceiling division
+    total_pages = (total_users + per_page - 1) // per_page if total_users > 0 else 1
     if page < 1:
         page = 1
     elif page > total_pages and total_pages > 0:
@@ -79,16 +118,17 @@ def admin_users():
         'next_num': page + 1 if page < total_pages else None
     })()
 
-    # Stats for the overview cards (computed over the full visible set)
-    stats = {
-        'total': len(all_users),
-        'sys_admin': sum(1 for u in all_users if u.role == 'SYS-Admin'),
-        'company_admin': sum(1 for u in all_users if u.role == 'Company-Admin'),
-        'wh_admin': sum(1 for u in all_users if u.role == 'WH-Admin'),
-        'purchaser': sum(1 for u in all_users if u.role == 'Purchaser'),
-        'regular': sum(1 for u in all_users if u.role == 'User'),
-        'unverified': sum(1 for u in all_users if not u.email_verified),
-    }
+    current_filters = {}
+    if search:
+        current_filters['q'] = search
+    if role_filter:
+        current_filters['role'] = role_filter
+    if status_filter:
+        current_filters['status'] = status_filter
+    if company_filter:
+        current_filters['company_id'] = company_filter
+
+    ph_time = datetime.now(ZoneInfo("Asia/Manila"))
 
     return render_template(
         'admin/admin_users.html',
@@ -96,6 +136,8 @@ def admin_users():
         users=paginated_users,
         pagination=pagination,
         search=search,
+        current_filters=current_filters,
+        now=ph_time,
         companies=Company.query.all(),
         stats=stats
     )
@@ -143,14 +185,22 @@ def admin_update_role(user_id):
 @user_redirect_to_requisition
 @edit_delete_required
 def admin_update_username(user_id):
-    # Only allow admins to update their own username
-    if current_user.id != user_id:
-        flash("You can only update your own username.", 'warning')
+    user = User.query.get_or_404(user_id)
+
+    # Permission check: SYS-Admin, or Company-Admin within company, or self
+    if current_user.role == 'SYS-Admin':
+        pass
+    elif current_user.role == 'Company-Admin':
+        if user.company_id != current_user.company_id and user.id != current_user.id:
+            flash("You don't have permission to update usernames in other companies.", 'warning')
+            return redirect(url_for('admin.admin_users'))
+    elif current_user.id == user_id:
+        pass
+    else:
+        flash("You don't have permission to update usernames.", 'warning')
         return redirect(url_for('admin.admin_users'))
 
-    user = User.query.get_or_404(user_id)
-    new_username = request.form.get('username')
-
+    new_username = request.form.get('username', '').strip()
     if not new_username:
         flash('Username is required.', 'error')
         return redirect(url_for('admin.admin_users'))
@@ -158,7 +208,7 @@ def admin_update_username(user_id):
     # Check if username is already taken by another user
     existing_user = User.query.filter_by(username=new_username).first()
     if existing_user and existing_user.id != user_id:
-        flash('Username is already in use by another user.', 'error')
+        flash(f'Username "{new_username}" is already in use by another user.', 'error')
         return redirect(url_for('admin.admin_users'))
 
     old_username = user.username
@@ -166,7 +216,44 @@ def admin_update_username(user_id):
     db.session.commit()
 
     log_activity('Update Username', f"Updated username for <strong>{old_username}</strong> to <strong>{new_username}</strong>.")
-    flash('Username updated successfully.', 'success')
+    flash(f'Username updated to "{new_username}" successfully.', 'success')
+    return redirect(url_for('admin.admin_users'))
+
+
+@admin.route('/users/<int:user_id>/password', methods=['POST'])
+@login_required
+@user_redirect_to_requisition
+@edit_delete_required
+def admin_update_password(user_id):
+    user = User.query.get_or_404(user_id)
+
+    # Permission check: SYS-Admin, or Company-Admin within company, or self
+    if current_user.role == 'SYS-Admin':
+        pass
+    elif current_user.role == 'Company-Admin':
+        if user.company_id != current_user.company_id and user.id != current_user.id:
+            flash("You don't have permission to change passwords in other companies.", 'warning')
+            return redirect(url_for('admin.admin_users'))
+    elif current_user.id == user_id:
+        pass
+    else:
+        flash("You don't have permission to change passwords.", 'warning')
+        return redirect(url_for('admin.admin_users'))
+
+    new_password = request.form.get('password', '').strip()
+    if not new_password:
+        flash('Password cannot be empty.', 'error')
+        return redirect(url_for('admin.admin_users'))
+
+    if len(new_password) < 6:
+        flash('Password must be at least 6 characters long.', 'error')
+        return redirect(url_for('admin.admin_users'))
+
+    user.set_password(new_password)
+    db.session.commit()
+
+    log_activity('Update Password', f"Changed password for user <strong>{user.username}</strong>.")
+    flash(f'Password updated successfully for {user.username}.', 'success')
     return redirect(url_for('admin.admin_users'))
 
 
@@ -175,14 +262,22 @@ def admin_update_username(user_id):
 @user_redirect_to_requisition
 @edit_delete_required
 def admin_update_email(user_id):
-    # Only allow admins to update their own email
-    if current_user.id != user_id:
-        flash("You can only update your own email address.", 'warning')
+    user = User.query.get_or_404(user_id)
+
+    # Permission check: SYS-Admin, or Company-Admin within company, or self
+    if current_user.role == 'SYS-Admin':
+        pass
+    elif current_user.role == 'Company-Admin':
+        if user.company_id != current_user.company_id and user.id != current_user.id:
+            flash("You don't have permission to update email addresses in other companies.", 'warning')
+            return redirect(url_for('admin.admin_users'))
+    elif current_user.id == user_id:
+        pass
+    else:
+        flash("You don't have permission to update email addresses.", 'warning')
         return redirect(url_for('admin.admin_users'))
 
-    user = User.query.get_or_404(user_id)
-    new_email = request.form.get('email')
-
+    new_email = request.form.get('email', '').strip()
     if not new_email:
         flash('Email address is required.', 'error')
         return redirect(url_for('admin.admin_users'))
@@ -231,6 +326,43 @@ def admin_delete_user(user_id):
 
     log_activity('Delete User', f"Deleted user account <strong>{username}</strong>.")
     flash('User account deleted.', 'success')
+    return redirect(url_for('admin.admin_users'))
+
+
+@admin.route('/users/<int:user_id>/toggle_ban', methods=['POST'])
+@login_required
+@user_redirect_to_requisition
+@edit_delete_required
+def admin_toggle_ban(user_id):
+    # Allow SYS-Admin and Company-Admin to toggle ban
+    if current_user.role not in ['SYS-Admin', 'Company-Admin']:
+        flash("You don't have permission to ban or unban users.", 'warning')
+        return redirect(url_for('admin.admin_users'))
+
+    # Prevent users from banning themselves
+    if current_user.id == user_id:
+        flash("You cannot ban your own account.", 'warning')
+        return redirect(url_for('admin.admin_users'))
+
+    user = User.query.get_or_404(user_id)
+
+    # SYS-Admin accounts cannot be banned unless by another SYS-Admin
+    if user.role == 'SYS-Admin' and current_user.role != 'SYS-Admin':
+        flash("You do not have permission to ban a SYS-Admin account.", 'error')
+        return redirect(url_for('admin.admin_users'))
+
+    # For Company-Admin, ensure they can only modify users in their company
+    if current_user.role == 'Company-Admin' and user.company_id != current_user.company_id:
+        flash("You don't have permission to modify users in other companies.", 'warning')
+        return redirect(url_for('admin.admin_users'))
+
+    was_banned = getattr(user, 'is_banned', False)
+    user.is_banned = not was_banned
+    db.session.commit()
+
+    action_label = "Unbanned" if was_banned else "Banned"
+    log_activity(f"{action_label} User", f"Admin {current_user.username} {action_label.lower()} user <strong>{user.username}</strong> ({user.full_name}).")
+    flash(f"User {user.username} has been {action_label.lower()} successfully.", 'success')
     return redirect(url_for('admin.admin_users'))
 
 

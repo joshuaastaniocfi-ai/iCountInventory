@@ -1,651 +1,1259 @@
 {% extends 'layouts/base-sidebar.html' %}
-{% block title %}Deliveries - iCount{% endblock %}
+{% block title %}Receiving & Deliveries Hub - iCount{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="/static/css/receiving.css?v=20261021">
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-3 px-md-4">
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-2">
-    <div>
-      <h4 class="fw-bold mb-1"><i class="fas fa-truck text-success me-2"></i>Deliveries</h4>
-      <p class="text-muted small mb-0">Completed store deliveries with variance tracking</p>
+<div class="receiving-page container-fluid px-3 px-md-4 py-3">
+
+  <!-- ── Header ─────────────────────────────────────────── -->
+  <div class="recv-header">
+    <div class="recv-title-wrap">
+      <div class="recv-page-icon">
+        <i class="fas fa-truck-ramp-box"></i>
+      </div>
+      <div>
+        <div class="recv-eyebrow">
+          <span>Operations</span>
+          <span>Intake &amp; Logistics</span>
+        </div>
+        <h1 class="recv-title">Receiving &amp; Deliveries</h1>
+        <p class="recv-subtitle">Verify incoming branch shipments, record actual physical intake, and audit variances</p>
+      </div>
+    </div>
+    <div class="recv-header-actions">
+      <a href="{{ url_for('receiving.variance_page') }}" class="btn-recv-secondary">
+        <i class="fas fa-scale-unbalanced text-danger me-1"></i> Variance Audit Log
+      </a>
+      <button type="button" class="btn-recv-secondary" onclick="loadDeliveries()" id="btnRefresh" title="Refresh delivery data">
+        <i class="fas fa-rotate me-1" id="refreshIcon"></i> Refresh
+      </button>
     </div>
   </div>
 
-  <!-- Filters -->
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-body py-3">
-      <div class="row g-2 align-items-end">
-        <div class="col-12 col-sm">
-          <label class="form-label small mb-1">Search</label>
-          <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Branch or requester...">
-        </div>
-        <div class="col-6 col-sm">
-          <label class="form-label small mb-1">Status</label>
-          <select class="form-select form-select-sm" id="statusFilter">
-            <option value="all">All</option>
-            <option value="Discrepancy - Pending Approval">Pending Discrepancies</option>
-            <option value="Delivered">Delivered</option>
-            <option value="Partial">Partial</option>
-          </select>
-        </div>
-        <div class="col-6 col-sm">
-          <label class="form-label small mb-1">From</label>
-          <input type="date" class="form-control form-control-sm" id="dateFrom">
-        </div>
-        <div class="col-6 col-sm">
-          <label class="form-label small mb-1">To</label>
-          <input type="date" class="form-control form-control-sm" id="dateTo">
-        </div>
-        <div class="col-6 col-sm-auto">
-          <button class="btn btn-sm btn-primary w-100" onclick="loadDeliveries()">
-            <i class="fas fa-search me-1"></i> Filter
-          </button>
-        </div>
+  <!-- ── KPI Metric Cards Strip ──────────────────────────── -->
+  <div class="recv-metrics-grid">
+    <!-- 1. Ready to Receive (Actionable) -->
+    <div class="metric-card" id="cardInbound" onclick="setTabFilter('inbound')">
+      <div class="metric-label">
+        <span>Ready to Receive</span>
+        <span class="metric-pill pill-amber"><i class="fas fa-bell me-1"></i>Action</span>
+      </div>
+      <div class="metric-value text-warning" id="statInboundCount">0</div>
+      <div class="metric-sub">Inbound shipments awaiting intake count</div>
+    </div>
+
+    <!-- 2. Completed Deliveries -->
+    <div class="metric-card" id="cardDelivered" onclick="setTabFilter('delivered')">
+      <div class="metric-label">
+        <span>Delivered</span>
+        <span class="metric-pill pill-green"><i class="fas fa-check-circle me-1"></i>Complete</span>
+      </div>
+      <div class="metric-value text-success" id="statDeliveredCount">0</div>
+      <div class="metric-sub">Confirmed &amp; credited to store stock</div>
+    </div>
+
+    <!-- 3. Pending Discrepancies -->
+    <div class="metric-card" id="cardDiscrepancy" onclick="setTabFilter('discrepancy')">
+      <div class="metric-label">
+        <span>Pending Discrepancies</span>
+        <span class="metric-pill pill-red"><i class="fas fa-triangle-exclamation me-1"></i>Quarantined</span>
+      </div>
+      <div class="metric-value text-danger" id="statDiscrepancyCount">0</div>
+      <div class="metric-sub">Awaiting Company-Admin review</div>
+    </div>
+
+    <!-- 4. Total Tracked Shipments -->
+    <div class="metric-card" id="cardTotal" onclick="setTabFilter('all')">
+      <div class="metric-label">
+        <span>Total Shipments</span>
+        <span class="metric-pill pill-neu"><i class="fas fa-list me-1"></i>All</span>
+      </div>
+      <div class="metric-value" id="statTotalCount">0</div>
+      <div class="metric-sub">Total inbound &amp; past delivery orders</div>
+    </div>
+  </div>
+
+  <!-- ── Filter & Navigation Strip ───────────────────────── -->
+  <div class="recv-filter-strip">
+    <!-- Segmented Filter Tabs -->
+    <div class="recv-tabs-bar" role="tablist">
+      <button type="button" class="recv-tab-btn active" id="tab-all" onclick="setTabFilter('all')">
+        <i class="fas fa-layer-group"></i> All Shipments
+        <span class="recv-tab-badge" id="tabBadgeAll">0</span>
+      </button>
+      <button type="button" class="recv-tab-btn tab-inbound" id="tab-inbound" onclick="setTabFilter('inbound')">
+        <i class="fas fa-box-open"></i> Ready to Receive
+        <span class="recv-tab-badge" id="tabBadgeInbound">0</span>
+      </button>
+      <button type="button" class="recv-tab-btn" id="tab-delivered" onclick="setTabFilter('delivered')">
+        <i class="fas fa-circle-check"></i> Delivered
+        <span class="recv-tab-badge" id="tabBadgeDelivered">0</span>
+      </button>
+      <button type="button" class="recv-tab-btn" id="tab-discrepancy" onclick="setTabFilter('discrepancy')">
+        <i class="fas fa-shield-halved text-danger"></i> Discrepancies
+        <span class="recv-tab-badge" id="tabBadgeDiscrepancy">0</span>
+      </button>
+    </div>
+
+    <!-- Controls Row: Search + Date Filters -->
+    <div class="recv-controls-row">
+      <div class="recv-search-wrap">
+        <i class="fas fa-search recv-search-icon"></i>
+        <input type="text" class="recv-search-input" id="recvSearch" placeholder="Search reference code, branch, requester, product…" oninput="handleSearchInput(this.value)">
+      </div>
+
+      <div class="recv-date-filter">
+        <span class="small text-muted me-1"><i class="fas fa-calendar-day"></i> From</span>
+        <input type="date" class="recv-date-input" id="dateFrom" onchange="loadDeliveries()">
+        <span class="small text-muted mx-1">To</span>
+        <input type="date" class="recv-date-input" id="dateTo" onchange="loadDeliveries()">
+      </div>
+
+      <div class="d-flex align-items-center gap-1 ms-auto">
+        <button type="button" class="btn-recv-ghost" onclick="setDatePreset('today')">Today</button>
+        <button type="button" class="btn-recv-ghost" onclick="setDatePreset('week')">7 Days</button>
+        <button type="button" class="btn-recv-ghost" onclick="clearDateFilter()">Clear</button>
       </div>
     </div>
   </div>
 
-  <!-- Deliveries List (desktop) -->
-  <div class="card border-0 shadow-sm d-none d-md-block">
+  <!-- ── Deliveries List: Desktop Data Table ─────────────── -->
+  <div class="recv-table-card d-none d-md-block">
     <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0" id="deliveryTable">
+      <table class="recv-table" id="deliveryTable">
         <thead>
           <tr>
-            <th>Ref</th>
-            <th>Branch</th>
+            <th style="width:130px">Ref Code</th>
+            <th>Branch / Destination</th>
             <th>Requested By</th>
-            <th>Delivery Date</th>
-            <th>Status</th>
-            <th>Items</th>
-            <th>Requested</th>
-            <th>Released</th>
-            <th>Received</th>
-            <th>Variance</th>
+            <th style="width:150px">Date / Time</th>
+            <th style="width:140px">Delivery Status</th>
+            <th style="width:130px">Items Summary</th>
+            <th class="text-end" style="width:90px">Released</th>
+            <th class="text-end" style="width:90px">Received</th>
+            <th class="text-end" style="width:90px">Variance</th>
+            <th class="text-end" style="width:150px">Actions</th>
           </tr>
         </thead>
         <tbody id="deliveryTableBody">
-          <tr><td colspan="10" class="text-center text-muted py-4">Loading...</td></tr>
+          <tr>
+            <td colspan="10" class="text-center py-5 text-muted">
+              <div class="spinner-border spinner-border-sm text-secondary me-2" role="status"></div> Loading shipments…
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
   </div>
 
-  <!-- Deliveries List (mobile cards) -->
-  <div class="d-md-none" id="deliveryCards"></div>
+  <!-- ── Deliveries List: Mobile Cards ───────────────────── -->
+  <div class="d-md-none" id="deliveryCards">
+    <div class="text-center py-5 text-muted">
+      <div class="spinner-border spinner-border-sm text-secondary me-2" role="status"></div> Loading shipments…
+    </div>
+  </div>
+
+</div><!-- /receiving-page -->
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL: RECEIVE INBOUND SHIPMENT
+     ══════════════════════════════════════════════════════ -->
+<div class="modal fade" id="receivingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable recv-modal-dialog">
+    <div class="modal-content recv-modal-content">
+      <div class="recv-modal-header">
+        <div class="d-flex align-items-center gap-2">
+          <div class="recv-page-icon" style="width:36px;height:36px;font-size:0.95rem">
+            <i class="fas fa-box-open"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-0" id="recvModalTitle">Confirm Inbound Receiving</h5>
+            <small class="text-muted" id="recvModalSub">Physical intake verification</small>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="recv-modal-body">
+        <!-- Requisition Overview Badge Bar -->
+        <div class="p-2 mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2" style="background:var(--surface,#fafafa);border:1px solid var(--recv-border);">
+          <div class="small">
+            <span class="text-muted">Branch:</span> <strong id="recvModalBranch">—</strong> &middot;
+            <span class="text-muted">Requested By:</span> <strong id="recvModalRequester">—</strong>
+          </div>
+          <div class="small">
+            <span class="text-muted">Status:</span> <span id="recvModalStatusBadge" class="status-badge status-inbound">Pending</span>
+          </div>
+        </div>
+
+        <!-- Quick Match Banner -->
+        <div class="quick-match-banner">
+          <div>
+            <strong class="d-block" style="font-size:0.85rem"><i class="fas fa-bolt text-warning me-1"></i> Quick Match Verification</strong>
+            <span class="quick-match-text">Did all items arrive intact matching warehouse release quantities?</span>
+          </div>
+          <button type="button" class="btn-quick-match" onclick="matchAllModalQuantities()">
+            <i class="fas fa-check-double"></i> Match All Released
+          </button>
+        </div>
+
+        <!-- Items Verification Header -->
+        <div class="d-none d-md-grid text-uppercase small text-muted fw-bold pb-2 border-bottom" style="grid-template-columns: minmax(0, 1.8fr) 80px 100px 140px 110px; gap: 0.75rem; font-size: 0.7rem;">
+          <div>Product Details</div>
+          <div class="text-center">Req Qty</div>
+          <div class="text-center">Released (WH)</div>
+          <div class="text-center">Actual Received</div>
+          <div class="text-end">Variance Status</div>
+        </div>
+
+        <!-- Items Verification List -->
+        <div id="recvModalItemsContainer">
+          <!-- Filled by JS -->
+        </div>
+
+        <!-- Optional Unexpected Products Section -->
+        <div class="mt-4 pt-3 border-top" id="recvModalOptSection">
+          <details>
+            <summary class="small fw-bold text-secondary cursor-pointer" style="cursor:pointer">
+              <i class="fas fa-plus-circle text-primary me-1"></i> Add Unexpected Product (Surplus item delivered not in request)
+            </summary>
+            <div class="p-3 mt-2" style="background:var(--surface,#fafafa);border:1px solid var(--recv-border);">
+              <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-8">
+                  <label class="small text-muted mb-1">Scan barcode or enter product name</label>
+                  <input type="text" class="recv-search-input" id="optProductInput" placeholder="Scan barcode or type product name…" onkeydown="if(event.key==='Enter'){event.preventDefault();lookupModalOptionalProduct();}">
+                </div>
+                <div class="col-12 col-md-4">
+                  <button type="button" class="btn-recv-secondary w-100" onclick="lookupModalOptionalProduct()">
+                    <i class="fas fa-search me-1"></i> Find &amp; Add Item
+                  </button>
+                </div>
+              </div>
+              <div id="optProductLookupMsg" class="small mt-2"></div>
+
+              <div id="optModalItemsWrap" class="mt-3" style="display:none">
+                <table class="table table-sm align-middle mb-0" style="font-size:0.8rem">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th style="width:110px">Released</th>
+                      <th style="width:110px">Received</th>
+                      <th style="width:40px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="optModalItemsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <!-- Discrepancy Alert Warning (Shown dynamically if variance exists) -->
+        <div id="recvDiscrepancyWarning" class="alert alert-warning mt-3 py-2 px-3 small border-0" style="display:none;background:var(--recv-amber-bg);border-left:3px solid var(--recv-amber) !important;color:var(--recv-text);">
+          <div class="d-flex align-items-start gap-2">
+            <i class="fas fa-triangle-exclamation text-warning mt-1"></i>
+            <div>
+              <strong>Discrepancy Notice:</strong> Actual received count differs from the warehouse declaration. Submitting will flag this delivery for <strong>Company-Admin Discrepancy Quarantine</strong>.
+            </div>
+          </div>
+        </div>
+
+        <!-- Receiving Notes -->
+        <div class="mt-3">
+          <label class="small fw-semibold text-muted mb-1">Receiving Remarks / Condition Notes (Optional)</label>
+          <textarea class="form-control form-control-sm" id="recvModalRemarks" rows="2" placeholder="e.g. Items received intact by store staff; cold storage packaging verified." style="background:var(--surface,#fafafa);border-color:var(--recv-border);color:var(--recv-text);font-size:0.82rem"></textarea>
+        </div>
+      </div>
+
+      <div class="recv-modal-footer">
+        <div class="small text-muted" id="recvModalSummaryTally">
+          Total Released: <strong id="tallyReleased">0</strong> &middot; Received: <strong id="tallyReceived">0</strong>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn-recv-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn-recv-primary" id="btnSubmitReceiving" onclick="submitModalReceiving()">
+            <i class="fas fa-check-double me-1"></i> Confirm &amp; Save Receiving
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<style>
-#deliveryTable thead th { font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 2px solid var(--border); white-space: normal; line-height: 1.25; background: var(--table-header-bg, #f3f4f6); color: var(--text-primary); }
-html.dark-mode #deliveryTable thead th { color: #fff !important; background: rgba(255,255,255,0.08) !important; border-bottom-color: rgba(255,255,255,0.12) !important; }
-html.dark-mode #deliveryTable tbody td { color: #fff !important; }
-html.dark-mode #deliveryTable tbody tr:hover { background: rgba(255,255,255,0.05) !important; }
-#deliveryTable tbody tr { cursor: pointer; }
-#deliveryTable tbody tr:hover { background: var(--sidebar-hover); }
+<!-- ══════════════════════════════════════════════════════
+     MODAL: DELIVERY DETAIL & VERIFICATION AUDIT
+     ══════════════════════════════════════════════════════ -->
+<div class="modal fade" id="deliveryDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable recv-modal-dialog">
+    <div class="modal-content recv-modal-content">
+      <div class="recv-modal-header">
+        <div>
+          <h5 class="fw-bold mb-0" id="detailModalTitle">Delivery Details</h5>
+          <small class="text-muted" id="detailModalSubtitle">Verified Intake &amp; Variance Audit</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="recv-modal-body" id="detailModalBody">
+        <!-- Rendered dynamically -->
+      </div>
+      <div class="recv-modal-footer">
+        <button type="button" class="btn-recv-secondary" onclick="printCurrentDeliverySlip()">
+          <i class="fas fa-print me-1"></i> Print Delivery Slip
+        </button>
+        <button type="button" class="btn-recv-primary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-/* Detail modal table dark mode */
-html.dark-mode #deliveryDetailModal .table,
-html.dark-mode #deliveryDetailModal .table thead th,
-html.dark-mode #deliveryDetailModal .table tbody td,
-html.dark-mode #deliveryDetailModal .table tfoot td { color: #fff !important; }
-html.dark-mode #deliveryDetailModal .table thead,
-html.dark-mode #deliveryDetailModal .table thead.table-light { --bs-table-bg: transparent !important; }
-html.dark-mode #deliveryDetailModal .table thead th { background: rgba(255,255,255,0.08) !important; border-bottom-color: rgba(255,255,255,0.12) !important; }
-html.dark-mode #deliveryDetailModal .table tfoot,
-html.dark-mode #deliveryDetailModal .table tfoot.table-light { background: rgba(255,255,255,0.04) !important; --bs-table-bg: transparent !important; }
-html.dark-mode #deliveryDetailModal .table tfoot td { border-top: 2px solid rgba(255,255,255,0.12) !important; }
-html.dark-mode #deliveryDetailModal .modal-header,
-html.dark-mode #deliveryDetailModal .modal-body { color: #fff !important; }
-html.dark-mode #deliveryDetailModal .modal-header h6 { color: #fff !important; }
-html.dark-mode #deliveryDetailModal .text-muted { color: rgba(255,255,255,0.6) !important; }
-html.dark-mode #deliveryDetailModal .resolution-box { background: rgba(255, 193, 7, 0.08) !important; border-color: rgba(255, 193, 7, 0.25) !important; }
+<!-- ══════════════════════════════════════════════════════
+     MODAL: ADMIN DISCREPANCY RESOLUTION
+     ══════════════════════════════════════════════════════ -->
+<div class="modal fade" id="resolutionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable recv-modal-dialog">
+    <div class="modal-content recv-modal-content">
+      <div class="recv-modal-header">
+        <div>
+          <h5 class="fw-bold mb-0 text-danger"><i class="fas fa-gavel me-2"></i> Resolve Delivery Discrepancy</h5>
+          <small class="text-muted" id="resolutionModalRef">Quarantined Stock Investigation &amp; Accountability</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="recv-modal-body">
+        <p class="small text-muted mb-3">
+          Select the verified accountability finding for this variance. Stock balances across warehouse and branch will automatically adjust based on your declaration:
+        </p>
 
-/* Fix dropdown option contrast in dark mode */
-select option,
-.form-select option {
-  background-color: #ffffff;
-  color: #1e293b;
-}
+        <!-- Category 1: Warehouse Accountable -->
+        <div class="resolution-group-label text-primary">
+          <i class="fas fa-warehouse"></i> Warehouse Accountable (WH Dispatch / Picking Error)
+        </div>
+        
+        <div class="resolution-card active" onclick="selectResolutionOption(this, 'warehouse_miscount_charge')">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="resActionRadio" id="resWHShort" value="warehouse_miscount_charge" checked>
+            <label class="form-check-label w-100 cursor-pointer" for="resWHShort">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong class="text-primary"><i class="fas fa-boxes-packing me-1"></i> Warehouse Picking Shortage / Charge</strong>
+                <span class="badge bg-primary">Accountable: Warehouse</span>
+              </div>
+              <div class="small text-muted mt-1">Warehouse staff under-packed or miscounted before dispatch. Unreleased units are restored to warehouse inventory and charge logged against release team.</div>
+            </label>
+          </div>
+        </div>
 
-html.dark-mode select,
-html.dark-mode .form-select,
-body.dark-mode select,
-body.dark-mode .form-select,
-[data-bs-theme="dark"] select,
-[data-bs-theme="dark"] .form-select {
-  background-color: #16182a !important;
-  color: #f1f3f9 !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
-}
+        <div class="resolution-card" onclick="selectResolutionOption(this, 'warehouse_over_dispatch')">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="resActionRadio" id="resWHOver" value="warehouse_over_dispatch">
+            <label class="form-check-label w-100 cursor-pointer" for="resWHOver">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong class="text-primary"><i class="fas fa-dolly me-1"></i> Warehouse Over-Dispatch / Excess Packed</strong>
+                <span class="badge bg-primary">Accountable: Warehouse</span>
+              </div>
+              <div class="small text-muted mt-1">Warehouse team dispatched surplus items. Units are deducted from warehouse stock to reconcile physical count.</div>
+            </label>
+          </div>
+        </div>
 
-html.dark-mode select option,
-html.dark-mode .form-select option,
-body.dark-mode select option,
-body.dark-mode .form-select option,
-[data-bs-theme="dark"] select option,
-[data-bs-theme="dark"] .form-select option {
-  background-color: #16182a !important;
-  color: #f1f3f9 !important;
-}
+        <div class="resolution-card" onclick="selectResolutionOption(this, 'warehouse_damaged_prep')">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="resActionRadio" id="resWHDamage" value="warehouse_damaged_prep">
+            <label class="form-check-label w-100 cursor-pointer" for="resWHDamage">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong class="text-primary"><i class="fas fa-triangle-exclamation me-1"></i> Pre-Dispatch Warehouse Handling Loss</strong>
+                <span class="badge bg-primary">Accountable: Warehouse</span>
+              </div>
+              <div class="small text-muted mt-1">Goods damaged during warehouse staging or truck loading before departure.</div>
+            </label>
+          </div>
+        </div>
 
-html.dark-mode select option:checked,
-html.dark-mode .form-select option:checked,
-body.dark-mode select option:checked,
-body.dark-mode .form-select option:checked,
-[data-bs-theme="dark"] select option:checked,
-[data-bs-theme="dark"] .form-select option:checked {
-  background-color: #3b82f6 !important;
-  color: #ffffff !important;
-}
+        <!-- Category 2: In-Transit / Delivery Driver Accountable -->
+        <div class="resolution-group-label text-danger">
+          <i class="fas fa-truck-fast"></i> Delivery Driver / Transit Accountable
+        </div>
 
-.resolution-card { border: 1.5px solid var(--bord, #e2e8f0); border-radius: 8px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s ease; }
-.resolution-card:hover { border-color: #3b82f6; background: rgba(59,130,246,0.04); }
-.resolution-card.active { border-color: #2563eb; background: rgba(37,99,235,0.08); }
-</style>
+        <div class="resolution-card" onclick="selectResolutionOption(this, 'damaged_loss')">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="resActionRadio" id="resTransitLoss" value="damaged_loss">
+            <label class="form-check-label w-100 cursor-pointer" for="resTransitLoss">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong class="text-danger"><i class="fas fa-truck-ramp-box me-1"></i> In-Transit Physical Damage or Loss</strong>
+                <span class="badge bg-danger">Accountable: Delivery / Driver</span>
+              </div>
+              <div class="small text-muted mt-1">Items broken, lost, or mishandled in custody of the delivery courier or driver. Written off as delivery loss.</div>
+            </label>
+          </div>
+        </div>
+
+        <div class="resolution-card" onclick="selectResolutionOption(this, 'delivery_spoilage_delay')">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="resActionRadio" id="resTransitSpoil" value="delivery_spoilage_delay">
+            <label class="form-check-label w-100 cursor-pointer" for="resTransitSpoil">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong class="text-danger"><i class="fas fa-temperature-arrow-up me-1"></i> In-Transit Spoilage / Temperature Abuse</strong>
+                <span class="badge bg-danger">Accountable: Delivery / Driver</span>
+              </div>
+              <div class="small text-muted mt-1">Perishables spoiled due to transport vehicle cooling failure or delivery delays.</div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Category 3: Store Branch Accountable -->
+        <div class="resolution-group-label text-warning">
+          <i class="fas fa-store"></i> Store Branch Accountable
+        </div>
+
+        <div class="resolution-card" onclick="selectResolutionOption(this, 'store_wrong_count')">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="resActionRadio" id="resStoreCount" value="store_wrong_count">
+            <label class="form-check-label w-100 cursor-pointer" for="resStoreCount">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong class="text-warning text-dark"><i class="fas fa-calculator me-1"></i> Store Receiving Miscount / Counting Error</strong>
+                <span class="badge bg-warning text-dark">Accountable: Store Staff</span>
+              </div>
+              <div class="small text-muted mt-1">Store staff miscounted upon arrival. Driver delivered correctly. Store physical inventory is corrected.</div>
+            </label>
+          </div>
+        </div>
+
+        <div class="resolution-card" onclick="selectResolutionOption(this, 'store_damage_unloading')">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="resActionRadio" id="resStoreDamage" value="store_damage_unloading">
+            <label class="form-check-label w-100 cursor-pointer" for="resStoreDamage">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong class="text-warning text-dark"><i class="fas fa-box-open me-1"></i> Store Unloading Damage / Handling Loss</strong>
+                <span class="badge bg-warning text-dark">Accountable: Store Staff</span>
+              </div>
+              <div class="small text-muted mt-1">Items dropped or damaged by store crew during unloading into store premises.</div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Category 4: Recovery & Administrative Actions -->
+        <div class="resolution-group-label text-secondary">
+          <i class="fas fa-arrows-rotate"></i> Inventory Recovery &amp; Administrative Actions
+        </div>
+
+        <div class="resolution-card" onclick="selectResolutionOption(this, 'restore_warehouse')">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="resActionRadio" id="resWhReturn" value="restore_warehouse">
+            <label class="form-check-label w-100 cursor-pointer" for="resWhReturn">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong class="text-info text-dark"><i class="fas fa-warehouse me-1"></i> Restored in Warehouse (Returned / Retained)</strong>
+                <span class="badge bg-info text-dark">Recovery</span>
+              </div>
+              <div class="small text-muted mt-1">Surplus or undelivered goods were physically returned to warehouse racks.</div>
+            </label>
+          </div>
+        </div>
+
+        <div class="resolution-card" onclick="selectResolutionOption(this, 'restore_store')">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="resActionRadio" id="resStoreRestore" value="restore_store">
+            <label class="form-check-label w-100 cursor-pointer" for="resStoreRestore">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong class="text-success"><i class="fas fa-store me-1"></i> Restored in Store (Recovered / Follow-up Delivered)</strong>
+                <span class="badge bg-success">Recovery</span>
+              </div>
+              <div class="small text-muted mt-1">Missing items were located in branch or delivered in a follow-up batch.</div>
+            </label>
+          </div>
+        </div>
+
+        <div class="resolution-card" onclick="selectResolutionOption(this, 'recount')">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="resActionRadio" id="resRecount" value="recount">
+            <label class="form-check-label w-100 cursor-pointer" for="resRecount">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong class="text-secondary"><i class="fas fa-rotate-left me-1"></i> Request Physical Recount by Branch</strong>
+                <span class="badge bg-dark">Recount Action</span>
+              </div>
+              <div class="small text-muted mt-1">Reject current declaration and reopen receiving for store staff to recount.</div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Admin Audit Notes -->
+        <div class="mt-3">
+          <label class="small fw-semibold mb-1">Company-Admin Audit Trail Remarks</label>
+          <textarea class="form-control form-control-sm" id="resolutionAdminNotes" rows="2" placeholder="Record investigation findings, driver statements, or charge details…" style="background:var(--surface,#fafafa);border-color:var(--recv-border);color:var(--recv-text);font-size:0.82rem"></textarea>
+        </div>
+      </div>
+      <div class="recv-modal-footer">
+        <button type="button" class="btn-recv-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn-recv-primary" id="btnSubmitResolution" onclick="submitDiscrepancyResolution()">
+          <i class="fas fa-check-circle me-1"></i> Confirm &amp; Finalize Resolution
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     PRINTABLE DELIVERY RECEIPT (Hidden on screen)
+     ══════════════════════════════════════════════════════ -->
+<div id="printableDeliverySlip" style="display:none">
+  <!-- Filled dynamically prior to window.print() -->
+</div>
 
 <script>
-document.addEventListener('DOMContentLoaded', loadDeliveries);
+let ALL_DELIVERY_ROWS = [];
+let ACTIVE_TAB = 'all';
+let CURRENT_ACTIVE_REQ_ID = null;
+let SEARCH_DEBOUNCE_TIMER = null;
+let CURRENT_RESOLVING_REQ_ID = null;
+let OPT_MODAL_ITEM_COUNTER = 0;
 
-let allRows = [];
-
-const RESOLUTION_METADATA = {
+const RESOLUTION_META = {
   'damaged_loss': { label: 'In-Transit Physical Damage / Loss', accountable: 'Delivery / Driver', badge: 'bg-danger text-white' },
   'delivery_transit_loss': { label: 'In-Transit Physical Damage / Loss', accountable: 'Delivery / Driver', badge: 'bg-danger text-white' },
-  'delivery_spoilage_delay': { label: 'In-Transit Spoilage / Temperature Abuse', accountable: 'Delivery / Driver', badge: 'bg-danger text-white' },
+  'delivery_spoilage_delay': { label: 'In-Transit Spoilage / Temp Abuse', accountable: 'Delivery / Driver', badge: 'bg-danger text-white' },
   'warehouse_miscount_charge': { label: 'Warehouse Picking Shortage / Charge', accountable: 'Warehouse', badge: 'bg-primary text-white' },
-  'warehouse_over_dispatch': { label: 'Warehouse Over-Dispatch / Excess Packed', accountable: 'Warehouse', badge: 'bg-primary text-white' },
+  'warehouse_over_dispatch': { label: 'Warehouse Over-Dispatch / Surplus', accountable: 'Warehouse', badge: 'bg-primary text-white' },
   'warehouse_damaged_prep': { label: 'Warehouse Pre-Dispatch Damage', accountable: 'Warehouse', badge: 'bg-primary text-white' },
   'store_wrong_count': { label: 'Store Receiving Counting Error', accountable: 'Store Staff', badge: 'bg-warning text-dark' },
   'store_damage_unloading': { label: 'Store Unloading Damage / Handling Loss', accountable: 'Store Staff', badge: 'bg-warning text-dark' },
   'store_missing_post_delivery': { label: 'Store Post-Delivery Misplacement', accountable: 'Store Staff', badge: 'bg-warning text-dark' },
-  'restore_warehouse': { label: 'Restored in Warehouse (Returned / Retained)', accountable: 'Inventory Recovery', badge: 'bg-info text-dark' },
-  'restore_store': { label: 'Restored in Store (Recovered / Follow-up Delivered)', accountable: 'Inventory Recovery', badge: 'bg-success text-white' },
-  'supplier_defect': { label: 'Manufacturer / Supplier Packaging Defect', accountable: 'Supplier', badge: 'bg-secondary text-white' },
-  'recount': { label: 'Request Store Physical Recount', accountable: 'Recount Action', badge: 'bg-dark text-white' }
+  'restore_warehouse': { label: 'Restored to Warehouse', accountable: 'Inventory Recovery', badge: 'bg-info text-dark' },
+  'restore_store': { label: 'Restored to Store', accountable: 'Inventory Recovery', badge: 'bg-success text-white' },
+  'supplier_defect': { label: 'Supplier Packaging Defect', accountable: 'Supplier', badge: 'bg-secondary text-white' },
+  'recount': { label: 'Requested Store Physical Recount', accountable: 'Recount Action', badge: 'bg-dark text-white' }
 };
 
-function highlightCard(cardEl) {
-  document.querySelectorAll('.resolution-card').forEach(c => c.classList.remove('active'));
-  if (cardEl) cardEl.classList.add('active');
-}
+document.addEventListener('DOMContentLoaded', () => {
+  // Check URL query parameters for initial state
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramStatus = urlParams.get('status');
+  if (paramStatus && ['inbound', 'delivered', 'discrepancy'].includes(paramStatus)) {
+    ACTIVE_TAB = paramStatus;
+    updateTabUI(ACTIVE_TAB);
+  }
 
-function loadDeliveries() {
+  loadDeliveries(() => {
+    const receiveId = urlParams.get('receive');
+    if (receiveId) {
+      openReceivingModal(receiveId);
+    }
+    const viewId = urlParams.get('view');
+    if (viewId) {
+      const match = ALL_DELIVERY_ROWS.find(r => String(r.id) === String(viewId));
+      if (match) showDeliveryDetailModal(match);
+    }
+  });
+});
+
+function loadDeliveries(callback) {
+  const refreshIcon = document.getElementById('refreshIcon');
+  if (refreshIcon) refreshIcon.classList.add('fa-spin');
+
   const params = new URLSearchParams();
-  const q = document.getElementById('searchInput').value;
-  const status = document.getElementById('statusFilter').value;
+  const q = document.getElementById('recvSearch').value.trim();
   const from = document.getElementById('dateFrom').value;
   const to = document.getElementById('dateTo').value;
+
   if (q) params.set('q', q);
-  if (status !== 'all') params.set('status', status);
+  if (ACTIVE_TAB !== 'all') params.set('status', ACTIVE_TAB);
   if (from) params.set('from', from);
   if (to) params.set('to', to);
 
   fetch('/receiving/api/deliveries?' + params.toString())
     .then(r => r.json())
     .then(data => {
+      if (refreshIcon) refreshIcon.classList.remove('fa-spin');
       if (!data.success) return;
-      allRows = data.rows;
-      renderDesktopTable(data.rows);
-      renderMobileCards(data.rows);
+
+      ALL_DELIVERY_ROWS = data.rows || [];
+
+      // Update KPI counters
+      if (data.counts) {
+        document.getElementById('statInboundCount').textContent = data.counts.inbound || 0;
+        document.getElementById('statDeliveredCount').textContent = data.counts.delivered || 0;
+        document.getElementById('statDiscrepancyCount').textContent = data.counts.discrepancy || 0;
+        document.getElementById('statTotalCount').textContent = data.counts.total || 0;
+
+        document.getElementById('tabBadgeAll').textContent = data.counts.total || 0;
+        document.getElementById('tabBadgeInbound').textContent = data.counts.inbound || 0;
+        document.getElementById('tabBadgeDelivered').textContent = data.counts.delivered || 0;
+        document.getElementById('tabBadgeDiscrepancy').textContent = data.counts.discrepancy || 0;
+      }
+
+      renderDeliveries(ALL_DELIVERY_ROWS);
+      if (typeof callback === 'function') callback();
+    })
+    .catch(() => {
+      if (refreshIcon) refreshIcon.classList.remove('fa-spin');
     });
 }
 
-function renderDesktopTable(rows) {
+function setTabFilter(tabName) {
+  ACTIVE_TAB = tabName;
+  updateTabUI(tabName);
+  loadDeliveries();
+}
+
+function updateTabUI(tabName) {
+  document.querySelectorAll('.recv-tab-btn').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = document.getElementById(`tab-${tabName}`);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  document.querySelectorAll('.metric-card').forEach(c => c.classList.remove('active'));
+  if (tabName === 'inbound') document.getElementById('cardInbound')?.classList.add('active');
+  else if (tabName === 'delivered') document.getElementById('cardDelivered')?.classList.add('active');
+  else if (tabName === 'discrepancy') document.getElementById('cardDiscrepancy')?.classList.add('active');
+  else if (tabName === 'all') document.getElementById('cardTotal')?.classList.add('active');
+}
+
+function handleSearchInput(val) {
+  clearTimeout(SEARCH_DEBOUNCE_TIMER);
+  SEARCH_DEBOUNCE_TIMER = setTimeout(() => {
+    loadDeliveries();
+  }, 250);
+}
+
+function setDatePreset(preset) {
+  const now = new Date();
+  const toStr = now.toISOString().split('T')[0];
+  document.getElementById('dateTo').value = toStr;
+
+  if (preset === 'today') {
+    document.getElementById('dateFrom').value = toStr;
+  } else if (preset === 'week') {
+    const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    document.getElementById('dateFrom').value = lastWeek.toISOString().split('T')[0];
+  }
+  loadDeliveries();
+}
+
+function clearDateFilter() {
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value = '';
+  document.getElementById('recvSearch').value = '';
+  loadDeliveries();
+}
+
+/* ── Render Table & Mobile Cards ─────────────────────── */
+function renderDeliveries(rows) {
   const tbody = document.getElementById('deliveryTableBody');
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No deliveries found</td></tr>';
+  const cardsWrap = document.getElementById('deliveryCards');
+
+  if (!rows || rows.length === 0) {
+    const emptyHtml = `
+      <div class="recv-empty-state">
+        <div class="recv-empty-icon"><i class="fas fa-truck-ramp-box"></i></div>
+        <h3 class="recv-empty-title">No Deliveries Found</h3>
+        <p class="recv-empty-desc">There are no shipments matching your filter criteria in this period.</p>
+      </div>
+    `;
+    tbody.innerHTML = `<tr><td colspan="10" class="p-0">${emptyHtml}</td></tr>`;
+    cardsWrap.innerHTML = emptyHtml;
     return;
   }
+
+  // Desktop Rows
   tbody.innerHTML = rows.map(r => {
-    const vClass = r.has_variance ? 'text-danger fw-bold' : 'text-success';
-    let statusBadge = '';
-    if (r.status === 'Delivered') {
-      const resKey = r.variance_resolution || (r.resolution_info && r.resolution_info.resolution_type);
-      const resMeta = RESOLUTION_METADATA[resKey];
-      if (resMeta && resMeta.accountable) {
-        statusBadge = `<div class="d-inline-flex flex-column align-items-start"><span class="badge bg-success mb-1"><i class="fas fa-check-circle me-1"></i>Delivered</span><span class="badge ${resMeta.badge}" style="font-size:0.68rem">${escHtml(resMeta.accountable)}</span></div>`;
-      } else {
-        statusBadge = '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Delivered</span>';
-      }
-    } else if (r.status === 'Discrepancy - Pending Approval') {
-      statusBadge = '<span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i>Pending Approval</span>';
+    const statusMeta = getStatusDisplay(r);
+    const varianceDisplay = getVarianceDisplay(r);
+
+    let actionBtn = '';
+    if (r.can_receive) {
+      actionBtn = `<button class="btn-recv-primary" onclick="event.stopPropagation(); openReceivingModal(${r.id})"><i class="fas fa-box-open"></i> Receive</button>`;
+    } else if (r.can_resolve) {
+      actionBtn = `<button class="btn-recv-primary" style="background:#b45309;border-color:#b45309" onclick="event.stopPropagation(); openResolutionModal(${r.id})"><i class="fas fa-gavel"></i> Review</button>`;
     } else {
-      statusBadge = `<span class="badge bg-info text-dark">${r.status}</span>`;
+      actionBtn = `<button class="btn-recv-secondary" onclick="event.stopPropagation(); showDeliveryDetailModal(${JSON.stringify(r).replace(/"/g, '&quot;')})"><i class="fas fa-eye"></i> Details</button>`;
     }
 
-    const actionBadge = r.can_resolve ? '<span class="badge bg-danger ms-1"><i class="fas fa-gavel me-1"></i>Review</span>' : '';
+    const itemsSummary = r.items ? `${r.item_count} items (${esc(r.items[0]?.product_name || '')}${r.item_count > 1 ? ', …' : ''})` : `${r.item_count} items`;
 
-    return `<tr>
-      <td><a href="/receiving/${r.id}" class="text-decoration-none fw-medium">${r.ref}</a></td>
-      <td>${escHtml(r.branch || '—')}</td>
-      <td>${escHtml(r.requested_by)}</td>
-      <td class="small">${r.date_of_delivery || '—'}</td>
-      <td>${statusBadge}${actionBadge}</td>
-      <td class="text-center">${r.item_count}</td>
-      <td class="text-end text-muted">${r.total_requested !== undefined ? r.total_requested : '—'}</td>
-      <td class="text-end fw-semibold text-primary">${r.total_released}</td>
-      <td class="text-end">${r.total_received}</td>
-      <td class="text-end ${vClass}">${r.total_variance > 0 ? '+' : ''}${r.total_variance}</td>
+    return `<tr onclick="showDeliveryDetailModal(${JSON.stringify(r).replace(/"/g, '&quot;')})" style="cursor:pointer">
+      <td>
+        <a href="/receiving/${r.id}" class="ref-code" onclick="event.stopPropagation()">${r.ref}</a>
+      </td>
+      <td>
+        <div class="fw-semibold">${esc(r.branch || 'Main Branch')}</div>
+      </td>
+      <td>
+        <div class="text-secondary small">${esc(r.requested_by || '—')}</div>
+      </td>
+      <td>
+        <div class="small fw-medium">${r.date_display || '—'}</div>
+      </td>
+      <td>${statusMeta.badge}</td>
+      <td>
+        <span class="small text-muted" title="${r.items ? r.items.map(i=>i.product_name).join(', ') : ''}">${itemsSummary}</span>
+      </td>
+      <td class="text-end fw-semibold">${r.total_released}</td>
+      <td class="text-end fw-semibold">${r.total_received}</td>
+      <td class="text-end">${varianceDisplay}</td>
+      <td class="text-end">${actionBtn}</td>
     </tr>`;
   }).join('');
 
-  // Click row to expand detail
-  tbody.querySelectorAll('tr').forEach((tr, i) => {
-    tr.addEventListener('click', () => showDeliveryDetail(rows[i]));
-  });
-}
+  // Mobile Cards
+  cardsWrap.innerHTML = rows.map(r => {
+    const statusMeta = getStatusDisplay(r);
+    const varianceDisplay = getVarianceDisplay(r);
 
-function renderMobileCards(rows) {
-  const container = document.getElementById('deliveryCards');
-  if (!rows.length) {
-    container.innerHTML = '<div class="text-center text-muted py-5"><i class="fas fa-truck fa-2x mb-2 opacity-50"></i><p class="mb-0">No deliveries found</p></div>';
-    return;
-  }
-  container.innerHTML = rows.map(r => {
-    const vClass = r.has_variance ? 'text-danger fw-bold' : 'text-success';
-    let statusBadge = '';
-    if (r.status === 'Delivered') {
-      statusBadge = '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Delivered</span>';
-    } else if (r.status === 'Discrepancy - Pending Approval') {
-      statusBadge = '<span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i>Pending Approval</span>';
+    let mobileAction = '';
+    if (r.can_receive) {
+      mobileAction = `<button class="btn-recv-primary w-100 justify-content-center" onclick="event.stopPropagation(); openReceivingModal(${r.id})"><i class="fas fa-box-open me-1"></i> Receive Inbound Delivery</button>`;
+    } else if (r.can_resolve) {
+      mobileAction = `<button class="btn-recv-primary w-100 justify-content-center" style="background:#b45309;border-color:#b45309" onclick="event.stopPropagation(); openResolutionModal(${r.id})"><i class="fas fa-gavel me-1"></i> Review Discrepancy</button>`;
     } else {
-      statusBadge = `<span class="badge bg-info text-dark">${r.status}</span>`;
+      mobileAction = `<button class="btn-recv-secondary w-100 justify-content-center" onclick="event.stopPropagation(); showDeliveryDetailModal(${JSON.stringify(r).replace(/"/g, '&quot;')})"><i class="fas fa-eye me-1"></i> View Receipt &amp; History</button>`;
     }
 
-    return `<div class="card border-0 shadow-sm mb-3" onclick="showDeliveryDetail(${JSON.stringify(r).replace(/"/g, '&quot;')})">
-      <div class="card-body p-3">
-        <div class="d-flex justify-content-between align-items-start mb-2">
-          <div>
-            <a href="/receiving/${r.id}" class="fw-bold text-decoration-none">${r.ref}</a>
-            <div class="text-muted small">${escHtml(r.branch || '—')}</div>
-          </div>
-          <div>${statusBadge}</div>
+    return `<div class="recv-mobile-card" onclick="showDeliveryDetailModal(${JSON.stringify(r).replace(/"/g, '&quot;')})">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+          <a href="/receiving/${r.id}" class="ref-code" onclick="event.stopPropagation()">${r.ref}</a>
+          <div class="fw-semibold mt-1">${esc(r.branch || 'Main Branch')}</div>
         </div>
-        <div class="d-flex justify-content-between small text-muted mb-1">
-          <span>${escHtml(r.requested_by)}</span>
-          <span>${r.date_of_delivery || ''}</span>
+        <div>${statusMeta.badge}</div>
+      </div>
+
+      <div class="d-flex justify-content-between small text-muted mb-2">
+        <span><i class="fas fa-user-circle me-1"></i>${esc(r.requested_by || '—')}</span>
+        <span><i class="fas fa-clock me-1"></i>${r.date_display || '—'}</span>
+      </div>
+
+      <div class="mobile-stat-row">
+        <div>
+          <div class="text-muted" style="font-size:0.65rem">REQ</div>
+          <strong>${r.total_requested || '—'}</strong>
         </div>
-        <div class="d-flex justify-content-between small border-top pt-2 mt-1">
-          <span class="text-muted">Req: <strong>${r.total_requested !== undefined ? r.total_requested : '—'}</strong></span>
-          <span class="text-primary">Released: <strong>${r.total_released}</strong></span>
-          <span>Received: <strong>${r.total_received}</strong></span>
-          <span class="${vClass}">Var: ${r.total_variance > 0 ? '+' : ''}${r.total_variance}</span>
+        <div>
+          <div class="text-muted" style="font-size:0.65rem">RELEASED</div>
+          <strong class="text-primary">${r.total_released}</strong>
         </div>
-        <div class="d-flex gap-1 mt-2">
-          ${r.has_variance ? '<span class="badge bg-danger-subtle text-danger"><i class="fas fa-exclamation-circle me-1"></i>Has variance</span>' : ''}
-          ${r.can_resolve ? '<span class="badge bg-danger text-white"><i class="fas fa-gavel me-1"></i>Approval Required</span>' : ''}
+        <div>
+          <div class="text-muted" style="font-size:0.65rem">RECEIVED</div>
+          <strong>${r.total_received}</strong>
         </div>
+        <div>
+          <div class="text-muted" style="font-size:0.65rem">VARIANCE</div>
+          <div>${varianceDisplay}</div>
+        </div>
+      </div>
+
+      <div class="mt-2">
+        ${mobileAction}
       </div>
     </div>`;
   }).join('');
 }
 
-function showDeliveryDetail(row) {
-  let itemsHtml = row.items.map(i => {
-    const badge = i.variance_type === 'exact' ? 'bg-success' : i.variance_type === 'over' ? 'bg-warning text-dark' : 'bg-danger';
-    const sign = i.variance > 0 ? '+' : '';
-    return `<tr>
-      <td>${escHtml(i.product_name)}</td>
-      <td class="text-end text-muted">${i.requested !== undefined ? i.requested : '—'}</td>
-      <td class="text-end fw-bold text-primary">${i.released}</td>
-      <td class="text-end">${i.received}</td>
-      <td class="text-end fw-bold">${sign}${i.variance}</td>
-      <td><span class="badge ${badge}">${i.variance_type}</span></td>
-    </tr>`;
+function getStatusDisplay(r) {
+  const s = (r.status || '').toLowerCase();
+  if (s === 'delivered') {
+    const resKey = r.variance_resolution || (r.resolution_info && r.resolution_info.resolution_type);
+    const resMeta = RESOLUTION_META[resKey];
+    if (resMeta) {
+      return {
+        badge: `<div class="d-inline-flex flex-column align-items-start">
+          <span class="status-badge status-delivered mb-1"><i class="fas fa-check-circle"></i> Delivered</span>
+          <span class="badge ${resMeta.badge}" style="font-size:0.65rem;border-radius:0">${esc(resMeta.accountable)}</span>
+        </div>`
+      };
+    }
+    return { badge: `<span class="status-badge status-delivered"><i class="fas fa-check-circle"></i> Delivered</span>` };
+  } else if (s === 'discrepancy - pending approval' || s === 'variance - pending approval') {
+    return { badge: `<span class="status-badge status-discrepancy"><i class="fas fa-triangle-exclamation"></i> Discrepancy</span>` };
+  } else if (s === 'dispatched' || s === 'approved') {
+    return { badge: `<span class="status-badge status-inbound"><i class="fas fa-truck-fast"></i> Inbound</span>` };
+  } else if (s === 'partial') {
+    return { badge: `<span class="status-badge status-partial"><i class="fas fa-clock-rotate-left"></i> Partial</span>` };
+  }
+  return { badge: `<span class="status-badge status-inbound">${esc(r.status)}</span>` };
+}
+
+function getVarianceDisplay(r) {
+  if (r.total_variance > 0) {
+    return `<span class="recv-variance-badge over">+${r.total_variance} Over</span>`;
+  } else if (r.total_variance < 0) {
+    return `<span class="recv-variance-badge short">${r.total_variance} Short</span>`;
+  } else if (r.total_received > 0 && r.total_released > 0) {
+    return `<span class="recv-variance-badge exact"><i class="fas fa-check"></i> Exact</span>`;
+  }
+  return `<span class="text-muted small">—</span>`;
+}
+
+/* ══════════════════════════════════════════════════════
+   RECEIVING MODAL WORKFLOW
+   ══════════════════════════════════════════════════════ */
+function openReceivingModal(reqId) {
+  CURRENT_ACTIVE_REQ_ID = reqId;
+  const container = document.getElementById('recvModalItemsContainer');
+  container.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div> Loading items…</div>';
+
+  fetch(`/receiving/api/detail/${reqId}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) return alert(data.message || 'Failed to load details');
+      renderReceivingModalContent(data.requisition);
+      const modal = new bootstrap.Modal(document.getElementById('receivingModal'));
+      modal.show();
+    })
+    .catch(() => alert('Failed to connect to receiving server'));
+}
+
+function renderReceivingModalContent(req) {
+  document.getElementById('recvModalTitle').textContent = `Receive Shipment: ${req.ref}`;
+  document.getElementById('recvModalBranch').textContent = req.branch || 'Main Branch';
+  document.getElementById('recvModalRequester').textContent = req.requested_by || '—';
+  document.getElementById('recvModalStatusBadge').textContent = req.status;
+
+  const container = document.getElementById('recvModalItemsContainer');
+  container.innerHTML = req.items.map(it => {
+    const releasedVal = it.warehouse_released !== undefined ? it.warehouse_released : (it.requested_qty || 0);
+    const recvVal = it.received_qty !== null && it.received_qty !== undefined ? it.received_qty : releasedVal;
+
+    return `
+      <div class="recv-item-row" id="modalRow_${it.item_id}">
+        <div>
+          <div class="recv-item-name">${esc(it.product_name)}</div>
+          <div class="recv-item-uom">${esc(it.uom || 'Unit')} ${it.is_optional ? '<span class="badge bg-primary ms-1" style="font-size:0.6rem">Optional</span>' : ''}</div>
+        </div>
+        <div class="text-center text-muted fw-semibold">
+          ${it.requested_qty !== undefined ? it.requested_qty : '—'}
+        </div>
+        <div class="text-center fw-bold text-primary" id="modalRel_${it.item_id}">
+          ${releasedVal}
+        </div>
+        <div class="d-flex justify-content-center">
+          <div class="recv-stepper">
+            <button type="button" class="recv-step-btn" onclick="stepItemModalQty(${it.item_id}, -1)">-</button>
+            <input type="number" step="any" min="0" class="recv-qty-input" id="modalRecvInput_${it.item_id}" value="${recvVal}" oninput="calcItemModalVariance(${it.item_id})" onfocus="this.select()">
+            <button type="button" class="recv-step-btn" onclick="stepItemModalQty(${it.item_id}, 1)">+</button>
+          </div>
+        </div>
+        <div class="text-end" id="modalVariance_${it.item_id}">
+          <span class="recv-variance-badge exact"><i class="fas fa-check"></i> Exact</span>
+        </div>
+      </div>
+    `;
   }).join('');
 
-  // Discrepancy banner
-  let discrepancyBanner = '';
+  // Reset optional items
+  document.getElementById('optModalItemsBody').innerHTML = '';
+  document.getElementById('optModalItemsWrap').style.display = 'none';
+
+  // Recalculate variances & tallies
+  req.items.forEach(it => calcItemModalVariance(it.item_id));
+  updateModalTallies();
+}
+
+function stepItemModalQty(itemId, delta) {
+  const input = document.getElementById(`modalRecvInput_${itemId}`);
+  if (!input) return;
+  let val = parseFloat(input.value) || 0;
+  val = Math.max(0, val + delta);
+  input.value = val;
+  calcItemModalVariance(itemId);
+}
+
+function calcItemModalVariance(itemId) {
+  const relEl = document.getElementById(`modalRel_${itemId}`);
+  const input = document.getElementById(`modalRecvInput_${itemId}`);
+  const varEl = document.getElementById(`modalVariance_${itemId}`);
+  if (!relEl || !input || !varEl) return;
+
+  const rel = parseFloat(relEl.textContent) || 0;
+  const recv = parseFloat(input.value) || 0;
+  const diff = recv - rel;
+
+  if (diff === 0) {
+    varEl.innerHTML = `<span class="recv-variance-badge exact"><i class="fas fa-check"></i> Exact</span>`;
+  } else if (diff < 0) {
+    varEl.innerHTML = `<span class="recv-variance-badge short">${diff} Short</span>`;
+  } else {
+    varEl.innerHTML = `<span class="recv-variance-badge over">+${diff} Over</span>`;
+  }
+
+  updateModalTallies();
+}
+
+function matchAllModalQuantities() {
+  document.querySelectorAll('.recv-item-row').forEach(row => {
+    const id = row.id.replace('modalRow_', '');
+    const relEl = document.getElementById(`modalRel_${id}`);
+    const input = document.getElementById(`modalRecvInput_${id}`);
+    if (relEl && input) {
+      input.value = relEl.textContent.trim();
+      calcItemModalVariance(id);
+    }
+  });
+}
+
+function updateModalTallies() {
+  let totalRel = 0;
+  let totalRecv = 0;
+  let hasAnyVariance = false;
+
+  document.querySelectorAll('.recv-item-row').forEach(row => {
+    const id = row.id.replace('modalRow_', '');
+    const relEl = document.getElementById(`modalRel_${id}`);
+    const input = document.getElementById(`modalRecvInput_${id}`);
+    if (relEl && input) {
+      const rel = parseFloat(relEl.textContent) || 0;
+      const recv = parseFloat(input.value) || 0;
+      totalRel += rel;
+      totalRecv += recv;
+      if (rel !== recv) hasAnyVariance = true;
+    }
+  });
+
+  document.getElementById('tallyReleased').textContent = totalRel;
+  document.getElementById('tallyReceived').textContent = totalRecv;
+
+  const warningEl = document.getElementById('recvDiscrepancyWarning');
+  if (warningEl) {
+    warningEl.style.display = hasAnyVariance ? 'block' : 'none';
+  }
+}
+
+/* ── Optional Product Lookup in Modal ─────────────────── */
+function lookupModalOptionalProduct() {
+  const input = document.getElementById('optProductInput');
+  const q = input.value.trim();
+  const msgEl = document.getElementById('optProductLookupMsg');
+  if (!q) return;
+
+  msgEl.innerHTML = '<span class="text-muted"><i class="fas fa-spinner fa-spin me-1"></i> Searching…</span>';
+
+  fetch(`/products/lookup_product/${encodeURIComponent(q)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        addModalOptionalProductRow(data.id, data.name, data.uom);
+        input.value = '';
+        msgEl.innerHTML = `<span class="text-success"><i class="fas fa-check me-1"></i> Added ${esc(data.name)}</span>`;
+        setTimeout(() => msgEl.innerHTML = '', 2000);
+      } else {
+        msgEl.innerHTML = `<span class="text-danger"><i class="fas fa-times me-1"></i> Product not found</span>`;
+        setTimeout(() => msgEl.innerHTML = '', 2500);
+      }
+    })
+    .catch(() => {
+      msgEl.innerHTML = '<span class="text-danger">Search error</span>';
+    });
+}
+
+function addModalOptionalProductRow(productId, productName, uom) {
+  const wrap = document.getElementById('optModalItemsWrap');
+  const tbody = document.getElementById('optModalItemsBody');
+  wrap.style.display = 'block';
+
+  const idx = OPT_MODAL_ITEM_COUNTER++;
+  const tr = document.createElement('tr');
+  tr.dataset.productId = productId;
+  tr.innerHTML = `
+    <td><strong>${esc(productName)}</strong> <span class="text-muted">(${esc(uom)})</span></td>
+    <td><input type="number" class="form-control form-control-sm text-end" id="optRel_${idx}" value="0" min="0" step="any"></td>
+    <td><input type="number" class="form-control form-control-sm text-end fw-bold" id="optRecv_${idx}" value="1" min="0" step="any"></td>
+    <td class="text-center">
+      <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+}
+
+/* ── Submit Modal Receiving ──────────────────────────── */
+function submitModalReceiving() {
+  if (!CURRENT_ACTIVE_REQ_ID) return;
+
+  const btn = document.getElementById('btnSubmitReceiving');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving…';
+
+  const formData = new FormData();
+  document.querySelectorAll('.recv-item-row').forEach(row => {
+    const id = row.id.replace('modalRow_', '');
+    const relEl = document.getElementById(`modalRel_${id}`);
+    const input = document.getElementById(`modalRecvInput_${id}`);
+    if (relEl) formData.append(`released_${id}`, relEl.textContent.trim());
+    if (input) formData.append(`actual_${id}`, input.value.trim());
+  });
+
+  // Optional items
+  document.querySelectorAll('#optModalItemsBody tr').forEach((row, idx) => {
+    const pid = row.dataset.productId;
+    const rel = row.querySelector(`input[id^="optRel_"]`);
+    const recv = row.querySelector(`input[id^="optRecv_"]`);
+    if (pid && rel && recv) {
+      formData.append(`opt_product_id_${idx}`, pid);
+      formData.append(`opt_released_${idx}`, rel.value);
+      formData.append(`opt_received_${idx}`, recv.value);
+    }
+  });
+
+  const remarks = document.getElementById('recvModalRemarks').value.trim();
+  if (remarks) formData.append('notes', remarks);
+
+  fetch(`/receiving/api/confirm/${CURRENT_ACTIVE_REQ_ID}`, {
+    method: 'POST',
+    body: formData,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-double me-1"></i> Confirm &amp; Save Receiving';
+
+    if (data.success) {
+      const modal = bootstrap.Modal.getInstance(document.getElementById('receivingModal'));
+      if (modal) modal.hide();
+
+      if (data.has_discrepancy) {
+        alert('Discrepancy Declared: Physical quantities differ from released amounts. The requisition has been quarantined for Company-Admin approval.');
+      } else {
+        alert('Receiving Confirmed! Inventory levels have been successfully credited.');
+      }
+      loadDeliveries();
+    } else {
+      alert(data.message || 'Failed to confirm receiving');
+    }
+  })
+  .catch(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-double me-1"></i> Confirm &amp; Save Receiving';
+    alert('Error connecting to receiving server');
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   DELIVERY DETAIL MODAL
+   ══════════════════════════════════════════════════════ */
+let CURRENT_DETAIL_ROW = null;
+
+function showDeliveryDetailModal(row) {
+  CURRENT_DETAIL_ROW = row;
+  document.getElementById('detailModalTitle').textContent = `Delivery: ${row.ref}`;
+  document.getElementById('detailModalSubtitle').textContent = `${row.branch || 'Main Branch'} &middot; ${row.date_display || ''}`;
+
+  let itemsHtml = (row.items || []).map(i => {
+    const vClass = i.variance > 0 ? 'text-warning' : (i.variance < 0 ? 'text-danger' : 'text-success');
+    const vBadge = i.variance > 0 ? `<span class="recv-variance-badge over">+${i.variance} Over</span>` :
+                   (i.variance < 0 ? `<span class="recv-variance-badge short">${i.variance} Short</span>` :
+                   `<span class="recv-variance-badge exact">Exact</span>`);
+
+    return `
+      <tr>
+        <td><strong>${esc(i.product_name)}</strong> <span class="text-muted small">(${esc(i.uom || '')})</span></td>
+        <td class="text-end text-muted">${i.requested !== undefined ? i.requested : '—'}</td>
+        <td class="text-end text-primary fw-bold">${i.released}</td>
+        <td class="text-end fw-bold">${i.received}</td>
+        <td class="text-end">${vBadge}</td>
+      </tr>
+    `;
+  }).join('');
+
+  let discrepancyAlert = '';
   if (row.status === 'Discrepancy - Pending Approval') {
-    discrepancyBanner = `
-      <div class="alert alert-warning d-flex align-items-center mb-3">
-        <i class="fas fa-shield-alt fa-2x me-3 text-warning"></i>
-        <div>
-          <h6 class="alert-heading fw-bold mb-1">Discrepancy Declared — Awaiting Admin Approval</h6>
-          <p class="mb-0 small">The physical items received at the store differ from the warehouse declaration. The variance is quarantined until Company-Admin confirmation.</p>
+    discrepancyAlert = `
+      <div class="alert alert-warning py-2 px-3 mb-3 border-0" style="background:var(--recv-amber-bg);border-left:3px solid var(--recv-amber) !important;color:var(--recv-text);">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fas fa-shield-halved text-warning"></i>
+          <div>
+            <strong>Discrepancy Declared — Awaiting Admin Review:</strong> Physical items received at branch differ from warehouse release. Quarantined until Company-Admin approval.
+          </div>
         </div>
       </div>
     `;
   } else if (row.variance_resolution || (row.resolution_info && row.resolution_info.resolution_type)) {
-    const resType = row.variance_resolution || row.resolution_info.resolution_type;
-    const meta = RESOLUTION_METADATA[resType] || { label: resType.replace(/_/g, ' ').toUpperCase(), accountable: '', badge: 'bg-secondary text-white' };
-    const resBy = row.variance_resolved_by || (row.resolution_info && row.resolution_info.resolved_by_name) || 'Admin';
-    const resAt = row.variance_resolved_at || (row.resolution_info && row.resolution_info.resolved_at) || '';
-    const resNotes = row.variance_admin_notes || (row.resolution_info && row.resolution_info.admin_notes) || '';
-    discrepancyBanner = `
-      <div class="alert alert-secondary mb-3">
-        <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
-          <div class="d-flex align-items-center flex-wrap gap-2">
-            <strong class="small text-uppercase"><i class="fas fa-check-double text-success me-1"></i> Discrepancy Resolved: ${escHtml(meta.label)}</strong>
-            ${meta.accountable ? `<span class="badge ${meta.badge}">Accountable: ${escHtml(meta.accountable)}</span>` : ''}
+    const rKey = row.variance_resolution || row.resolution_info.resolution_type;
+    const meta = RESOLUTION_META[rKey] || { label: rKey.replace(/_/g, ' ').toUpperCase(), accountable: '' };
+    discrepancyAlert = `
+      <div class="alert alert-secondary py-2 px-3 mb-3 border-0" style="background:var(--surface,#fafafa);border:1px solid var(--recv-border);">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <strong class="text-uppercase small"><i class="fas fa-check-double text-success me-1"></i> Discrepancy Resolved: ${esc(meta.label)}</strong>
+            ${meta.accountable ? `<span class="badge bg-secondary ms-2">Accountable: ${esc(meta.accountable)}</span>` : ''}
           </div>
-          <span class="small text-muted">${escHtml(resAt)}</span>
+          <span class="small text-muted">${esc(row.variance_resolved_at || '')}</span>
         </div>
-        <div class="small"><strong>Resolved By:</strong> ${escHtml(resBy)}</div>
-        ${resNotes ? `<div class="small mt-1 text-muted"><strong>Admin Notes:</strong> ${escHtml(resNotes)}</div>` : ''}
+        ${row.variance_admin_notes ? `<div class="small mt-1 text-muted"><strong>Admin Notes:</strong> ${esc(row.variance_admin_notes)}</div>` : ''}
       </div>
     `;
   }
 
-  // Admin decision panel
-  let adminDecisionPanel = '';
-  if (row.can_resolve) {
-    adminDecisionPanel = `
-      <div class="card border border-warning shadow-sm mt-3 resolution-box">
-        <div class="card-header bg-warning-subtle text-dark fw-bold d-flex align-items-center">
-          <i class="fas fa-user-shield me-2"></i> Company-Admin Discrepancy Decision
-        </div>
-        <div class="card-body">
-          <p class="small text-muted mb-3">
-            Select the verified accountability reason for the delivery variance to reconcile warehouse and store stock:
-          </p>
-
-          <!-- Group 1: Warehouse Side -->
-          <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
-            <span class="badge bg-primary text-white"><i class="fas fa-warehouse me-1"></i> Warehouse Accountable (WH Side)</span>
-            <small class="text-muted">Stock adjustments applied to warehouse inventory</small>
-          </div>
-
-          <div class="resolution-card mb-2" onclick="document.getElementById('resWhCharge_${row.id}').checked = true; highlightCard(this)">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="resAction_${row.id}" id="resWhCharge_${row.id}" value="warehouse_miscount_charge">
-              <label class="form-check-label w-100" for="resWhCharge_${row.id}">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                  <strong class="text-primary"><i class="fas fa-boxes-packing me-1"></i> Warehouse Picking / Release Shortage (Miscount / Charge)</strong>
-                  <span class="badge bg-primary">Accountable: Warehouse</span>
-                </div>
-                <div class="small text-muted mt-1">Warehouse packing/dispatch team under-dispatched or made a picking error. Unreleased stock is restored to warehouse inventory and batch records, and charge is logged against warehouse release team.</div>
-              </label>
-            </div>
-          </div>
-
-          <div class="resolution-card mb-2" onclick="document.getElementById('resWhOver_${row.id}').checked = true; highlightCard(this)">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="resAction_${row.id}" id="resWhOver_${row.id}" value="warehouse_over_dispatch">
-              <label class="form-check-label w-100" for="resWhOver_${row.id}">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                  <strong class="text-primary"><i class="fas fa-dolly me-1"></i> Warehouse Over-Dispatch / Excess Packed</strong>
-                  <span class="badge bg-primary">Accountable: Warehouse</span>
-                </div>
-                <div class="small text-muted mt-1">Warehouse packing team packed and dispatched more items than requisitioned. Excess units are deducted from warehouse inventory to reconcile dispatch count.</div>
-              </label>
-            </div>
-          </div>
-
-          <div class="resolution-card mb-3" onclick="document.getElementById('resWhDmg_${row.id}').checked = true; highlightCard(this)">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="resAction_${row.id}" id="resWhDmg_${row.id}" value="warehouse_damaged_prep">
-              <label class="form-check-label w-100" for="resWhDmg_${row.id}">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                  <strong class="text-primary"><i class="fas fa-triangle-exclamation me-1"></i> Warehouse Pre-Dispatch Damaged / Handling Loss</strong>
-                  <span class="badge bg-primary">Accountable: Warehouse</span>
-                </div>
-                <div class="small text-muted mt-1">Goods were damaged inside the warehouse prior to loading or during staging. Written off as warehouse handling loss.</div>
-              </label>
-            </div>
-          </div>
-
-          <!-- Group 2: Delivery Side -->
-          <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
-            <span class="badge bg-danger text-white"><i class="fas fa-truck-fast me-1"></i> Delivery Accountable (Delivery / Driver Side)</span>
-            <small class="text-muted">Charged against delivery personnel or courier</small>
-          </div>
-
-          <div class="resolution-card mb-2 active" onclick="document.getElementById('resTransitLoss_${row.id}').checked = true; highlightCard(this)">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="resAction_${row.id}" id="resTransitLoss_${row.id}" value="damaged_loss" checked>
-              <label class="form-check-label w-100" for="resTransitLoss_${row.id}">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                  <strong class="text-danger"><i class="fas fa-truck-ramp-box me-1"></i> In-Transit Physical Damage or Loss</strong>
-                  <span class="badge bg-danger">Accountable: Delivery / Driver</span>
-                </div>
-                <div class="small text-muted mt-1">Goods were broken, lost, or mishandled in transit while in custody of the delivery driver/courier. Permanently written off as delivery loss.</div>
-              </label>
-            </div>
-          </div>
-
-          <div class="resolution-card mb-3" onclick="document.getElementById('resDelivSpoil_${row.id}').checked = true; highlightCard(this)">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="resAction_${row.id}" id="resDelivSpoil_${row.id}" value="delivery_spoilage_delay">
-              <label class="form-check-label w-100" for="resDelivSpoil_${row.id}">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                  <strong class="text-danger"><i class="fas fa-temperature-arrow-up me-1"></i> In-Transit Spoilage / Temperature Abuse</strong>
-                  <span class="badge bg-danger">Accountable: Delivery / Driver</span>
-                </div>
-                <div class="small text-muted mt-1">Perishable items spoiled or melted due to transit delays or failure of cold chain / transport vehicle cooling. Written off as transit spoilage loss.</div>
-              </label>
-            </div>
-          </div>
-
-          <!-- Group 3: Store Side -->
-          <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
-            <span class="badge bg-warning text-dark"><i class="fas fa-store me-1"></i> Store Accountable (Store Side)</span>
-            <small class="text-muted">Accountability and physical adjustments on store receiving branch</small>
-          </div>
-
-          <div class="resolution-card mb-2" onclick="document.getElementById('resStoreCount_${row.id}').checked = true; highlightCard(this)">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="resAction_${row.id}" id="resStoreCount_${row.id}" value="store_wrong_count">
-              <label class="form-check-label w-100" for="resStoreCount_${row.id}">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                  <strong class="text-warning text-dark"><i class="fas fa-calculator me-1"></i> Store Receiving Miscount / Counting Error</strong>
-                  <span class="badge bg-warning text-dark">Accountable: Store Staff</span>
-                </div>
-                <div class="small text-muted mt-1">Store staff miscounted upon arrival. Driver actually delivered the full quantity. Store physical inventory is corrected to reflect actual goods received.</div>
-              </label>
-            </div>
-          </div>
-
-          <div class="resolution-card mb-2" onclick="document.getElementById('resStoreDmg_${row.id}').checked = true; highlightCard(this)">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="resAction_${row.id}" id="resStoreDmg_${row.id}" value="store_damage_unloading">
-              <label class="form-check-label w-100" for="resStoreDmg_${row.id}">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                  <strong class="text-warning text-dark"><i class="fas fa-box-open me-1"></i> Store Unloading Damage / Handling Loss</strong>
-                  <span class="badge bg-warning text-dark">Accountable: Store Staff</span>
-                </div>
-                <div class="small text-muted mt-1">Items were delivered intact by driver, but dropped, damaged, or spoiled by store staff during unloading or shelving. Accountable to store branch.</div>
-              </label>
-            </div>
-          </div>
-
-          <div class="resolution-card mb-3" onclick="document.getElementById('resStoreMissing_${row.id}').checked = true; highlightCard(this)">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="resAction_${row.id}" id="resStoreMissing_${row.id}" value="store_missing_post_delivery">
-              <label class="form-check-label w-100" for="resStoreMissing_${row.id}">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                  <strong class="text-warning text-dark"><i class="fas fa-magnifying-glass-arrow-right me-1"></i> Store Post-Delivery Misplacement</strong>
-                  <span class="badge bg-warning text-dark">Accountable: Store Staff</span>
-                </div>
-                <div class="small text-muted mt-1">Goods were delivered into store premises, but subsequently misplaced or unaccounted for by store staff. Accountable to store branch.</div>
-              </label>
-            </div>
-          </div>
-
-          <!-- Group 4: Recovery & Administrative Actions -->
-          <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
-            <span class="badge bg-secondary text-white"><i class="fas fa-arrows-rotate me-1"></i> Recovery &amp; Administrative Actions</span>
-            <small class="text-muted">Stock recovery, vendor claims, or recount workflows</small>
-          </div>
-
-          <div class="resolution-card mb-2" onclick="document.getElementById('resWhReturn_${row.id}').checked = true; highlightCard(this)">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="resAction_${row.id}" id="resWhReturn_${row.id}" value="restore_warehouse">
-              <label class="form-check-label w-100" for="resWhReturn_${row.id}">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                  <strong class="text-info text-dark"><i class="fas fa-warehouse me-1"></i> Restored in the Warehouse (Returned / Retained)</strong>
-                  <span class="badge bg-info text-dark">Inventory Recovery</span>
-                </div>
-                <div class="small text-muted mt-1">Undelivered, cancelled, or surplus goods were physically returned to or retained in the warehouse. Stock and batch quantities are restored.</div>
-              </label>
-            </div>
-          </div>
-
-          <div class="resolution-card mb-2" onclick="document.getElementById('resStoreRestore_${row.id}').checked = true; highlightCard(this)">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="resAction_${row.id}" id="resStoreRestore_${row.id}" value="restore_store">
-              <label class="form-check-label w-100" for="resStoreRestore_${row.id}">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                  <strong class="text-success"><i class="fas fa-store me-1"></i> Restored in the Store (Recovered / Follow-up Delivered)</strong>
-                  <span class="badge bg-success">Inventory Recovery</span>
-                </div>
-                <div class="small text-muted mt-1">Missing goods were located/recovered at the store or delivered on a follow-up trip. Store inventory level is credited.</div>
-              </label>
-            </div>
-          </div>
-
-          <div class="resolution-card mb-2" onclick="document.getElementById('resSupplierDefect_${row.id}').checked = true; highlightCard(this)">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="resAction_${row.id}" id="resSupplierDefect_${row.id}" value="supplier_defect">
-              <label class="form-check-label w-100" for="resSupplierDefect_${row.id}">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                  <strong class="text-secondary"><i class="fas fa-industry me-1"></i> Manufacturer / Supplier Packaging Defect</strong>
-                  <span class="badge bg-secondary">Accountable: Supplier</span>
-                </div>
-                <div class="small text-muted mt-1">Factory seal broken, underweight, or factory defect discovered upon receipt. Logged for supplier credit / replacement claim.</div>
-              </label>
-            </div>
-          </div>
-
-          <div class="resolution-card mb-3" onclick="document.getElementById('resRecount_${row.id}').checked = true; highlightCard(this)">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="resAction_${row.id}" id="resRecount_${row.id}" value="recount">
-              <label class="form-check-label w-100" for="resRecount_${row.id}">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                  <strong class="text-secondary"><i class="fas fa-rotate-left me-1"></i> Request Store Physical Recount</strong>
-                  <span class="badge bg-dark">Recount Action</span>
-                </div>
-                <div class="small text-muted mt-1">Reject current declaration and re-open delivery for the store to recount physical items and declare again.</div>
-              </label>
-            </div>
-          </div>
-
-          <div class="mb-3">
-            <label for="adminNotes_${row.id}" class="form-label small fw-bold">Admin Resolution Notes / Reason (Audit Trail)</label>
-            <textarea class="form-control form-control-sm" id="adminNotes_${row.id}" rows="2" placeholder="Enter findings, charge details, or instructions for store/warehouse..."></textarea>
-          </div>
-
-          <div class="d-flex justify-content-end gap-2">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="button" class="btn btn-sm btn-warning fw-bold text-dark" onclick="submitResolution(${row.id})">
-              <i class="fas fa-check-circle me-1"></i> Confirm &amp; Resolve Discrepancy
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  const detailDiv = document.createElement('div');
-  detailDiv.className = 'modal fade';
-  detailDiv.id = 'deliveryDetailModal';
-  detailDiv.innerHTML = `<div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content border-0 shadow">
-      <div class="modal-header border-0">
-        <div>
-          <h6 class="fw-bold mb-0">${row.ref}</h6>
-          <small class="text-muted">${escHtml(row.branch || '')} &middot; ${row.date_of_delivery || ''}</small>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body pt-0">
-        ${row.has_variance && row.variance_summary ? `
-          <div class="alert alert-danger py-2 px-3 mb-3 border-danger-subtle d-flex align-items-start">
-            <i class="fas fa-exclamation-triangle text-danger me-2 mt-1"></i>
-            <div class="small">
-              <strong>Variance Stored in Database (Requisition #${row.id}):</strong><br>
-              <span>${escHtml(row.variance_summary)}</span>
-            </div>
-          </div>
-        ` : ''}
-        ${discrepancyBanner}
-        <div class="table-responsive">
-          <table class="table table-sm align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Product</th>
-                <th class="text-end">Requested</th>
-                <th class="text-end">Released (To Receive)</th>
-                <th class="text-end">Received</th>
-                <th class="text-end">Variance</th>
-                <th>Type</th>
-              </tr>
-            </thead>
-            <tbody>${itemsHtml}</tbody>
-            <tfoot class="table-light fw-bold">
-              <tr>
-                <td>TOTAL</td>
-                <td class="text-end text-muted">${row.total_requested !== undefined ? row.total_requested : '—'}</td>
-                <td class="text-end text-primary">${row.total_released}</td>
-                <td class="text-end">${row.total_received}</td>
-                <td class="text-end ${row.has_variance ? 'text-danger fw-bold' : ''}">${row.total_variance > 0 ? '+' : ''}${row.total_variance}</td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        <div class="mt-3 d-flex gap-2 flex-wrap">
-          <span class="badge ${row.status === 'Delivered' ? 'bg-success' : 'bg-warning text-dark'} fs-6">${row.status}</span>
-          <span class="badge bg-secondary fs-6">${row.item_count} items</span>
-          <span class="badge bg-info fs-6">${escHtml(row.requested_by)}</span>
-        </div>
-        ${adminDecisionPanel}
-      </div>
+  const bodyEl = document.getElementById('detailModalBody');
+  bodyEl.innerHTML = `
+    ${discrepancyAlert}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0" style="font-size:0.83rem">
+        <thead class="table-light">
+          <tr>
+            <th>Product Details</th>
+            <th class="text-end">Requested</th>
+            <th class="text-end">Released (WH)</th>
+            <th class="text-end">Received</th>
+            <th class="text-end">Variance</th>
+          </tr>
+        </thead>
+        <tbody>${itemsHtml}</tbody>
+        <tfoot class="table-light fw-bold">
+          <tr>
+            <td>TOTAL VOLUME</td>
+            <td class="text-end text-muted">${row.total_requested !== undefined ? row.total_requested : '—'}</td>
+            <td class="text-end text-primary">${row.total_released}</td>
+            <td class="text-end">${row.total_received}</td>
+            <td class="text-end">${getVarianceDisplay(row)}</td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
-  </div>`;
-  document.body.appendChild(detailDiv);
-  const modal = new bootstrap.Modal(detailDiv);
+
+    <div class="d-flex flex-wrap gap-2 mt-3 pt-2 border-top">
+      <span class="status-badge status-delivered">${esc(row.status)}</span>
+      <span class="badge bg-secondary">${row.item_count} items</span>
+      <span class="badge bg-dark">${esc(row.requested_by || '')}</span>
+      ${row.can_receive ? `<button class="btn-recv-primary btn-sm ms-auto" onclick="openReceivingModal(${row.id})"><i class="fas fa-box-open me-1"></i> Receive Inbound Now</button>` : ''}
+      ${row.can_resolve ? `<button class="btn-recv-primary btn-sm ms-auto" style="background:#b45309" onclick="openResolutionModal(${row.id})"><i class="fas fa-gavel me-1"></i> Resolve Discrepancy</button>` : ''}
+    </div>
+  `;
+
+  const modal = new bootstrap.Modal(document.getElementById('deliveryDetailModal'));
   modal.show();
-  detailDiv.addEventListener('hidden.bs.modal', () => detailDiv.remove());
 }
 
-function submitResolution(reqId) {
-  const selectedRadio = document.querySelector(`input[name="resAction_${reqId}"]:checked`);
-  if (!selectedRadio) {
-    alert('Please select a resolution action.');
-    return;
-  }
-  const resolutionType = selectedRadio.value;
-  const adminNotes = (document.getElementById(`adminNotes_${reqId}`)?.value || '').trim();
-  const meta = RESOLUTION_METADATA[resolutionType];
-  const label = meta ? `${meta.label} [Accountable: ${meta.accountable}]` : resolutionType.replace(/_/g, ' ').toUpperCase();
+function printCurrentDeliverySlip() {
+  if (!CURRENT_DETAIL_ROW) return;
+  const r = CURRENT_DETAIL_ROW;
+  const printable = document.getElementById('printableDeliverySlip');
+  printable.innerHTML = `
+    <div style="font-family:'Space Grotesk',sans-serif;padding:20px;">
+      <div style="display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:20px;">
+        <div>
+          <h2 style="margin:0;font-size:22px;font-weight:700;">iCount Delivery &amp; Receiving Slip</h2>
+          <div style="font-size:12px;color:#555;">Official Stock Intake &amp; Physical Verification Document</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:16px;font-weight:700;">${r.ref}</div>
+          <div style="font-size:12px;color:#555;">${r.date_display || ''}</div>
+        </div>
+      </div>
 
-  if (!confirm(`Are you sure you want to declare this variance as:\n\n"${label}"?`)) {
-    return;
-  }
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px;font-size:13px;">
+        <div>
+          <div><strong>Destination Branch:</strong> ${r.branch || 'Main Branch'}</div>
+          <div><strong>Requested By:</strong> ${r.requested_by || '—'}</div>
+        </div>
+        <div>
+          <div><strong>Status:</strong> ${r.status}</div>
+          <div><strong>Total Verified Volume:</strong> ${r.total_received} units</div>
+        </div>
+      </div>
 
-  fetch(`/receiving/api/resolve_discrepancy/${reqId}`, {
+      <table style="width:100%;border-collapse:collapse;margin-bottom:30px;font-size:12px;">
+        <thead>
+          <tr style="border-bottom:1.5px solid #000;text-align:left;">
+            <th style="padding:6px 0;">Item Description</th>
+            <th style="padding:6px;text-align:right;">Released (WH)</th>
+            <th style="padding:6px;text-align:right;">Actual Received</th>
+            <th style="padding:6px;text-align:right;">Variance</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(r.items || []).map(i => `
+            <tr style="border-bottom:1px solid #ddd;">
+              <td style="padding:6px 0;">${i.product_name} (${i.uom || ''})</td>
+              <td style="padding:6px;text-align:right;">${i.released}</td>
+              <td style="padding:6px;text-align:right;">${i.received}</td>
+              <td style="padding:6px;text-align:right;">${i.variance > 0 ? '+' : ''}${i.variance}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="border-top:1.5px solid #000;font-weight:700;">
+            <td style="padding:8px 0;">TOTAL</td>
+            <td style="padding:8px;text-align:right;">${r.total_released}</td>
+            <td style="padding:8px;text-align:right;">${r.total_received}</td>
+            <td style="padding:8px;text-align:right;">${r.total_variance > 0 ? '+' : ''}${r.total_variance}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px;font-size:12px;">
+        <div style="border-top:1px solid #000;padding-top:6px;text-align:center;">
+          Delivered By (Driver / Warehouse Dispatch)
+        </div>
+        <div style="border-top:1px solid #000;padding-top:6px;text-align:center;">
+          Received &amp; Verified By (Store Staff)
+        </div>
+      </div>
+    </div>
+  `;
+  window.print();
+}
+
+/* ══════════════════════════════════════════════════════
+   ADMIN DISCREPANCY RESOLUTION WORKFLOW
+   ══════════════════════════════════════════════════════ */
+function openResolutionModal(reqId) {
+  CURRENT_RESOLVING_REQ_ID = reqId;
+  const match = ALL_DELIVERY_ROWS.find(r => String(r.id) === String(reqId));
+  document.getElementById('resolutionModalRef').textContent = match ? `Requisition #${reqId} (${match.ref}) - Quarantined Stock Investigation` : `Requisition #${reqId}`;
+
+  const modal = new bootstrap.Modal(document.getElementById('resolutionModal'));
+  modal.show();
+}
+
+function selectResolutionOption(cardEl, value) {
+  document.querySelectorAll('.resolution-card').forEach(c => c.classList.remove('active'));
+  if (cardEl) {
+    cardEl.classList.add('active');
+    const radio = cardEl.querySelector('input[type="radio"]');
+    if (radio) radio.checked = true;
+  }
+}
+
+function submitDiscrepancyResolution() {
+  if (!CURRENT_RESOLVING_REQ_ID) return;
+
+  const checkedRadio = document.querySelector('input[name="resActionRadio"]:checked');
+  if (!checkedRadio) return alert('Please select a resolution action');
+
+  const action = checkedRadio.value;
+  const notes = document.getElementById('resolutionAdminNotes').value.trim();
+
+  const btn = document.getElementById('btnSubmitResolution');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving…';
+
+  fetch(`/receiving/api/resolve_discrepancy/${CURRENT_RESOLVING_REQ_ID}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest'
-    },
-    body: JSON.stringify({
-      resolution_type: resolutionType,
-      admin_notes: adminNotes
-    })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: action, admin_notes: notes })
   })
   .then(r => r.json())
   .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Confirm &amp; Finalize Resolution';
+
     if (data.success) {
-      alert(data.message || 'Discrepancy resolved successfully.');
-      const modalEl = document.getElementById('deliveryDetailModal');
-      if (modalEl) {
-        bootstrap.Modal.getInstance(modalEl)?.hide();
-      }
+      const modal = bootstrap.Modal.getInstance(document.getElementById('resolutionModal'));
+      if (modal) modal.hide();
+      alert('Discrepancy resolved successfully! Stock adjustments have been applied.');
       loadDeliveries();
     } else {
-      alert(data.message || 'Failed to resolve discrepancy.');
+      alert(data.message || 'Failed to resolve discrepancy');
     }
   })
-  .catch(err => {
-    alert('Error submitting resolution.');
-    console.error(err);
+  .catch(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Confirm &amp; Finalize Resolution';
+    alert('Error connecting to resolution server');
   });
 }
 
-function escHtml(str) {
-  const d = document.createElement('div');
-  d.textContent = str || '';
-  return d.innerHTML;
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 </script>
 {% endblock %}

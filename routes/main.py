@@ -17,6 +17,12 @@ from helpers import user_redirect_to_requisition, admin_required, log_activity, 
 main = Blueprint('main', __name__)
 
 
+@main.route('/store_inventory')
+@login_required
+def store_inventory():
+    return redirect(url_for('requisitions.store_inventory', **request.args))
+
+
 @main.route('/')
 @login_required
 @user_redirect_to_requisition

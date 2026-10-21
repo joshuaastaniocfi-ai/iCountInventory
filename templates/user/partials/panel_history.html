@@ -1,0 +1,27 @@
+<!-- ──────────────────────────────────────────────────
+     PANEL: MY REQUESTS HISTORY
+────────────────────────────────────────────────── -->
+<div class="panel" id="panel-history">
+  <div class="ph">
+    <div><div class="ph-title">My Requests</div><div class="ph-sub">All requisitions you've submitted</div></div>
+    <button class="btn-p" onclick="showPanel('requisition')"><i class="fas fa-plus"></i> New Request</button>
+  </div>
+  <div class="fbar">
+    <div class="fsearch"><i class="fas fa-search fsi"></i><input class="finput" id="histSearch" placeholder="Search requests…" oninput="filterHist()"></div>
+    <select class="fselect" id="histStatusFilter" onchange="filterHist()">
+      <option value="all">All Status</option>
+      <option value="pending">Pending</option>
+      <option value="approved">Approved</option>
+      <option value="rejected">Rejected</option>
+      <option value="delivered">Delivered</option>
+    </select>
+  </div>
+  <div class="cs">
+    <div class="ovx">
+      <table class="it mobile-cards">
+        <thead><tr><th>Ref #</th><th>Date</th><th class="tc">Items</th><th class="tc">Urgency</th><th class="tc">Status</th><th class="tc">Action</th></tr></thead>
+        <tbody id="histBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div><!-- /panel-history -->

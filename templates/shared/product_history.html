@@ -3,164 +3,100 @@
 {% block title %}Product History - {{ product.name }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-  <!-- Header -->
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-4 gap-3">
-    <div class="d-flex align-items-center mb-2">
-      <div class="feature-icon d-inline-flex align-items-center justify-content-center text-bg-primary bg-gradient fs-4 rounded-3 me-3" style="width: 48px; height: 48px;">
-        <i class="fas fa-history"></i>
+<div class="modal fade product-history-modal" id="productHistoryModal" tabindex="-1" aria-labelledby="productHistoryTitle" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable product-history-dialog">
+    <div class="modal-content product-history-content">
+      <div class="modal-header product-history-header">
+        <div class="min-w-0">
+          <h5 class="modal-title fw-bold" id="productHistoryTitle">{{ product.name }}</h5>
+          <div class="product-history-barcode"><i class="fas fa-barcode" aria-hidden="true"></i>{{ product.barcode }}</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close product history"></button>
       </div>
-      <div>
-        <h4 class="fw-bold mb-1" style="background: linear-gradient(45deg, var(--accent), var(--accent-hover)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-          Product Transaction History
-        </h4>
-        <p class="text-muted mb-0">
-          <i class="fas fa-box me-1"></i> {{ product.name }}
-          <span class="ms-3">
-            <i class="fas fa-barcode me-1"></i> {{ product.barcode }}
-          </span>
-        </p>
-      </div>
-    </div>
-    <div class="ms-md-auto">
-      <a href="{{ url_for('products.view_products') }}" class="btn btn-outline-primary">
-        <i class="fas fa-arrow-left me-2"></i>Back to Products
-      </a>
-    </div>
-  </div>
 
-  <!-- Product Info Card -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-3">
-          <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
-            <i class="fas fa-box fa-lg text-primary"></i>
-            <div>
-              <div class="text-muted small">Current Stock</div>
-                                                           <div class="fw-bold text-primary">{{ product.quantity|decimal_format(2) }} {{ product.uom }}</div>
-            </div>
-          </div>
+      <div class="modal-body product-history-body">
+        <div class="product-history-summary" aria-label="Product summary">
+          <div><span>Current stock</span><strong>{{ product.quantity|decimal_format(2) }} {{ product.uom }}</strong></div>
+          <div><span>Account</span><strong>{{ product.account_title }}</strong></div>
+          <div><span>Purchase order place</span><strong>{{ product.purchase_order_place or 'N/A' }}</strong></div>
+          <div><span>Description</span><strong>{{ product.item_uom_desc or 'N/A' }}</strong></div>
         </div>
-        <div class="col-md-3">
-          <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
-            <i class="fas fa-chart-pie fa-lg text-info"></i>
-            <div>
-              <div class="text-muted small">Account Title</div>
-              <div class="fw-bold">{{ product.account_title }}</div>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
-            <i class="fas fa-map-marker-alt fa-lg text-success"></i>
-            <div>
-              <div class="text-muted small">Purchase Order Place</div>
-              <div class="fw-bold">{{ product.purchase_order_place or 'N/A' }}</div>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
-            <i class="fas fa-info-circle fa-lg text-warning"></i>
-            <div>
-              <div class="text-muted small">Description</div>
-              <div class="fw-bold">{{ product.item_uom_desc or 'N/A' }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- Transaction History Table -->
-  <div class="card">
-    <div class="card-header bg-primary text-white">
-      <h5 class="mb-0">
-        <i class="fas fa-list me-2"></i>Transaction History
-      </h5>
-    </div>
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead
-            <tr>
-              <th class="px-3">Transaction Date</th>
-              <th>Transaction Type</th>
-              <th>Payee/Counter-party</th>
-              <th class="text-center">Quantity In</th>
-              <th class="text-center">Quantity Out</th>
-              <th class="text-center">Net Change</th>
-              {% if current_user.role in ('WH-Admin', 'SYS-Admin') %}
-              <th class="text-center">Action</th>
-              {% endif %}
-            </tr>
-          </thead>
-          <tbody>
-            {% if history_records %}
-              {% for record in history_records %}
+        <section class="product-history-log" aria-labelledby="productHistoryLogTitle">
+          <div class="product-history-log-heading">
+            <div>
+              <h2 id="productHistoryLogTitle">Transaction log</h2>
+              <p>Stock movements for this product, newest first.</p>
+            </div>
+            <span class="product-history-count">{{ history_records|length }} records</span>
+          </div>
+
+          <div class="table-responsive product-history-table-wrap" role="region" tabindex="0" aria-label="Transaction history table. Scroll horizontally to view all columns.">
+            <table class="table align-middle mb-0 product-history-table {{ 'has-history-actions' if current_user.role in ('WH-Admin', 'SYS-Admin') }}">
+              <thead>
                 <tr>
-                  <td class="px-3">
-                    <div class="fw-semibold">{{ record.trxn_date.strftime('%m/%d/%Y') }}</div>
-                    <small class="text-muted">{{ record.trxn_date.strftime('%I:%M %p') }}</small>
-                  </td>
-                  <td>
-                    <span class="badge {% if record.trxn_code == 'TRANS IN' %}bg-success{% else %}bg-danger{% endif %}">
-                      {{ record.trxn_code }}
-                    </span>
-                  </td>
-                  <td>
-                    <div class="fw-semibold">{{ record.payee }}</div>
-                    <small class="text-muted">
-                      {% if record.reference_type == 'batch' %}
-                        Batch #{{ record.reference_id }}
-                      {% elif record.reference_type == 'requisition' %}
-                        Req #{{ record.reference_id }}
-                      {% elif record.reference_type == 'spoilage' %}
-                        Spoilage #{{ record.reference_id }}
-                      {% endif %}
-                    </small>
-                  </td>
-                  <td class="text-center">
-                                         {% if record.quantity_in > 0 %}
-                       <span class="fw-semibold text-success">{{ record.quantity_in|decimal_format(2) }}</span>
-                     {% else %}
-                       <span class="text-muted">-</span>
-                     {% endif %}
-                  </td>
-                  <td class="text-center">
-                                         {% if record.quantity_out > 0 %}
-                       <span class="fw-semibold text-danger">{{ record.quantity_out|decimal_format(2) }}</span>
-                     {% else %}
-                       <span class="text-muted">-</span>
-                     {% endif %}
-                  </td>
-                  <td class="text-center">
-                                         <span class="fw-bold {% if record.net_change >= 0 %}text-success{% else %}text-danger{% endif %}">
-                       {% if record.net_change >= 0 %}+{% endif %}{{ record.net_change|decimal_format(2) }}
-                     </span>
-                  </td>
-                  {% if current_user.role in ('WH-Admin', 'SYS-Admin') %}
-                  <td class="text-center">
-                    <button class="btn btn-sm btn-outline-danger" onclick="requestDelete({{ record.id }}, '{{ record.trxn_code|e }}', '{{ record.payee|e }}', {{ record.net_change }}, '{{ product.name|e }}')" title="Request deletion of this transaction">
-                      <i class="fas fa-trash-alt"></i>
-                    </button>
-                  </td>
-                  {% endif %}
+                  <th>Transaction date</th>
+                  <th>Type</th>
+                  <th>Payee / counter-party</th>
+                  <th class="text-end">Quantity in</th>
+                  <th class="text-end">Quantity out</th>
+                  <th class="text-end">Net change</th>
+                  {% if current_user.role in ('WH-Admin', 'SYS-Admin') %}<th class="text-center">Action</th>{% endif %}
                 </tr>
-              {% endfor %}
-            {% else %}
-              <tr>
-                <td colspan="7" class="text-center py-5 text-muted">
-                  <i class="fas fa-history fa-3x mb-3"></i>
-                  <h5>No Transaction History</h5>
-                  <p class="mb-0">This product has no transaction history yet.</p>
-                </td>
-              </tr>
-            {% endif %}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {% if history_records %}
+                  {% for record in history_records %}
+                    <tr>
+                      <td>
+                        <strong>{{ record.trxn_date.strftime('%m/%d/%Y') }}</strong>
+                        <small>{{ record.trxn_date.strftime('%I:%M %p') }}</small>
+                      </td>
+                      <td>
+                        <span class="badge {% if record.trxn_code == 'TRANS IN' %}bg-success{% else %}bg-danger{% endif %}">{{ record.trxn_code }}</span>
+                      </td>
+                      <td>
+                        <strong>{{ record.payee }}</strong>
+                        <small>
+                          {% if record.reference_type == 'batch' %}Batch #{{ record.reference_id }}
+                          {% elif record.reference_type == 'requisition' %}Req #{{ record.reference_id }}
+                          {% elif record.reference_type == 'spoilage' %}Spoilage #{{ record.reference_id }}
+                          {% endif %}
+                        </small>
+                      </td>
+                      <td class="text-end">
+                        {% if record.quantity_in > 0 %}<span class="fw-semibold text-success">{{ record.quantity_in|decimal_format(2) }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+                      </td>
+                      <td class="text-end">
+                        {% if record.quantity_out > 0 %}<span class="fw-semibold text-danger">{{ record.quantity_out|decimal_format(2) }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+                      </td>
+                      <td class="text-end">
+                        <span class="fw-bold {% if record.net_change >= 0 %}text-success{% else %}text-danger{% endif %}">{% if record.net_change >= 0 %}+{% endif %}{{ record.net_change|decimal_format(2) }}</span>
+                      </td>
+                      {% if current_user.role in ('WH-Admin', 'SYS-Admin') %}
+                      <td class="text-center">
+                        <button class="btn btn-sm btn-outline-danger" onclick="requestDelete({{ record.id }}, {{ record.trxn_code|tojson }}, {{ record.payee|tojson }}, {{ record.net_change }}, {{ product.name|tojson }})" title="Request deletion of this transaction" aria-label="Request deletion of transaction with {{ record.payee }}">
+                          <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                        </button>
+                      </td>
+                      {% endif %}
+                    </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="{{ 7 if current_user.role in ('WH-Admin', 'SYS-Admin') else 6 }}" class="product-history-empty">
+                      <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>
+                      <strong>No transaction history yet</strong>
+                      <span>Stock movements for this product will appear here.</span>
+                    </td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
+
     </div>
   </div>
 </div>
@@ -202,49 +138,9 @@
 {% endif %}
 
 <style>
-.card {
-  border: none;
-  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-  border-radius: 0.5rem;
-}
-
-.card-header {
-  border-bottom: none;
-  border-radius: 0.5rem 0.5rem 0 0 !important;
-}
-
-.table th {
-  border-top: none;
-  font-weight: 600;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.table td {
-  vertical-align: middle;
-  border-top: 1px solid var(--border);
-}
-
-.table tbody tr:hover {
-  background-color: var(--light-bg);
-}
-
-.badge {
-  font-size: 0.75rem;
-  padding: 0.5rem 0.75rem;
-}
-
-.feature-icon {
-  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-}
-
-/* Dark mode for deletion modal */
-html.dark-mode .modal-content { background: #1e293b !important; }
-html.dark-mode .modal-header.bg-danger { background: rgba(239,68,68,0.5) !important; }
-html.dark-mode #delTrxnInfo { background: rgba(255,255,255,0.06) !important; color: #fff !important; }
-html.dark-mode .alert-warning { background: rgba(251,191,36,0.1) !important; border-color: rgba(251,191,36,0.25) !important; color: #fbbf24 !important; }
+html.dark-mode #deletionModal .modal-content { background: #101012 !important; }
+html.dark-mode #deletionModal .modal-header.bg-danger { background: #27272a !important; }
+html.dark-mode #delTrxnInfo { background: #1c1c1f !important; color: #f4f4f5 !important; }
 </style>
 
 <script>
@@ -303,5 +199,22 @@ function showToast(msg, type) {
   setTimeout(() => c.remove(), 4000);
 }
 {% endif %}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const historyModalEl = document.getElementById('productHistoryModal');
+  if (!historyModalEl || !window.bootstrap?.Modal) return;
+
+  const historyModal = new bootstrap.Modal(historyModalEl, {
+    backdrop: true,
+    keyboard: true,
+    focus: true
+  });
+  historyModalEl.addEventListener('hidden.bs.modal', () => {
+    window.location.replace({{ url_for('products.view_products')|tojson }});
+  }, { once: true });
+  historyModal.show();
+});
 </script>
 {% endblock %}

@@ -48,7 +48,13 @@ def add_product_page():
     return render_template('shared/products.html', account_titles=account_titles, pagination=pagination)
 
 
-@products.route('/products', methods=['GET'])
+@products.route('/products', methods=['GET'], endpoint='legacy_products_path')
+def legacy_products_path():
+    """Redirect the old duplicated products URL to its canonical route."""
+    return redirect(url_for('products.view_products'), code=301)
+
+
+@products.route('', methods=['GET'])
 @login_required
 @user_redirect_to_requisition
 def view_products():
@@ -1572,14 +1578,37 @@ def product_history(product_id):
             company_id=current_user.company_id
         ).first_or_404()
     
-    # Get all history records for this product, ordered by transaction date (newest first)
-    history_records = ProductHistory.query.filter_by(product_id=product_id)\
-        .order_by(ProductHistory.trxn_date.desc())\
-        .all()
-    
-    return render_template('shared/product_history.html', 
-                         product=product, 
-                         history_records=history_records)
+    # A direct URL is routed back to Products, where history opens in-place as a modal.
+    if request.args.get('modal') != '1':
+        return redirect(url_for('products.view_products', history_id=product_id))
+
+    page = max(request.args.get('page', 1, type=int), 1)
+    page_size = 30
+    history_query = ProductHistory.query.filter_by(product_id=product_id)
+    history_count = history_query.count()
+    history_records = history_query.order_by(
+        ProductHistory.trxn_date.desc(), ProductHistory.id.desc()
+    ).offset((page - 1) * page_size).limit(page_size).all()
+    has_more = page * page_size < history_count
+
+    if request.args.get('rows') == '1':
+        response = current_app.make_response(render_template(
+            'shared/product_history_rows.html',
+            product=product,
+            history_records=history_records,
+        ))
+        response.headers['X-History-Has-More'] = str(has_more).lower()
+        response.headers['X-History-Next-Page'] = str(page + 1)
+        response.headers['X-History-Total'] = str(history_count)
+        return response
+
+    return render_template(
+        'shared/product_history_modal.html',
+        product=product,
+        history_records=history_records,
+        history_count=history_count,
+        history_has_more=has_more,
+    )
 
 
 # ─────────────────────────────────────────────────

@@ -671,60 +671,171 @@ button:focus:not(:focus-visible) { outline: none; }
 <!-- ──────────────────────────────────────────────────
      PANEL: RECEIVING / DELIVERIES
 ────────────────────────────────────────────────── -->
-<div class="panel" id="panel-receiving">
+<div class="panel panel-receiving" id="panel-receiving">
   <div class="ph">
     <div>
       <div class="ph-title">Receiving</div>
-      <div class="ph-sub">Confirm quantities received per batch</div>
+      <div class="ph-sub">Verify incoming deliveries &amp; confirm physical quantities received</div>
+    </div>
+    <div class="ph-actions" style="display:flex;gap:0.55rem;align-items:center;flex-wrap:wrap">
+      <button class="btn-ghost" onclick="loadReceivingList()" title="Refresh shipments">
+        <i class="fas fa-rotate" id="recvRefreshIcon"></i> Refresh
+      </button>
+      <a href="{{ url_for('receiving.deliveries_page') }}" class="btn-production-hdr" title="Full Deliveries Hub">
+        <i class="fas fa-truck-ramp-box"></i>
+        <span>Deliveries Hub</span>
+      </a>
+      <button class="btn-p" onclick="showPanel('requisition')">
+        <i class="fas fa-plus"></i> New Requisition
+      </button>
     </div>
   </div>
 
-  <div class="fbar" id="recvFilters">
-    <div class="fsearch"><i class="fas fa-search fsi"></i>
-      <input class="finput" id="recvSearch" placeholder="Search by ref or product…" oninput="filterRecvList(this.value)">
+  <!-- Metric Stat Row (Identical structure to Store Inventory) -->
+  <div class="stat-row" style="margin-bottom:0.75rem">
+    <div class="stat-chip act" id="chipRecvPending" onclick="quickFilterRecvStatus('pending')" style="cursor:pointer" title="View ready to receive">
+      <div class="sc-lbl">Ready to Receive</div>
+      <div class="sc-val" style="color:var(--amber)" id="recvStatPending">—</div>
     </div>
-    <select class="fselect" id="recvStatusFilter" onchange="filterRecvList(document.getElementById('recvSearch').value)">
-      <option value="all">All Status</option>
-      <option value="pending">Pending</option>
-      <option value="partial">Partial</option>
+    <div class="stat-chip" id="chipRecvDelivered" onclick="quickFilterRecvStatus('delivered')" style="cursor:pointer" title="View completed deliveries">
+      <div class="sc-lbl">Delivered</div>
+      <div class="sc-val" style="color:var(--green)" id="recvStatDelivered">—</div>
+    </div>
+    <div class="stat-chip" id="chipRecvDiscrepancy" onclick="quickFilterRecvStatus('discrepancy')" style="cursor:pointer" title="View pending discrepancies">
+      <div class="sc-lbl">Discrepancies</div>
+      <div class="sc-val" style="color:var(--red)" id="recvStatDiscrepancy">—</div>
+    </div>
+    <div class="stat-chip" id="chipRecvAll" onclick="quickFilterRecvStatus('all')" style="cursor:pointer" title="View all shipments">
+      <div class="sc-lbl">Total Shipments</div>
+      <div class="sc-val" id="recvStatTotal">—</div>
+    </div>
+  </div>
+
+  <!-- Filter & Search Bar (Identical to Store Inventory) -->
+  <div class="fbar" id="recvFilters" style="margin-bottom:1rem">
+    <div class="fsearch" style="flex:1;min-width:180px">
+      <i class="fas fa-search fsi"></i>
+      <input class="finput" id="recvSearch" placeholder="Search reference code, branch, or items…" oninput="filterRecvList(this.value)">
+    </div>
+    <select class="fselect" id="recvStatusFilter" onchange="syncFilterFromSelect(this.value)">
+      <option value="pending" selected>Ready to Receive</option>
       <option value="delivered">Delivered</option>
+      <option value="discrepancy">Discrepancy</option>
+      <option value="partial">Partial</option>
+      <option value="all">All Shipments</option>
     </select>
   </div>
 
-  <!-- Batch card list -->
+  <!-- Main Shipments Table (Identical structure to Store Inventory Table) -->
   <div id="recvListWrap">
-    <div class="recv-grid" id="recvGrid">
-      <!-- filled by JS -->
+    <div class="ovx" style="border:1px solid var(--border-strong);border-radius:var(--radius-lg);">
+      <table class="it mobile-cards" style="margin:0">
+        <thead>
+          <tr>
+            <th style="width:26%">Shipment / Ref</th>
+            <th style="width:14%" class="te">Date</th>
+            <th style="width:30%">Products Summary</th>
+            <th style="width:14%" class="te">Items</th>
+            <th style="width:16%" class="te">Status / Action</th>
+          </tr>
+        </thead>
+        <tbody id="recvTableBody">
+          <tr>
+            <td colspan="5" class="text-center py-4 text-muted">
+              <div class="spinner-border spinner-border-sm me-2"></div> Loading shipments…
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
-  <!-- Confirm receiving detail (Highly Compact Mobile View) -->
+  <!-- Confirm receiving detail (Clean Space Grotesk Verification View) -->
   <div id="recvDetailWrap" style="display:none;">
-    <button class="btn-ghost mb-3 btn-sm" onclick="closeRecvDetail()"><i class="fas fa-arrow-left"></i> Back to List</button>
-    <div class="cs">
-      <div class="cs-hd">
-        <div class="cs-title"><i class="fas fa-box-open text-brand"></i> Receive: <span id="recvDetailTitle" class="text-brand" style="margin-left: 0.25rem;"></span></div>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 pb-2 border-bottom">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button class="btn-ghost btn-sm" onclick="closeRecvDetail()"><i class="fas fa-arrow-left"></i> Back to List</button>
+        <span style="font-weight:700;font-size:1.1rem;color:var(--text-primary)" id="recvDetailTitle"></span>
         <span id="recvDetailStatus"></span>
       </div>
-      <div class="ovx">
-        <table class="it mobile-cards" style="margin:0;">
-          <thead>
-            <tr>
-              <th style="width:26%">Product</th>
-              <th class="tc" style="width:10%">UOM</th>
-              <th class="tc" style="width:12%">Requested</th>
-              <th class="tc" style="width:18%">To Receive (Released)</th>
-              <th class="tc" style="width:18%">Actual Recv</th>
-              <th class="tc" style="width:8%">Over</th>
-              <th class="tc" style="width:8%">Short</th>
-            </tr>
-          </thead>
-          <tbody id="recvDetailBody"></tbody>
-        </table>
+      <button type="button" class="btn-p btn-sm" onclick="matchAllPortalRecv()" style="font-size:0.8rem">
+        <i class="fas fa-bolt text-warning me-1"></i> Match All Released
+      </button>
+    </div>
+
+    <!-- Requisition info chip -->
+    <div class="p-2 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);font-size:0.82rem">
+      <div>
+        <span class="text-muted">Requested By:</span> <strong id="recvDetailRequester">—</strong> &middot;
+        <span class="text-muted">Date:</span> <span id="recvDetailDate">—</span>
       </div>
-      <div class="wizard-nav justify-end">
-        <button class="btn-ok" onclick="submitReceiving()"><i class="fas fa-check-double"></i> Confirm Receiving</button>
+      <div class="text-muted small">
+        Verify incoming physical items against warehouse release quantities
       </div>
+    </div>
+
+    <!-- Items verification table -->
+    <div class="ovx" style="border:1px solid var(--border-strong);border-radius:var(--radius-lg);overflow:hidden">
+      <table class="it mobile-cards" style="margin:0">
+        <thead>
+          <tr>
+            <th style="width:32%">Product Details</th>
+            <th style="width:14%" class="te">Requested</th>
+            <th style="width:18%" class="te">Released (WH)</th>
+            <th style="width:20%" class="te">Actual Received</th>
+            <th style="width:16%" class="te">Variance</th>
+          </tr>
+        </thead>
+        <tbody id="recvDetailBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Optional unexpected items -->
+    <div id="recvOptSection" style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem">
+      <details style="margin-bottom:0.75rem">
+        <summary style="cursor:pointer;font-weight:600;color:var(--text-primary)"><i class="fas fa-plus-circle" style="color:var(--blue)"></i> Add Unexpected Product (not in original manifest)</summary>
+        <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:end">
+          <div style="flex:1;min-width:180px">
+            <label class="fs-sm text-muted">Scan barcode or search product</label>
+            <input class="finput" id="optProductSearch" placeholder="Scan barcode or type name…" style="width:100%" onkeydown="if(event.key==='Enter'){event.preventDefault();lookupOptionalProduct()}">
+          </div>
+          <div style="display:flex;gap:0.35rem">
+            <button class="btn-p btn-sm" onclick="lookupOptionalProduct()"><i class="fas fa-search"></i> Find</button>
+          </div>
+        </div>
+        <div id="optProductResult" style="margin-top:0.5rem"></div>
+      </details>
+      <div id="optItemsWrap" style="display:none;margin-top:0.5rem">
+        <div class="ovx" style="border:1px solid var(--border-strong);border-radius:var(--radius-lg);overflow:hidden">
+          <table class="it mobile-cards" style="margin:0">
+            <thead>
+              <tr>
+                <th style="width:36%">Optional Product</th>
+                <th style="width:16%" class="te">Released</th>
+                <th style="width:24%" class="te">Received</th>
+                <th style="width:24%" class="te"></th>
+              </tr>
+            </thead>
+            <tbody id="optItemsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Discrepancy Notice Warning -->
+    <div id="portalDiscrepancyWarning" class="alert alert-warning mt-3 py-2 px-3 small border-0" style="display:none;background:var(--tone-amber-subtle);border-left:3px solid var(--amber) !important;color:var(--text-primary);">
+      <div class="d-flex align-items-start gap-2">
+        <i class="fas fa-triangle-exclamation text-warning mt-1"></i>
+        <div>
+          <strong>Discrepancy Notice:</strong> Actual received count differs from the warehouse release. Submitting will flag this shipment for <strong>Company-Admin Discrepancy Quarantine</strong>.
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:1.25rem;padding-bottom:1rem">
+      <button class="btn-ok" style="width:100%;padding:0.75rem;font-size:0.95rem;justify-content:center" onclick="submitReceiving()" id="btnSubmitPortalRecv">
+        <i class="fas fa-check-double me-1"></i> Confirm &amp; Save Receiving
+      </button>
     </div>
   </div>
 </div><!-- /panel-receiving -->
@@ -1330,104 +1441,130 @@ function renderInv(list){
    RECEIVING
 ══════════════════════════════════════════════════════ */
 function loadReceivingList(){
+  const refreshIcon = document.getElementById('recvRefreshIcon');
+  if(refreshIcon) refreshIcon.classList.add('fa-spin');
+
   const url = '/receiving/api/list';
   fetch(url)
     .then(r => r.json())
     .then(data => {
+      if(refreshIcon) refreshIcon.classList.remove('fa-spin');
       if(data.success){
-        RECEIVING_DATA = data.rows;
-        renderRecvList(RECEIVING_DATA);
+        RECEIVING_DATA = data.rows || [];
+        updateRecvStats(RECEIVING_DATA);
+        filterRecvList(document.getElementById('recvSearch')?.value || '');
       } else {
         handleRecvError();
       }
     })
-    .catch(() => handleRecvError());
+    .catch(() => {
+      if(refreshIcon) refreshIcon.classList.remove('fa-spin');
+      handleRecvError();
+    });
+}
+
+function updateRecvStats(list){
+  const total = list.length;
+  const pending = list.filter(r => r.status.toLowerCase() !== 'delivered' && r.status !== 'Discrepancy - Pending Approval').length;
+  const delivered = list.filter(r => r.status.toLowerCase() === 'delivered').length;
+  const discrepancy = list.filter(r => r.status === 'Discrepancy - Pending Approval').length;
+
+  const elTotal = document.getElementById('recvStatTotal');
+  const elPending = document.getElementById('recvStatPending');
+  const elDelivered = document.getElementById('recvStatDelivered');
+  const elDiscrepancy = document.getElementById('recvStatDiscrepancy');
+
+  if(elTotal) elTotal.textContent = total;
+  if(elPending) elPending.textContent = pending;
+  if(elDelivered) elDelivered.textContent = delivered;
+  if(elDiscrepancy) elDiscrepancy.textContent = discrepancy;
+}
+
+function quickFilterRecvStatus(status){
+  const sel = document.getElementById('recvStatusFilter');
+  if(sel){
+    sel.value = status;
+    filterRecvList(document.getElementById('recvSearch')?.value || '');
+  }
 }
 
 function handleRecvError(){
   RECEIVING_DATA = [];
   renderRecvList([]);
+  updateRecvStats([]);
 }
 
 function filterRecvList(q){
-  const lq = q.toLowerCase();
-  const f = document.getElementById('recvStatusFilter').value;
+  const lq = (q || '').toLowerCase().trim();
+  const f = document.getElementById('recvStatusFilter')?.value || 'all';
   const filtered = RECEIVING_DATA.filter(r => {
-    const matchRef = r.ref.toLowerCase().includes(lq);
-    const matchItem = r.items.some(i => i.name.toLowerCase().includes(lq));
-    const matchStatus = (f === 'all') || (r.status.toLowerCase() === f);
+    const matchRef = (r.ref || '').toLowerCase().includes(lq);
+    const matchItem = (r.items || []).some(i => (i.name || '').toLowerCase().includes(lq));
+    const isDiscrepancy = r.status === 'Discrepancy - Pending Approval';
+    const isDelivered = r.status.toLowerCase() === 'delivered';
+    const isPending = !isDelivered && !isDiscrepancy;
+
+    let matchStatus = true;
+    if(f === 'pending') matchStatus = isPending;
+    else if(f === 'delivered') matchStatus = isDelivered;
+    else if(f === 'discrepancy') matchStatus = isDiscrepancy;
+    else if(f === 'partial') matchStatus = r.status.toLowerCase() === 'partial';
+
     return (matchRef || matchItem) && matchStatus;
   });
   renderRecvList(filtered);
 }
 
 function renderRecvList(list){
-  const grid = document.getElementById('recvGrid');
+  const tbody = document.getElementById('recvTableBody');
+  if(!tbody) return;
+
   if(!list.length){
-    grid.innerHTML = `<div class="empty"><div class="empty-ico"><i class="fas fa-truck"></i></div><p>No requisitions found.</p></div>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-muted"><i class="fas fa-truck-ramp-box fa-2x mb-2 d-block opacity-50"></i>No shipments found in this view.</td></tr>`;
     return;
   }
 
   const statusCls = {pending:'pill-warn',partial:'pill-blue',delivered:'pill-ok',rejected:'pill-bad'};
-  const urgCls = {normal:'pill-ok',urgent:'pill-warn',critical:'pill-bad'};
-  const itemStatusCls = {pending:'pill-warn',partial:'pill-blue',delivered:'pill-ok',rejected:'pill-bad'};
 
-  grid.innerHTML = list.map((r) => {
+  tbody.innerHTML = list.map((r) => {
     const isDiscrepancy = r.status === 'Discrepancy - Pending Approval';
     const sCls = isDiscrepancy ? 'pill-warn' : (statusCls[r.status.toLowerCase()] || 'pill-neu');
-    const uCls = urgCls[r.urgency] || 'pill-neu';
     const canReceive = (r.status.toLowerCase() !== 'delivered' && r.status.toLowerCase() !== 'rejected' && !isDiscrepancy);
 
-    const itemRows = r.items.map(it => {
-      const iCls = itemStatusCls[it.item_status.toLowerCase()] || 'pill-neu';
-      return `<tr>
-        <td style="font-weight:600;padding-left:1.5rem" data-label="Product">${it.name}</td>
-        <td class="tc text-muted" data-label="UOM">${it.uom}</td>
-        <td class="tc" data-label="Req Qty" style="font-weight:600">${it.req_qty}</td>
-        <td class="tc" data-label="Status"><span class="pill ${iCls}">${it.item_status}</span></td>
-      </tr>`;
-    }).join('');
+    const itemsSummary = (r.items || []).map(i => i.name).slice(0, 2).join(', ') + ((r.items && r.items.length > 2) ? '…' : '');
 
-    return `<div class="recv-card" id="recvCard_${r.id}">
-      <div class="recv-card-hd" onclick="toggleRecvCard(${r.id})">
-        <div class="recv-card-meta">
-          <span class="recv-ref">${r.ref}</span>
-          <span class="pill ${sCls}">${r.status}</span>
-          <span class="pill ${uCls}">${r.urgency}</span>
-          <div class="recv-dates">
-            <span><i class="fas fa-calendar-plus" style="opacity:0.6"></i> Requested: ${r.date_created}</span>
-          </div>
-        </div>
-        <div class="recv-card-actions">
-          <span style="font-size:0.75rem;color:var(--g500);font-weight:500;">${r.item_count} item${r.item_count!==1?'s':''}</span>
-          ${canReceive ? `<button class="btn-p btn-sm" onclick="openRecvDetail(event,${r.id})"><i class="fas fa-box-open"></i> Receive</button>` : (isDiscrepancy ? `<span class="pill pill-warn" style="font-size:0.75rem;"><i class="fas fa-clock"></i> Pending Approval</span>` : '')}
-          <i class="fas fa-chevron-down recv-chevron"></i>
-        </div>
-      </div>
-      <div class="recv-items-wrap">
-        <table class="it mobile-cards" style="background:transparent;">
-          <thead>
-            <tr>
-              <th style="width:40%;padding-left:1.5rem;background:transparent;">Product</th>
-              <th class="tc" style="width:15%;background:transparent;">UOM</th>
-              <th class="tc" style="width:15%;background:transparent;">Req Qty</th>
-              <th class="tc" style="width:30%;background:transparent;">Item Status</th>
-            </tr>
-          </thead>
-          <tbody>${itemRows}</tbody>
-        </table>
-      </div>
-    </div>`;
+    let actionBtn = '';
+    if(canReceive){
+      actionBtn = `<button class="btn-p btn-sm" onclick="openRecvDetail(event, ${r.id})"><i class="fas fa-box-open"></i> Receive</button>`;
+    } else if(isDiscrepancy){
+      actionBtn = `<button class="btn-ghost btn-sm" onclick="openRecvDetail(event, ${r.id})"><span class="pill pill-warn"><i class="fas fa-clock"></i> Review</span></button>`;
+    } else {
+      actionBtn = `<button class="btn-ghost btn-sm" onclick="openRecvDetail(event, ${r.id})"><span class="pill pill-ok"><i class="fas fa-check"></i> Details</span></button>`;
+    }
+
+    return `<tr onclick="openRecvDetail(event, ${r.id})" style="cursor:pointer">
+      <td data-label="Reference">
+        <span class="fw-bold" style="font-family:ui-monospace,SFMono-Regular,monospace;font-size:0.85rem">${r.ref}</span>
+        ${r.branch ? `<div class="text-muted fs-sm">${r.branch}</div>` : ''}
+      </td>
+      <td data-label="Date">
+        <span class="text-secondary small">${r.date_created}</span>
+      </td>
+      <td data-label="Products">
+        <span class="small text-muted" title="${(r.items || []).map(i => i.name).join(', ')}">${itemsSummary || '—'}</span>
+      </td>
+      <td class="te" data-label="Items">
+        <span class="fw-semibold">${r.item_count}</span>
+      </td>
+      <td class="te" data-label="Status / Action" onclick="event.stopPropagation()">
+        ${actionBtn}
+      </td>
+    </tr>`;
   }).join('');
 }
 
-function toggleRecvCard(id){
-  const card = document.getElementById(`recvCard_${id}`);
-  if(card) card.classList.toggle('open');
-}
-
 function openRecvDetail(e, reqId){
-  e.stopPropagation();
+  if(e && e.stopPropagation) e.stopPropagation();
   currentRecvReqId = reqId;
 
   // Fetch detail from API
@@ -1445,58 +1582,114 @@ function renderRecvDetail(req){
   document.getElementById('recvListWrap').style.display = 'none';
   document.getElementById('recvDetailWrap').style.display = 'block';
   document.getElementById('recvDetailTitle').textContent = req.ref;
+  
+  const elRequester = document.getElementById('recvDetailRequester');
+  const elDate = document.getElementById('recvDetailDate');
+  if(elRequester) elRequester.textContent = req.requested_by || '—';
+  if(elDate) elDate.textContent = req.date_created || '—';
 
   const sCls = {pending:'pill-warn',partial:'pill-blue',delivered:'pill-ok',approved:'pill-neu',dispatched:'pill-blue'};
   document.getElementById('recvDetailStatus').innerHTML = `<span class="pill ${sCls[req.status.toLowerCase()]||'pill-neu'}">${req.status}</span>`;
 
   const tbody = document.getElementById('recvDetailBody');
   tbody.innerHTML = req.items.map((it) => {
-    const prefill = it.received_qty !== null ? it.received_qty : it.warehouse_released;
+    const recvPrefill = it.received_qty !== null ? it.received_qty : it.warehouse_released;
+    const relPrefill = it.warehouse_released;
     const reqPrefill = it.requested_qty !== undefined ? it.requested_qty : it.warehouse_released;
-    return `<tr>
-      <td style="font-weight:600">${it.product_name}</td>
-      <td class="tc text-muted" data-label="UOM">${it.uom}</td>
-      <td class="tc" data-label="Requested"><span class="text-muted" style="font-weight:600;font-size:0.85rem">${reqPrefill}</span></td>
-      <td class="tc" data-label="To Receive"><span class="pill pill-blue" id="rq_${it.item_id}" style="font-weight:700;font-size:0.85rem">${it.warehouse_released}</span></td>
-      <td class="tc" data-label="Actual Recv">
-        <input type="number" class="finput tc" 
-          id="actualRecv_${it.item_id}" value="${prefill}" min="0" step="any"
-          oninput="calcOverShort(${it.item_id})">
+    const disId = `disp_${it.item_id}`;
+    const isOpt = it.is_optional ? ' <span class="pill pill-blue" style="font-size:0.6rem">Optional</span>' : '';
+    return `<tr id="recvRow_${it.item_id}">
+      <td style="font-weight:600" data-label="Product">${it.product_name}${isOpt}
+        <div class="text-muted fs-sm" style="font-weight:400">${it.uom}</div>
       </td>
-      <td class="tc" data-label="Over" id="over_${it.item_id}"><span class="text-muted">0</span></td>
-      <td class="tc" data-label="Short" id="short_${it.item_id}"><span class="text-muted">0</span></td>
+      <td class="te" data-label="Requested">
+        <span class="text-muted" style="font-weight:600;font-size:0.95rem">${reqPrefill}</span>
+      </td>
+      <td class="te" data-label="Released (WH)">
+        <span id="relRecv_${it.item_id}" class="pill pill-blue" style="font-weight:700;font-size:0.95rem;padding:3px 8px">${relPrefill}</span>
+      </td>
+      <td class="te" data-label="Actual Received">
+        <div style="display:inline-flex;align-items:center;border:1px solid var(--border);background:var(--surface);">
+          <button type="button" onclick="stepPortalQty(${it.item_id}, -1)" style="width:26px;height:30px;border:none;background:transparent;font-weight:700;color:var(--text-primary);cursor:pointer">-</button>
+          <input type="number" class="finput" style="width:64px;height:30px;padding:0.2rem 0.4rem;font-weight:700;text-align:center;border:none;border-left:1px solid var(--border);border-right:1px solid var(--border);background:var(--card-bg);"
+            id="actualRecv_${it.item_id}" value="${recvPrefill}" min="0" step="any"
+            oninput="calcOverShort(${it.item_id})" onfocus="this.select()">
+          <button type="button" onclick="stepPortalQty(${it.item_id}, 1)" style="width:26px;height:30px;border:none;background:transparent;font-weight:700;color:var(--text-primary);cursor:pointer">+</button>
+        </div>
+      </td>
+      <td class="te" data-label="Variance"><span id="${disId}">—</span></td>
     </tr>`;
   }).join('');
 
   req.items.forEach(it => calcOverShort(it.item_id));
+  const FINAL_STATUSES = ['approved','Dispatched','Partial','Delivered','rejected'];
+  const isFinalized = FINAL_STATUSES.includes(req.status);
+  const optSection = document.getElementById('recvOptSection');
+  if (optSection) optSection.style.display = isFinalized ? 'none' : '';
+
+  document.getElementById('optItemsBody').innerHTML = '';
+  document.getElementById('optItemsWrap').style.display = 'none';
   document.querySelector('.main').scrollTo({top:0,behavior:'smooth'});
 }
 
-function calcOverShort(itemId){
-  const reqEl = document.getElementById(`rq_${itemId}`);
-  const actualEl = document.getElementById(`actualRecv_${itemId}`);
-  const overTd = document.getElementById(`over_${itemId}`);
-  const shortTd = document.getElementById(`short_${itemId}`);
-  if(!reqEl || !actualEl || !overTd || !shortTd) return;
+function stepPortalQty(itemId, delta){
+  const input = document.getElementById(`actualRecv_${itemId}`);
+  if(!input) return;
+  let val = parseFloat(input.value) || 0;
+  val = Math.max(0, val + delta);
+  input.value = val;
+  calcOverShort(itemId);
+}
 
-  const released = parseFloat(reqEl.textContent);
+function calcOverShort(itemId){
+  const reqEl = document.getElementById(`relRecv_${itemId}`);
+  const actualEl = document.getElementById(`actualRecv_${itemId}`);
+  const dispEl = document.getElementById(`disp_${itemId}`);
+  if(!reqEl || !actualEl || !dispEl) return;
+
+  const released = parseFloat(reqEl.textContent) || 0;
   const actualStr = actualEl.value;
   if(actualStr.trim() === ''){
-    overTd.innerHTML = '<span class="text-muted">—</span>';
-    shortTd.innerHTML = '<span class="text-muted">—</span>';
+    dispEl.innerHTML = '<span class="text-muted">—</span>';
     return;
   }
   const actual = parseFloat(actualStr);
-  if(actual > released){
-    overTd.innerHTML = `<span class="pill pill-warn" style="font-size:0.65rem">+${(actual-released).toFixed(2)}</span>`;
-    shortTd.innerHTML = `<span class="text-muted">—</span>`;
-  } else if(actual < released){
-    overTd.innerHTML = `<span class="text-muted">—</span>`;
-    shortTd.innerHTML = `<span class="pill pill-bad" style="font-size:0.65rem">-${(released-actual).toFixed(2)}</span>`;
+  const diff = actual - released;
+  if(diff > 0){
+    dispEl.innerHTML = `<span class="pill pill-warn" style="font-size:0.7rem">+${diff.toFixed(0)} over</span>`;
+  } else if(diff < 0){
+    dispEl.innerHTML = `<span class="pill pill-bad" style="font-size:0.7rem">${diff.toFixed(0)} short</span>`;
   } else {
-    overTd.innerHTML = `<span class="text-muted">—</span>`;
-    shortTd.innerHTML = `<span class="text-muted">—</span>`;
+    dispEl.innerHTML = `<span class="pill pill-ok" style="font-size:0.7rem">✓ Exact</span>`;
   }
+  checkPortalDiscrepancy();
+}
+
+function checkPortalDiscrepancy(){
+  let hasAny = false;
+  document.querySelectorAll('#recvDetailBody tr').forEach(row => {
+    const relEl = row.querySelector('span[id^="relRecv_"]');
+    const input = row.querySelector('input[id^="actualRecv_"]');
+    if(relEl && input){
+      const rel = parseFloat(relEl.textContent) || 0;
+      const recv = parseFloat(input.value) || 0;
+      if(rel !== recv) hasAny = true;
+    }
+  });
+  const warn = document.getElementById('portalDiscrepancyWarning');
+  if(warn) warn.style.display = hasAny ? 'block' : 'none';
+}
+
+function matchAllPortalRecv(){
+  document.querySelectorAll('#recvDetailBody tr').forEach(row => {
+    const relEl = row.querySelector('span[id^="relRecv_"]');
+    const input = row.querySelector('input[id^="actualRecv_"]');
+    if(relEl && input){
+      input.value = relEl.textContent.trim();
+      const id = relEl.id.replace('relRecv_', '');
+      calcOverShort(id);
+    }
+  });
 }
 
 function closeRecvDetail(){

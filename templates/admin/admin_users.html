@@ -2,275 +2,321 @@
 {% block title %}User Management - iCount{% endblock %}
 
 {% block styles %}
-<link href="{{ url_for('static', filename='css/admin.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/admin-users.css') }}?v=20261020-banned-sticky-v2" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+{# ── Helpers ─────────────────────────────────────────── #}
+{% macro role_chip(r) -%}
+  {%- set role_str = r or 'User' -%}
+  {%- set r_lower = role_str|lower -%}
+  <span class="role-chip role-chip--{{ r_lower }}">
+    <i class="fas fa-{% if role_str == 'SYS-Admin' %}crown{% elif role_str == 'Company-Admin' %}building{% elif role_str == 'WH-Admin' %}warehouse{% elif role_str == 'Purchaser' %}cart-shopping{% else %}user{% endif %}" aria-hidden="true"></i>
+    {{ role_str }}
+  </span>
+{%- endmacro %}
 
-  <!-- Page Header -->
-  <div class="admin-page-header">
-    <div class="header-left">
-      <div class="admin-header-icon indigo">
-        <i class="fas fa-user-shield"></i>
-      </div>
-      <div>
-        <h4 class="admin-page-title">User Management</h4>
-        <p class="admin-page-subtitle">Monitor users, change roles, and remove accounts</p>
-      </div>
-    </div>
-    {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
-    <button class="btn btn-primary px-3" data-bs-toggle="modal" data-bs-target="#addUserModal">
-      <i class="fas fa-user-plus me-2"></i>Add User
-    </button>
-    {% endif %}
-  </div>
+{% macro page_url(n, filters) -%}
+  {{ url_for('admin.admin_users', page=n, **filters) }}
+{%- endmacro %}
 
-  <!-- Overview Stats -->
-  <div class="admin-stats">
-    <div class="admin-stat-card">
-      <div class="admin-stat-icon indigo"><i class="fas fa-users"></i></div>
-      <div>
-        <div class="admin-stat-value">{{ stats.total }}</div>
-        <div class="admin-stat-label">Total Users</div>
+{% set base_filters = {} %}
+{% for k, v in current_filters.items() if k not in ['role', 'status'] %}{% set _ = base_filters.update({k: v}) %}{% endfor %}
+{% set active_role = current_filters.get('role', '') %}
+{% set active_status = current_filters.get('status', '') %}
+{% set can_manage_users = current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+
+<div class="container-fluid py-3 users-page">
+
+  <!-- Header -->
+  <header class="users-header">
+    <div class="users-title-wrap">
+      <div class="users-page-icon" aria-hidden="true"><i class="fas fa-user-shield"></i></div>
+      <div class="min-w-0">
+        <div class="users-eyebrow">
+          <span>{{ now.strftime('%A') }}</span>
+          <span>{{ now.strftime('%B %d, %Y') }}</span>
+        </div>
+        <h1 class="users-title">User Management</h1>
+        <p class="users-subtitle">
+          {% if active_role %}
+            Viewing {{ active_role }} accounts
+          {% elif active_status %}
+            Viewing {{ active_status }} accounts
+          {% else %}
+            Monitor user accounts, rename usernames, change passwords, and manage permissions
+          {% endif %}
+        </p>
       </div>
     </div>
-    <div class="admin-stat-card">
-      <div class="admin-stat-icon rose"><i class="fas fa-crown"></i></div>
-      <div>
-        <div class="admin-stat-value">{{ stats.sys_admin + stats.company_admin }}</div>
-        <div class="admin-stat-label">Admins</div>
-      </div>
+    <div class="users-header-actions">
+      <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#userFilterCollapse" aria-expanded="true" aria-controls="userFilterCollapse" id="userToggleFilters">
+        <i class="fas fa-filter" aria-hidden="true"></i> Filters
+      </button>
+      {% if can_manage_users %}
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal" id="userAddBtn">
+        <i class="fas fa-user-plus" aria-hidden="true"></i> Add User
+      </button>
+      {% endif %}
     </div>
-    <div class="admin-stat-card">
-      <div class="admin-stat-icon violet"><i class="fas fa-warehouse"></i></div>
-      <div>
-        <div class="admin-stat-value">{{ stats.wh_admin }}</div>
-        <div class="admin-stat-label">Warehouse Admins</div>
-      </div>
-    </div>
-    <div class="admin-stat-card">
-      <div class="admin-stat-icon emerald"><i class="fas fa-cart-shopping"></i></div>
-      <div>
-        <div class="admin-stat-value">{{ stats.purchaser }}</div>
-        <div class="admin-stat-label">Purchasers</div>
-      </div>
-    </div>
-    <div class="admin-stat-card">
-      <div class="admin-stat-icon amber"><i class="fas fa-user-clock"></i></div>
-      <div>
-        <div class="admin-stat-value">{{ stats.unverified }}</div>
-        <div class="admin-stat-label">Unverified</div>
-      </div>
-    </div>
-  </div>
+  </header>
+
+  <!-- Status / Role Summary Cards -->
+  {% set stat_cards = [
+    {'role': '',          'status': '',           'key': 'total',      'title': 'All Users',         'count': stats.total,                          'icon': 'fa-users',         'label': 'total registered'},
+    {'role': 'Admins',    'status': '',           'key': 'admins',     'title': 'Administrators',    'count': stats.sys_admin + stats.company_admin, 'icon': 'fa-crown',         'label': 'system & company'},
+    {'role': 'WH-Admin',  'status': '',           'key': 'wh',         'title': 'Warehouse Admins',  'count': stats.wh_admin,                       'icon': 'fa-warehouse',     'label': 'inventory ops'},
+    {'role': 'Purchaser', 'status': '',           'key': 'purchaser',  'title': 'Purchasers',        'count': stats.purchaser,                      'icon': 'fa-cart-shopping', 'label': 'purchasing team'},
+    {'role': 'User',      'status': '',           'key': 'regular',    'title': 'Store Staff',       'count': stats.regular,                        'icon': 'fa-user',          'label': 'store users'},
+    {'role': '',          'status': 'unverified', 'key': 'unverified', 'title': 'Unverified',        'count': stats.unverified,                     'icon': 'fa-user-clock',    'label': 'pending verification'},
+    {'role': '',          'status': 'banned',     'key': 'banned',     'title': 'Banned',            'count': stats.banned,                         'icon': 'fa-ban',           'label': 'suspended accounts'}
+  ] %}
+  <nav class="users-stats" aria-label="Filter users by role or status">
+    {% for card in stat_cards %}
+      {% set is_active = (not card.role and not card.status and not active_role and not active_status) or (card.role and active_role == card.role) or (card.status and active_status == card.status) %}
+      {% set target_filters = dict(base_filters) %}
+      {% if card.role %}{% set _ = target_filters.update({'role': card.role}) %}{% endif %}
+      {% if card.status %}{% set _ = target_filters.update({'status': card.status}) %}{% endif %}
+      <a href="{{ url_for('admin.admin_users', **target_filters) }}" class="users-stat users-stat--{{ card.key }} {{ 'is-active' if is_active }}" {% if is_active %}aria-current="true"{% endif %} id="userStat-{{ card.key }}">
+        <span class="users-stat-icon" aria-hidden="true"><i class="fas {{ card.icon }}"></i></span>
+        <span class="users-stat-body">
+          <span class="users-stat-title">{{ card.title }}</span>
+          <span class="users-stat-value">{{ card.count }}</span>
+          <span class="users-stat-label">{{ card.label }}</span>
+        </span>
+      </a>
+    {% endfor %}
+  </nav>
 
   <!-- Filters -->
-  <div class="admin-filter-card">
-    <div class="card-body">
-      <form method="get" action="{{ url_for('admin.admin_users') }}" class="row g-3 align-items-end">
-        <div class="col-md-8">
+  <div class="collapse show" id="userFilterCollapse">
+    <div class="users-filter-card">
+      <form method="get" action="{{ url_for('admin.admin_users') }}" class="users-filter-form {{ 'has-company' if current_user.role == 'SYS-Admin' and current_user.company_id is none and companies }}" role="search">
+        <div class="users-filter-search">
           <div class="input-group">
-            <span class="input-group-text border-end-0"><i class="fas fa-search text-muted"></i></span>
-            <input class="form-control border-start-0 ps-0" type="search" placeholder="Search by name, username, email, company, or role" name="q" value="{{ search }}">
+            <span class="input-group-text bg-transparent"><i class="fas fa-search" aria-hidden="true"></i></span>
+            <label class="visually-hidden" for="userSearch">Search users</label>
+            <input id="userSearch" type="text" name="q" class="form-control border-start-0 ps-0"
+                   placeholder="Search by name, username, email, branch…" value="{{ request.args.get('q', '') }}">
           </div>
         </div>
-        <div class="col-md-4 d-flex align-items-end justify-content-end gap-2">
-          <button class="btn btn-primary" type="submit"><i class="fas fa-search me-1"></i>Search</button>
-          <a class="btn btn-outline-secondary" href="{{ url_for('admin.admin_users') }}">
-            <i class="fas fa-rotate-left me-1"></i>Reset
-          </a>
+        <div>
+          <label class="visually-hidden" for="userRoleFilter">Filter by role</label>
+          <select id="userRoleFilter" name="role" class="form-select">
+            <option value="">All Roles</option>
+            <option value="Admins" {{ 'selected' if request.args.get('role') == 'Admins' }}>Admins (SYS & Company)</option>
+            <option value="SYS-Admin" {{ 'selected' if request.args.get('role') == 'SYS-Admin' }}>SYS-Admin</option>
+            <option value="Company-Admin" {{ 'selected' if request.args.get('role') == 'Company-Admin' }}>Company-Admin</option>
+            <option value="WH-Admin" {{ 'selected' if request.args.get('role') == 'WH-Admin' }}>WH-Admin</option>
+            <option value="Purchaser" {{ 'selected' if request.args.get('role') == 'Purchaser' }}>Purchaser</option>
+            <option value="User" {{ 'selected' if request.args.get('role') == 'User' }}>Store Staff (User)</option>
+          </select>
+        </div>
+        <div>
+          <label class="visually-hidden" for="userStatusFilter">Filter by verification</label>
+          <select id="userStatusFilter" name="status" class="form-select">
+            <option value="">All Statuses</option>
+            <option value="verified" {{ 'selected' if request.args.get('status') == 'verified' }}>Verified</option>
+            <option value="unverified" {{ 'selected' if request.args.get('status') == 'unverified' }}>Unverified</option>
+            <option value="banned" {{ 'selected' if request.args.get('status') == 'banned' }}>Banned</option>
+          </select>
+        </div>
+        {% if current_user.role == 'SYS-Admin' and current_user.company_id is none and companies %}
+        <div>
+          <label class="visually-hidden" for="userCompanyFilter">Filter by company</label>
+          <select id="userCompanyFilter" name="company_id" class="form-select" onchange="this.form.submit()">
+            <option value="">All Companies</option>
+            {% for c in companies %}
+              <option value="{{ c.id }}" {{ 'selected' if request.args.get('company_id') == c.id|string }}>{{ c.franchise_name or c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <div class="users-filter-actions">
+          <button type="submit" class="btn btn-primary" aria-label="Apply filters" title="Apply filters" id="userApplyFilters"><i class="fas fa-filter"></i></button>
+          <a href="{{ url_for('admin.admin_users') }}" class="btn btn-outline-secondary" aria-label="Reset filters" title="Reset filters" id="userResetFilters"><i class="fas fa-rotate-left"></i></a>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Users Table -->
-  <div class="admin-card">
-    <div class="card-header">
-      <h5 class="card-title">
-        <i class="fas fa-list"></i> All Users
-        <span class="admin-count-badge"><i class="fas fa-user"></i>{{ stats.total }}</span>
-      </h5>
-      {% if search %}
-      <span class="text-muted small">Results for "<strong>{{ search }}</strong>"</span>
-      {% endif %}
+  <!-- Users Table Card -->
+  <section class="users-table-card" aria-labelledby="usersTableTitle">
+    <div class="users-table-head">
+      <h2 id="usersTableTitle"><i class="fas fa-users" aria-hidden="true"></i>Users Directory</h2>
+      <span class="users-table-meta">
+        {% set total_showing = users|length + (1 if current_admin else 0) %}
+        {% if pagination.total %}
+          Showing {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} other users{% if current_admin %} + current account{% endif %})
+        {% else %}
+          {{ total_showing }} account{{ 's' if total_showing != 1 }}
+        {% endif %}
+      </span>
     </div>
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
+
+    {% if current_admin or users %}
+    <div class="table-responsive" id="usersTableScroll" role="region" tabindex="0" aria-label="Users table. Scroll horizontally to view all columns.">
+      <table class="table align-middle users-table" id="usersTable">
         <thead>
           <tr>
-            <th>User</th>
-            <th>Username</th>
-            <th>Email</th>
-            <th>Company</th>
-            <th>Role</th>
-            <th>Verified</th>
-            <th class="text-center">Actions</th>
+            <th scope="col">User</th>
+            <th scope="col">Username</th>
+            <th scope="col">Email</th>
+            <th scope="col">Company / Branch</th>
+            <th scope="col">Role</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="col-actions">Actions</th>
           </tr>
         </thead>
         <tbody>
+          {# Current Admin Row (Pinned Highlight) #}
           {% if current_admin %}
-          <tr class="table-highlight">
-            <td>
-              <div class="d-flex align-items-center gap-2">
-                <div class="user-avatar">
-                  <span>{{ current_admin.full_name[:1] }}</span>
+          {% set ca_parts = (current_admin.full_name or '?').split() %}
+          <tr class="is-current-user" data-user-id="{{ current_admin.id }}">
+            <td class="col-user">
+              <div class="user-who">
+                <span class="user-avatar-sq" aria-hidden="true">{{ ca_parts[0][0] }}{{ ca_parts[1][0] if ca_parts|length > 1 }}</span>
+                <div class="min-w-0">
+                  <div class="user-name">
+                    <span>{{ current_admin.full_name }}</span>
+                    <span class="user-you-tag">You</span>
+                  </div>
+                  <div class="user-id-tag">ID #{{ '%05d'|format(current_admin.id) }}</div>
                 </div>
-                <div class="user-info-text">
-                  <div class="fw-semibold">{{ current_admin.full_name }}</div>
-                  <small class="text-muted">ID #{{ current_admin.id }}</small>
-                </div>
               </div>
             </td>
-            <td>
-              <span class="badge badge-username">{{ current_admin.username }}</span>
+            <td data-label="Username">
+              <span class="username-code">{{ current_admin.username }}</span>
             </td>
-            <td>
-              <div class="d-flex align-items-center gap-2">
-                <span id="email-display-{{ current_admin.id }}">{{ current_admin.email }}</span>
-                <button class="btn btn-sm btn-outline-secondary email-edit-btn" data-user-id="{{ current_admin.id }}" data-email="{{ current_admin.email }}" title="Edit email">
-                  <i class="fas fa-edit"></i>
-                </button>
-              </div>
-              <div id="email-edit-{{ current_admin.id }}" class="d-none">
-                <form method="post" action="{{ url_for('admin.admin_update_email', user_id=current_admin.id) }}" class="d-flex align-items-center gap-2">
-                  <input type="email" name="email" value="{{ current_admin.email }}" class="form-control form-control-sm" required>
-                  <button class="btn btn-sm btn-success" type="submit" title="Save email">
-                    <i class="fas fa-save"></i>
-                  </button>
-                  <button class="btn btn-sm btn-outline-secondary email-cancel-btn" type="button" data-user-id="{{ current_admin.id }}" data-email="{{ current_admin.email }}" title="Cancel">
-                    <i class="fas fa-times"></i>
-                  </button>
-                </form>
-              </div>
+            <td data-label="Email">
+              <span class="email-text" title="{{ current_admin.email }}">{{ current_admin.email }}</span>
             </td>
-            <td class="text-secondary">{{ current_admin.company.franchise_name if current_admin.company else current_admin.branch or '-' }}</td>
-            <td>
-              {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
-              <form method="post" action="{{ url_for('admin.admin_update_role', user_id=current_admin.id) }}" class="d-flex align-items-center gap-2">
-                <select name="role" class="form-select form-select-sm" disabled>
-                  <option value="User" {% if current_admin.role == 'User' %}selected{% endif %}>User</option>
-                  <option value="WH-Admin" {% if current_admin.role == 'WH-Admin' %}selected{% endif %}>WH-Admin</option>
-                  <option value="Company-Admin" {% if current_admin.role == 'Company-Admin' %}selected{% endif %}>Company-Admin</option>
-                  <option value="SYS-Admin" {% if current_admin.role == 'SYS-Admin' %}selected{% endif %}>SYS-Admin</option>
-                  <option value="Purchaser" {% if current_admin.role == 'Purchaser' %}selected{% endif %}>Purchaser</option>
-                </select>
-                <button class="btn btn-sm btn-outline-primary" type="submit" title="Save role" disabled>
-                  <i class="fas fa-save"></i>
-                </button>
-              </form>
-              {% else %}
-              <span class="badge badge-role badge-{{ current_admin.role | lower }}">
-                <i class="fas fa-{% if current_admin.role == 'SYS-Admin' %}crown{% elif current_admin.role == 'Company-Admin' %}building{% elif current_admin.role == 'WH-Admin' %}warehouse{% elif current_admin.role == 'Purchaser' %}cart-shopping{% else %}user{% endif %}"></i>
-                {{ current_admin.role }}
+            <td data-label="Company / Branch">
+              <span class="company-text" title="{{ current_admin.company.franchise_name if current_admin.company else current_admin.branch or '—' }}">
+                {{ current_admin.company.franchise_name if current_admin.company else current_admin.branch or '—' }}
               </span>
-              {% endif %}
             </td>
-            <td>
-              {% if current_admin.email_verified %}
-                <span class="badge badge-verified"><i class="fas fa-check-circle me-1"></i>Verified</span>
+            <td data-label="Role">
+              {{ role_chip(current_admin.role) }}
+            </td>
+            <td data-label="Status">
+              {% if current_admin.is_banned %}
+                <span class="user-chip user-chip--banned"><span class="user-chip-dot"></span>Banned</span>
+              {% elif current_admin.email_verified %}
+                <span class="user-chip user-chip--verified"><span class="user-chip-dot"></span>Verified</span>
               {% else %}
-                <span class="badge badge-unverified"><i class="fas fa-minus-circle me-1"></i>Unverified</span>
+                <span class="user-chip user-chip--unverified"><span class="user-chip-dot"></span>Unverified</span>
               {% endif %}
             </td>
-            <td class="text-center">
-              {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
-              <form method="post" action="{{ url_for('admin.admin_delete_user', user_id=current_admin.id) }}" class="d-inline" onsubmit="return confirm('Delete user {{ current_admin.username }}?');">
-                <button class="btn btn-sm btn-outline-danger" type="submit" title="Delete account" disabled>
-                  <i class="fas fa-trash"></i>
+            <td class="col-actions">
+              <button type="button" class="btn btn-sm btn-outline-secondary product-actions-toggle" aria-label="Actions for {{ current_admin.username }}" aria-haspopup="menu" aria-expanded="false">
+                <i class="fas fa-ellipsis" aria-hidden="true"></i>
+              </button>
+              <div class="product-actions-menu" role="menu" hidden>
+                <button type="button" class="product-action-item" role="menuitem" onclick="openRenameUsernameModal({{ current_admin.id }}, {{ current_admin.username|tojson|forceescape }}, {{ current_admin.full_name|tojson|forceescape }})">
+                  <i class="fas fa-signature" aria-hidden="true"></i>Rename Username
                 </button>
-              </form>
-              {% endif %}
+                <button type="button" class="product-action-item" role="menuitem" onclick="openChangePasswordModal({{ current_admin.id }}, {{ current_admin.username|tojson|forceescape }}, {{ current_admin.full_name|tojson|forceescape }})">
+                  <i class="fas fa-key" aria-hidden="true"></i>Change Password
+                </button>
+                <button type="button" class="product-action-item" role="menuitem" onclick="openEditEmailModal({{ current_admin.id }}, {{ current_admin.email|tojson|forceescape }}, {{ current_admin.full_name|tojson|forceescape }})">
+                  <i class="fas fa-envelope" aria-hidden="true"></i>Edit Email
+                </button>
+              </div>
             </td>
           </tr>
           {% endif %}
 
+          {# Other Users Rows #}
           {% for u in users %}
-          <tr>
-            <td>
-              <div class="d-flex align-items-center gap-2">
-                <div class="user-avatar">
-                  <span>{{ u.full_name[:1] }}</span>
-                </div>
-                <div class="user-info-text">
-                  <div class="fw-semibold">{{ u.full_name }}</div>
-                  <small class="text-muted">ID #{{ u.id }}</small>
+          {% set u_parts = (u.full_name or '?').split() %}
+          <tr data-user-id="{{ u.id }}" class="{{ 'is-banned-user' if u.is_banned else '' }}">
+            <td class="col-user">
+              <div class="user-who">
+                <span class="user-avatar-sq" aria-hidden="true">{{ u_parts[0][0] }}{{ u_parts[1][0] if u_parts|length > 1 }}</span>
+                <div class="min-w-0">
+                  <div class="user-name" title="{{ u.full_name }}">
+                    <span>{{ u.full_name }}</span>
+                    {% if u.id == current_user.id %}<span class="user-you-tag">You</span>{% endif %}
+                  </div>
+                  <div class="user-id-tag">ID #{{ '%05d'|format(u.id) }}</div>
                 </div>
               </div>
             </td>
-            <td>
-              <span class="badge badge-username">{{ u.username }}</span>
+            <td data-label="Username">
+              <span class="username-code">{{ u.username }}</span>
             </td>
-            <td>
-              {% if u.id == current_user.id %}
-                <div class="d-flex align-items-center gap-2">
-                  <span id="email-display-{{ u.id }}">{{ u.email }}</span>
-                  <button class="btn btn-sm btn-outline-secondary email-edit-btn" data-user-id="{{ u.id }}" data-email="{{ u.email }}" title="Edit email">
-                    <i class="fas fa-edit"></i>
-                  </button>
-                </div>
-                <div id="email-edit-{{ u.id }}" class="d-none">
-                  <form method="post" action="{{ url_for('admin.admin_update_email', user_id=u.id) }}" class="d-flex align-items-center gap-2">
-                    <input type="email" name="email" value="{{ u.email }}" class="form-control form-control-sm" required>
-                    <button class="btn btn-sm btn-success" type="submit" title="Save email">
-                      <i class="fas fa-save"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary email-cancel-btn" type="button" data-user-id="{{ u.id }}" data-email="{{ u.email }}" title="Cancel">
-                      <i class="fas fa-times"></i>
-                    </button>
-                  </form>
-                </div>
-              {% else %}
-                <span class="text-secondary">{{ u.email }}</span>
-              {% endif %}
+            <td data-label="Email">
+              <span class="email-text" title="{{ u.email }}">{{ u.email }}</span>
             </td>
-            <td class="text-secondary">{{ u.company.franchise_name if u.company else u.branch or '-' }}</td>
-            <td>
-              {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
-              <form method="post" action="{{ url_for('admin.admin_update_role', user_id=u.id) }}" class="d-flex align-items-center gap-2 flex-wrap">
-                <select name="role" class="form-select form-select-sm" {% if u.id == current_user.id %}disabled{% endif %}>
-                  <option value="User" {% if u.role == 'User' %}selected{% endif %}>User</option>
-                  <option value="WH-Admin" {% if u.role == 'WH-Admin' %}selected{% endif %}>WH-Admin</option>
-                  <option value="Company-Admin" {% if u.role == 'Company-Admin' %}selected{% endif %}>Company-Admin</option>
-                  <option value="SYS-Admin" {% if u.role == 'SYS-Admin' %}selected{% endif %}>SYS-Admin</option>
-                  <option value="Purchaser" {% if u.role == 'Purchaser' %}selected{% endif %}>Purchaser</option>
-                </select>
-                <button class="btn btn-sm btn-outline-primary" type="submit" title="Save role" {% if u.id == current_user.id %}disabled{% endif %}>
-                  <i class="fas fa-save"></i>
-                </button>
-              </form>
-              {% else %}
-              <span class="badge badge-role badge-{{ u.role | lower }}">
-                <i class="fas fa-{% if u.role == 'SYS-Admin' %}crown{% elif u.role == 'Company-Admin' %}building{% elif u.role == 'WH-Admin' %}warehouse{% elif u.role == 'Purchaser' %}cart-shopping{% else %}user{% endif %}"></i>
-                {{ u.role }}
+            <td data-label="Company / Branch">
+              <span class="company-text" title="{{ u.company.franchise_name if u.company else u.branch or '—' }}">
+                {{ u.company.franchise_name if u.company else u.branch or '—' }}
               </span>
-              {% endif %}
             </td>
-            <td>
-              {% if u.email_verified %}
-                <span class="badge badge-verified"><i class="fas fa-check-circle me-1"></i>Verified</span>
+            <td data-label="Role">
+              {% if can_manage_users and u.id != current_user.id %}
+                <form method="post" action="{{ url_for('admin.admin_update_role', user_id=u.id) }}" class="role-inline-form">
+                  <label class="visually-hidden" for="roleSelect{{ u.id }}">Role for {{ u.username }}</label>
+                  <select id="roleSelect{{ u.id }}" name="role" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="User" {% if u.role == 'User' %}selected{% endif %}>User</option>
+                    <option value="WH-Admin" {% if u.role == 'WH-Admin' %}selected{% endif %}>WH-Admin</option>
+                    <option value="Company-Admin" {% if u.role == 'Company-Admin' %}selected{% endif %}>Company-Admin</option>
+                    <option value="SYS-Admin" {% if u.role == 'SYS-Admin' %}selected{% endif %}>SYS-Admin</option>
+                    <option value="Purchaser" {% if u.role == 'Purchaser' %}selected{% endif %}>Purchaser</option>
+                  </select>
+                </form>
               {% else %}
-                <span class="badge badge-unverified"><i class="fas fa-minus-circle me-1"></i>Unverified</span>
+                {{ role_chip(u.role) }}
               {% endif %}
             </td>
-            <td class="text-center">
-              {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
-              <form method="post" action="{{ url_for('admin.admin_delete_user', user_id=u.id) }}" class="d-inline" onsubmit="return confirm('Delete user {{ u.username }}?');">
-                <button class="btn btn-sm btn-outline-danger" type="submit" title="Delete account" {% if u.id == current_user.id %}disabled{% endif %}>
-                  <i class="fas fa-trash"></i>
+            <td data-label="Status">
+              {% if u.is_banned %}
+                <span class="user-chip user-chip--banned"><span class="user-chip-dot"></span>Banned</span>
+              {% elif u.email_verified %}
+                <span class="user-chip user-chip--verified"><span class="user-chip-dot"></span>Verified</span>
+              {% else %}
+                <span class="user-chip user-chip--unverified"><span class="user-chip-dot"></span>Unverified</span>
+              {% endif %}
+            </td>
+            <td class="col-actions">
+              <button type="button" class="btn btn-sm btn-outline-secondary product-actions-toggle" aria-label="Actions for {{ u.username }}" aria-haspopup="menu" aria-expanded="false">
+                <i class="fas fa-ellipsis" aria-hidden="true"></i>
+              </button>
+              <div class="product-actions-menu" role="menu" hidden>
+                {% if can_manage_users or u.id == current_user.id %}
+                <button type="button" class="product-action-item" role="menuitem" onclick="openRenameUsernameModal({{ u.id }}, {{ u.username|tojson|forceescape }}, {{ u.full_name|tojson|forceescape }})">
+                  <i class="fas fa-signature" aria-hidden="true"></i>Rename Username
                 </button>
-              </form>
-              {% endif %}
-            </td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="7" class="text-center py-5">
-              <div class="admin-empty">
-                <i class="fas fa-users-slash"></i>
-                <h6 class="mb-1">No users found</h6>
-                <p class="mb-0">Try adjusting your search criteria</p>
+                <button type="button" class="product-action-item" role="menuitem" onclick="openChangePasswordModal({{ u.id }}, {{ u.username|tojson|forceescape }}, {{ u.full_name|tojson|forceescape }})">
+                  <i class="fas fa-key" aria-hidden="true"></i>Change Password
+                </button>
+                <button type="button" class="product-action-item" role="menuitem" onclick="openEditEmailModal({{ u.id }}, {{ u.email|tojson|forceescape }}, {{ u.full_name|tojson|forceescape }})">
+                  <i class="fas fa-envelope" aria-hidden="true"></i>Edit Email
+                </button>
+                {% endif %}
+
+                {% if can_manage_users and u.id != current_user.id %}
+                <div class="product-action-divider" role="separator"></div>
+                {% if u.is_banned %}
+                <form method="post" action="{{ url_for('admin.admin_toggle_ban', user_id=u.id) }}" onsubmit="return confirm('Are you sure you want to unban {{ u.username }} ({{ u.full_name }})? They will be allowed to log in and access the system.');">
+                  <button type="submit" class="product-action-item is-success" role="menuitem">
+                    <i class="fas fa-user-check" aria-hidden="true"></i>Unban User
+                  </button>
+                </form>
+                {% else %}
+                <form method="post" action="{{ url_for('admin.admin_toggle_ban', user_id=u.id) }}" onsubmit="return confirm('Are you sure you want to ban {{ u.username }} ({{ u.full_name }})? Their account will be deactivated and blocked from accessing the system.');">
+                  <button type="submit" class="product-action-item is-warning" role="menuitem">
+                    <i class="fas fa-ban" aria-hidden="true"></i>Ban User
+                  </button>
+                </form>
+                {% endif %}
+                <form method="post" action="{{ url_for('admin.admin_delete_user', user_id=u.id) }}" onsubmit="return confirm('Are you sure you want to delete user {{ u.username }} ({{ u.full_name }})? This action cannot be undone.');">
+                  <button type="submit" class="product-action-item is-destructive" role="menuitem">
+                    <i class="fas fa-trash" aria-hidden="true"></i>Delete Account
+                  </button>
+                </form>
+                {% endif %}
               </div>
             </td>
           </tr>
@@ -278,85 +324,86 @@
         </tbody>
       </table>
     </div>
-
-    {% if pagination.pages > 1 %}
-      <div class="card-footer border-top admin-pagination">
-        <nav aria-label="User pages">
-          <ul class="pagination justify-content-center mb-0">
-            <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
-              <a class="page-link" href="{{ url_for('admin.admin_users', page=pagination.prev_num, q=search) if pagination.has_prev else '#' }}" tabindex="-1">
-                <i class="fas fa-chevron-left"></i>
-              </a>
-            </li>
-
-            {% if pagination.page > 2 %}
-              <li class="page-item">
-                <a class="page-link" href="{{ url_for('admin.admin_users', page=1, q=search) }}">1</a>
-              </li>
-              {% if pagination.page > 3 %}
-                <li class="page-item disabled"><span class="page-link">...</span></li>
-              {% endif %}
-            {% endif %}
-
-            {% set start = [1, pagination.page - 1]|max %}
-            {% set end = [pagination.pages + 1, pagination.page + 2]|min %}
-            {% for page_num in range(start, end) %}
-              <li class="page-item {{ 'active' if page_num == pagination.page }}">
-                <a class="page-link" href="{{ url_for('admin.admin_users', page=page_num, q=search) }}">{{ page_num }}</a>
-              </li>
-            {% endfor %}
-
-            {% if pagination.page < pagination.pages - 1 %}
-              {% if pagination.page < pagination.pages - 2 %}
-                <li class="page-item disabled"><span class="page-link">...</span></li>
-              {% endif %}
-              <li class="page-item">
-                <a class="page-link" href="{{ url_for('admin.admin_users', page=pagination.pages, q=search) }}">{{ pagination.pages }}</a>
-              </li>
-            {% endif %}
-
-            <li class="page-item {{ 'disabled' if not pagination.has_next }}">
-              <a class="page-link" href="{{ url_for('admin.admin_users', page=pagination.next_num, q=search) if pagination.has_next else '#' }}">
-                <i class="fas fa-chevron-right"></i>
-              </a>
-            </li>
-          </ul>
-        </nav>
+    {% else %}
+      <div class="users-empty">
+        <div class="users-empty-icon" aria-hidden="true"><i class="fas fa-users-slash"></i></div>
+        <h3>No users found</h3>
+        <p>
+          {% if current_filters %}No accounts match the selected criteria.{% else %}There are no users to display.{% endif %}
+        </p>
+        {% if current_filters %}
+          <a href="{{ url_for('admin.admin_users') }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-rotate-left me-1"></i>Clear filters</a>
+        {% endif %}
       </div>
     {% endif %}
-  </div>
+  </section>
+
+  <!-- Pagination -->
+  {% if pagination.pages > 1 %}
+    <div class="users-pagination">
+      <span class="users-table-meta">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+      <nav aria-label="User directory pages">
+        <ul class="pagination">
+          <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+            <a class="page-link" href="{{ page_url(pagination.prev_num or 1, current_filters) }}" aria-label="Previous page"><i class="fas fa-chevron-left"></i></a>
+          </li>
+          {% if pagination.page > 2 %}
+            <li class="page-item"><a class="page-link" href="{{ page_url(1, current_filters) }}">1</a></li>
+            {% if pagination.page > 3 %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}
+          {% endif %}
+          {% set start = [1, pagination.page - 1]|max %}
+          {% set end = [pagination.pages + 1, pagination.page + 2]|min %}
+          {% for page_num in range(start, end) %}
+            <li class="page-item {{ 'active' if page_num == pagination.page }}">
+              <a class="page-link" href="{{ page_url(page_num, current_filters) }}" {% if page_num == pagination.page %}aria-current="page"{% endif %}>{{ page_num }}</a>
+            </li>
+          {% endfor %}
+          {% if pagination.page < pagination.pages - 1 %}
+            {% if pagination.page < pagination.pages - 2 %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}
+            <li class="page-item"><a class="page-link" href="{{ page_url(pagination.pages, current_filters) }}">{{ pagination.pages }}</a></li>
+          {% endif %}
+          <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+            <a class="page-link" href="{{ page_url(pagination.next_num or pagination.pages, current_filters) }}" aria-label="Next page"><i class="fas fa-chevron-right"></i></a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  {% endif %}
 </div>
 
-<!-- Add User Modal -->
-<div class="modal fade admin-modal" id="addUserModal" tabindex="-1">
+<!-- Modal: Add User -->
+<div class="modal fade users-modal" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title fw-bold"><i class="fas fa-user-plus me-2"></i>Add New User</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div>
+          <h5 class="modal-title" id="addUserModalTitle"><i class="fas fa-user-plus me-2" aria-hidden="true"></i>Add New User</h5>
+          <small class="text-muted">Create a new user account with branch and role permissions</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" action="{{ url_for('admin.add_user') }}">
         <div class="modal-body">
           <div class="row g-3">
             <div class="col-12">
-              <label class="form-label">Full Name</label>
-              <input type="text" class="form-control" name="full_name" required>
+              <label class="form-label" for="addFullName">Full Name</label>
+              <input id="addFullName" type="text" class="form-control" name="full_name" placeholder="e.g. Maria Santos" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Username</label>
-              <input type="text" class="form-control" name="username" required>
+              <label class="form-label" for="addUsername">Username</label>
+              <input id="addUsername" type="text" class="form-control" name="username" placeholder="e.g. msantos" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Email</label>
-              <input type="email" class="form-control" name="email" required>
+              <label class="form-label" for="addEmail">Email</label>
+              <input id="addEmail" type="email" class="form-control" name="email" placeholder="e.g. msantos@example.com" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Branch</label>
-              <input type="text" class="form-control" name="branch" required>
+              <label class="form-label" for="addBranch">Branch / Location</label>
+              <input id="addBranch" type="text" class="form-control" name="branch" placeholder="e.g. Main Warehouse" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Role</label>
-              <select class="form-select" name="role" required>
+              <label class="form-label" for="addRole">Role</label>
+              <select id="addRole" class="form-select" name="role" required>
                 <option value="User">User</option>
                 <option value="WH-Admin">WH-Admin</option>
                 <option value="Company-Admin">Company-Admin</option>
@@ -365,13 +412,13 @@
               </select>
             </div>
             <div class="col-12">
-              <label class="form-label">Password</label>
-              <input type="password" class="form-control" name="password" required>
+              <label class="form-label" for="addPassword">Password</label>
+              <input id="addPassword" type="password" class="form-control" name="password" placeholder="At least 6 characters" required minlength="6">
             </div>
-            {% if current_user.role == 'SYS-Admin' %}
+            {% if current_user.role == 'SYS-Admin' and companies %}
             <div class="col-12">
-              <label class="form-label">Company (optional — leave blank for SYS-Admin)</label>
-              <select class="form-select" name="company_id">
+              <label class="form-label" for="addCompany">Company (optional — leave blank for SYS-Admin)</label>
+              <select id="addCompany" class="form-select" name="company_id">
                 <option value="">-- No company --</option>
                 {% for c in companies %}
                 <option value="{{ c.id }}">{{ c.franchise_name or c.name }}</option>
@@ -383,7 +430,96 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary px-4"><i class="fas fa-plus me-1"></i>Add User</button>
+          <button type="submit" class="btn btn-primary px-4"><i class="fas fa-plus me-1" aria-hidden="true"></i>Create Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Rename Username -->
+<div class="modal fade users-modal" id="renameUsernameModal" tabindex="-1" aria-labelledby="renameUsernameTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="renameUsernameTitle"><i class="fas fa-signature me-2" aria-hidden="true"></i>Rename Username</h5>
+          <small class="text-muted" id="renameUserSubtitle">Update username handle for user</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="renameUsernameForm" method="post" action="">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label" for="editUsernameInput">New Username</label>
+            <input id="editUsernameInput" type="text" class="form-control" name="username" required>
+            <div class="form-text small text-muted">Must be unique across the entire system.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-check me-1" aria-hidden="true"></i>Save Username</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Change Password -->
+<div class="modal fade users-modal" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="changePasswordTitle"><i class="fas fa-key me-2" aria-hidden="true"></i>Change Password</h5>
+          <small class="text-muted" id="changePasswordSubtitle">Set a new login password for user</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="changePasswordForm" method="post" action="">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label" for="newPasswordInput">New Password</label>
+            <div class="input-group">
+              <input id="newPasswordInput" type="password" class="form-control border-end-0" name="password" required minlength="6" placeholder="At least 6 characters">
+              <button class="btn btn-outline-secondary border-start-0" type="button" id="togglePasswordBtn" title="Toggle show/hide password" aria-label="Toggle password visibility">
+                <i class="fas fa-eye" id="togglePasswordIcon"></i>
+              </button>
+            </div>
+            <div class="form-text small text-muted">The user will use this new password immediately upon next login.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-check me-1" aria-hidden="true"></i>Update Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Edit Email -->
+<div class="modal fade users-modal" id="editEmailModal" tabindex="-1" aria-labelledby="editEmailTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="editEmailTitle"><i class="fas fa-envelope me-2" aria-hidden="true"></i>Edit Email Address</h5>
+          <small class="text-muted" id="editEmailSubtitle">Update user's contact email</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="editEmailForm" method="post" action="">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label" for="editEmailInput">Email Address</label>
+            <input id="editEmailInput" type="email" class="form-control" name="email" required>
+            <div class="form-text small text-muted">Notifications and system alerts will be dispatched to this address.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-check me-1" aria-hidden="true"></i>Save Email</button>
         </div>
       </form>
     </div>
@@ -391,39 +527,169 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.email-edit-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const userId = this.getAttribute('data-user-id');
-            editEmail(userId);
-        });
-    });
+// Action modal opener helpers
+function openRenameUsernameModal(userId, currentUsername, fullName) {
+  const form = document.getElementById('renameUsernameForm');
+  form.action = `/admin/users/${userId}/username`;
+  document.getElementById('renameUserSubtitle').textContent = `Update username for ${fullName}`;
+  const input = document.getElementById('editUsernameInput');
+  input.value = currentUsername;
+  const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('renameUsernameModal'));
+  modal.show();
+  setTimeout(() => input.focus(), 250);
+}
 
-    document.querySelectorAll('.email-cancel-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const userId = this.getAttribute('data-user-id');
-            const email = this.getAttribute('data-email');
-            cancelEditEmail(userId, email);
-        });
-    });
+function openChangePasswordModal(userId, currentUsername, fullName) {
+  const form = document.getElementById('changePasswordForm');
+  form.action = `/admin/users/${userId}/password`;
+  document.getElementById('changePasswordSubtitle').textContent = `Set a new password for ${fullName} (${currentUsername})`;
+  const input = document.getElementById('newPasswordInput');
+  input.value = '';
+  const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('changePasswordModal'));
+  modal.show();
+  setTimeout(() => input.focus(), 250);
+}
+
+function openEditEmailModal(userId, currentEmail, fullName) {
+  const form = document.getElementById('editEmailForm');
+  form.action = `/admin/users/${userId}/email`;
+  document.getElementById('editEmailSubtitle').textContent = `Update email address for ${fullName}`;
+  const input = document.getElementById('editEmailInput');
+  input.value = currentEmail;
+  const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('editEmailModal'));
+  modal.show();
+  setTimeout(() => input.focus(), 250);
+}
+
+// Password toggle helper
+document.getElementById('togglePasswordBtn')?.addEventListener('click', function() {
+  const input = document.getElementById('newPasswordInput');
+  const icon = document.getElementById('togglePasswordIcon');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.classList.remove('fa-eye');
+    icon.classList.add('fa-eye-slash');
+  } else {
+    input.type = 'password';
+    icon.classList.remove('fa-eye-slash');
+    icon.classList.add('fa-eye');
+  }
 });
+</script>
 
-function editEmail(userId) {
-    const displayElement = document.getElementById('email-display-' + userId);
-    const editElement = document.getElementById('email-edit-' + userId);
-    if (displayElement && editElement) {
-        displayElement.parentElement.classList.add('d-none');
-        editElement.classList.remove('d-none');
-    }
-}
+<script>
+// Overflow action menu (mirrors the products and requisitions system)
+(() => {
+  let openMenu = null;
 
-function cancelEditEmail(userId, currentEmail) {
-    const displayElement = document.getElementById('email-display-' + userId);
-    const editElement = document.getElementById('email-edit-' + userId);
-    if (displayElement && editElement) {
-        displayElement.parentElement.classList.remove('d-none');
-        editElement.classList.add('d-none');
+  function closeMenu(restoreFocus = false) {
+    if (!openMenu) return;
+    const { button, menu, parent, nextSibling } = openMenu;
+    menu.hidden = true;
+    menu.removeAttribute('style');
+    parent.insertBefore(menu, nextSibling && nextSibling.parentNode === parent ? nextSibling : null);
+    button.setAttribute('aria-expanded', 'false');
+    openMenu = null;
+    if (restoreFocus) button.focus();
+  }
+
+  function showMenu(button) {
+    const cell = button.closest('.col-actions');
+    const menu = cell && cell.querySelector('.product-actions-menu');
+    if (!menu) return;
+
+    const parent = menu.parentNode;
+    const nextSibling = menu.nextSibling;
+    menu.hidden = false;
+    document.body.appendChild(menu);
+    menu.style.position = 'fixed';
+    menu.style.visibility = 'hidden';
+
+    const buttonRect = button.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const left = Math.max(8, Math.min(buttonRect.right - menuRect.width, window.innerWidth - menuRect.width - 8));
+    const below = buttonRect.bottom + 6;
+    const top = below + menuRect.height <= window.innerHeight - 8
+      ? below
+      : Math.max(8, buttonRect.top - menuRect.height - 6);
+
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+    menu.style.visibility = 'visible';
+    button.setAttribute('aria-expanded', 'true');
+    openMenu = { button, menu, parent, nextSibling };
+    menu.querySelector('.product-action-item:not(:disabled)')?.focus();
+  }
+
+  document.addEventListener('click', event => {
+    const toggle = event.target.closest('.users-page .product-actions-toggle');
+    if (toggle) {
+      event.preventDefault();
+      if (openMenu?.button === toggle) {
+        closeMenu();
+      } else {
+        closeMenu();
+        showMenu(toggle);
+      }
+      return;
     }
-}
+
+    if (openMenu?.menu.contains(event.target)) {
+      const item = event.target.closest('.product-action-item');
+      if (item) setTimeout(() => closeMenu(), 0);
+      return;
+    }
+    closeMenu();
+  });
+
+  document.addEventListener('keydown', event => {
+    if (!openMenu) return;
+    const items = [...openMenu.menu.querySelectorAll('.product-action-item:not(:disabled)')];
+    const current = items.indexOf(document.activeElement);
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeMenu(true);
+    } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) && items.length) {
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0
+        : event.key === 'End' ? items.length - 1
+          : (current + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      items[next].focus();
+    }
+  });
+
+  window.addEventListener('resize', () => closeMenu());
+  document.addEventListener('scroll', () => closeMenu(), true);
+})();
+</script>
+
+<script>
+(() => {
+  function setupPinnedActions() {
+    const scroller = document.getElementById('usersTableScroll');
+    const table = document.getElementById('usersTable');
+    if (!scroller || !table) return;
+
+    const actionCells = table.querySelectorAll('thead th:last-child, tbody td:last-child');
+    const syncActions = () => {
+      const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+      const offset = Math.max(0, maxScroll - scroller.scrollLeft);
+      actionCells.forEach(cell => {
+        cell.style.transform = `translateX(${-offset}px)`;
+      });
+    };
+
+    scroller.addEventListener('scroll', syncActions, { passive: true });
+    window.addEventListener('resize', syncActions);
+    if ('ResizeObserver' in window) new ResizeObserver(syncActions).observe(scroller);
+    requestAnimationFrame(syncActions);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupPinnedActions, { once: true });
+  } else {
+    setupPinnedActions();
+  }
+})();
 </script>
 {% endblock %}

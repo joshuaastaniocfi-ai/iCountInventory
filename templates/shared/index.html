@@ -1,8 +1,13 @@
 {% extends 'layouts/base-sidebar.html' %}
 {% block title %}Dashboard - iCount{% endblock %}
 
+{% block styles %}
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid dashboard-page">
   <!-- Welcome Section -->
   <div class="dashboard-header mb-4">
     <div class="welcome-section">
@@ -21,14 +26,9 @@
           {% endif %}
           <span class="user-name">{{ current_user.full_name.split()[0] }}</span>
         </h1>
-        <div class="welcome-subtitle-container">
-          <p class="welcome-subtitle" title="{{ stock_status | safe }}">
-            {{ stock_status | safe }}
-          </p>
-        </div>
       </div>
     </div>
-    <div class="actions d-flex flex-row flex-wrap gap-2 align-items-center mt-3 mb-2">
+    <div class="actions d-flex flex-row flex-wrap gap-2 align-items-center">
       {% if current_user.role != 'Purchaser' %}
       <button class="btn btn-primary btn-glow d-flex align-items-center" onclick="window.location.href='{{ url_for('products.view_products') }}'">
         <i class="fas fa-plus me-2"></i> Add New Product
@@ -72,24 +72,26 @@
         <i class="fas fa-sliders-h me-2"></i> Customize
       </button>
     </div>
-    <style>
-      .actions {
-        gap: 0.75rem !important;
-        flex-wrap: wrap;
-      }
-      .actions button, .actions form {
-        margin-bottom: 0 !important;
-      }
-      @media (max-width: 600px) {
-        .actions {
-          flex-direction: column !important;
-          align-items: stretch !important;
-        }
-        .actions button, .actions form {
-          width: 100%;
-        }
-      }
-    </style>
+    <div class="stock-status-strip" role="group" aria-label="Inventory status summary">
+      <div class="stock-status-item {{ 'is-warning' if low_stock_count else 'is-clear' }}">
+        <span class="status-indicator" aria-hidden="true"></span>
+        <span class="status-label">Low stock</span>
+        <strong>{{ low_stock_count }}</strong>
+        <span class="status-detail">below threshold</span>
+      </div>
+      <div class="stock-status-item {{ 'is-danger' if out_of_stock_count else 'is-clear' }}">
+        <span class="status-indicator" aria-hidden="true"></span>
+        <span class="status-label">Out of stock</span>
+        <strong>{{ out_of_stock_count }}</strong>
+        <span class="status-detail">items</span>
+      </div>
+      <div class="stock-status-item {{ 'is-warning' if expiring_30d else 'is-clear' }}">
+        <span class="status-indicator" aria-hidden="true"></span>
+        <span class="status-label">Expiring soon</span>
+        <strong>{{ expiring_30d }}</strong>
+        <span class="status-detail">within 30 days</span>
+      </div>
+    </div>
   </div>
   <!-- Stats Cards -->
   <div class="row g-3 mb-4" data-widget="stats">
@@ -172,7 +174,7 @@
           </div>
         </div>
         <div class="card-body">
-          <canvas id="areaChart" height="280"></canvas>
+          <canvas id="areaChart" height="280" role="img" aria-label="Line chart showing stock added and removed over time"></canvas>
         </div>
       </div>
     </div>
@@ -185,11 +187,11 @@
             <h5 class="card-title mb-0">
               <i class="fas fa-trophy text-warning me-2"></i>Top Products
             </h5>
-            <button class="btn btn-sm btn-outline-primary">View All</button>
+            <a href="{{ url_for('products.view_products') }}" class="btn btn-sm btn-outline-secondary">View All</a>
           </div>
         </div>
         <div class="card-body">
-          <canvas id="donutChart" height="280"></canvas>
+          <canvas id="donutChart" height="280" role="img" aria-label="Doughnut chart comparing quantities across the five highest-stock products"></canvas>
         </div>
       </div>
     </div>
@@ -222,10 +224,8 @@
                   <tr>
                     <td class="ps-4">
                       <div class="d-flex align-items-center">
-                        <div class="product-icon me-3">
-                          {% set barcode_path = 'product_barcodes/company_' ~ product.company_id|string ~ '/' ~ product.barcode ~ '.png' %}
-                          <img src="{{ url_for('static', filename=barcode_path) }}" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
-                        </div>
+                        {% set barcode_path = 'product_barcodes/company_' ~ product.company_id|string ~ '/' ~ product.barcode ~ '.png' %}
+                        <img class="me-3" src="{{ url_for('static', filename=barcode_path) }}" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.outerHTML='<span class=text-muted>Barcode not available</span>';">
                         <div>
                           <h6 class="mb-1 text-dark">{{ product.name }}</h6>
                           <span class="badge bg-dark">{{ product.barcode }}</span>
@@ -275,230 +275,6 @@
         </div>
       </div>
 
-      <!-- Expiring Products -->
-      <div class="card dashboard-card expiring-products mt-4" data-widget="expiring">
-        <div class="card-header border-0 bg-dark text-white">
-          <div class="d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-0">
-              <i class="fas fa-clock text-warning me-2"></i>
-              <span id="expiring-title">Products Expiring in 30 Days</span>
-            </h5>
-            <div class="d-flex align-items-center gap-2">
-              <!-- Toggle Buttons -->
-              <div class="btn-group btn-group-sm" role="group">
-                <button type="button" id="toggle-30days" 
-                   class="btn btn-warning" onclick="toggleExpiringView('30days')">
-                  30 Days
-                </button>
-                <button type="button" id="toggle-3months" 
-                   class="btn btn-outline-warning" onclick="toggleExpiringView('3months')">
-                  3 Months
-                </button>
-              </div>
-              <span class="badge bg-warning text-dark" id="expiring-count">{{ expiring_products|length }}</span>
-            </div>
-          </div>
-        </div>
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 border-0">
-              <thead
-                <tr>
-                  <th class="ps-4">Product Details</th>
-                  <th>Earliest Expiry</th>
-                  <th>Expiring Batches</th>
-                  <th>Total Expiring</th>
-                </tr>
-              </thead>
-              <tbody id="expiring-products-table">
-                {% for product in expiring_products %}
-                  <tr>
-                    <td class="ps-4">
-                      <div class="d-flex align-items-center">
-                        <div class="product-icon me-3">
-                          {% set barcode_path = 'product_barcodes/company_' ~ product.company_id|string ~ '/' ~ product.barcode ~ '.png' %}
-                          <img src="{{ url_for('static', filename=barcode_path) }}" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
-                        </div>
-                        <div>
-                          <h6 class="mb-1 text-dark">{{ product.name }}</h6>
-                          <span class="badge bg-dark">{{ product.barcode }}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div class="d-flex align-items-center">
-                        <div class="me-2">
-                          <div class="fw-medium">{{ product.warehouse_batches[0].exp_date.strftime('%Y-%m-%d') }}</div>
-                          <small class="text-warning">
-                            <i class="fas fa-clock"></i> {{ (product.warehouse_batches[0].exp_date - now.date()).days }} days left
-                          </small>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div class="d-flex flex-column gap-1">
-                        {% for batch in product.warehouse_batches[:3] %}
-                          {% if batch.quantity > 0 %}
-                            {% set days_until = (batch.exp_date - now.date()).days %}
-                            {% if days_until <= 30 %}
-                              <div class="d-flex justify-content-between align-items-center p-1 rounded">
-                                <small class="fw-medium">{{ batch.quantity }} {{ product.uom }}</small>
-                                <small>
-                                  {% if days_until <= 0 %}
-                                    <span class="text-danger">Expired</span>
-                                  {% else %}
-                                    <span class="text-danger">{{ days_until }}d</span>
-                                  {% endif %}
-                                </small>
-                              </div>
-                            {% endif %}
-                          {% endif %}
-                        {% endfor %}
-                        {% if product.warehouse_batches|length > 3 %}
-                          <small class="text-muted text-center">+ {{ product.warehouse_batches|length - 3 }} more batches</small>
-                        {% endif %}
-                      </div>
-                    </td>
-                    <td>
-                      <div class="text-center">
-                        <div class="fw-bold text-warning">
-                          {{ product.quantity }}
-                        </div>
-                        <small class="text-muted">{{ product.uom }}</small>
-                      </div>
-                    </td>
-                  </tr>
-                 {% else %}
-                  <tr>
-                    <td colspan="4" class="text-center py-4">
-                      <div class="empty-state">
-                        <i class="fas fa-calendar-check text-success fa-2x mb-3"></i>
-                        <h6 class="mb-0">
-                          No products expiring in 30 days
-                        </h6>
-                      </div>
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <style>
-        .btn-group .btn {
-          border-radius: 0;
-          font-size: 0.8rem;
-          padding: 0.25rem 0.5rem;
-        }
-        .btn-group .btn:first-child {
-          border-top-left-radius: 0.25rem;
-          border-bottom-left-radius: 0.25rem;
-        }
-        .btn-group .btn:last-child {
-          border-top-right-radius: 0.25rem;
-          border-bottom-right-radius: 0.25rem;
-        }
-        .btn-outline-warning {
-          color: #ffc107;
-          border-color: #ffc107;
-        }
-        .btn-outline-warning:hover {
-          color: #000;
-          background-color: #ffc107;
-          border-color: #ffc107;
-        }
-      </style>
-
-      <!-- Expired Products (Top 5) -->
-      <div class="card dashboard-card expiring-products mt-4" data-widget="expired">
-        <div class="card-header border-0 bg-dark text-white">
-          <div class="d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-0">
-              <i class="fas fa-ban text-danger me-2"></i>Expired Products (Top 5)
-            </h5>
-            <span class="badge bg-danger">{{ expired_products_top5|length }}</span>
-          </div>
-        </div>
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 border-0">
-              <thead
-                <tr>
-                  <th class="ps-4">Product Details</th>
-                  <th>Earliest Expired</th>
-                  <th>Expired Batches</th>
-                  <th>Total Expired</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for item in expired_products_top5 %}
-                  <tr>
-                    <td class="ps-4">
-                      <div class="d-flex align-items-center">
-                        <div class="product-icon me-3">
-                          {% set barcode_path = 'product_barcodes/company_' ~ item.product.company_id|string ~ '/' ~ item.product.barcode ~ '.png' %}
-                          <img src="{{ url_for('static', filename=barcode_path) }}" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
-                        </div>
-                        <div>
-                          <h6 class="mb-1 text-dark">{{ item.product.name }}</h6>
-                          <span class="badge bg-dark">{{ item.product.barcode }}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div class="d-flex align-items-center">
-                        <div class="me-2">
-                          <div class="fw-medium">{{ item.earliest_expired_batch.exp_date.strftime('%Y-%m-%d') }}</div>
-                          <small class="text-danger">
-                            <i class="fas fa-exclamation-circle"></i> {{ item.days_overdue }} days overdue
-                          </small>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div class="d-flex flex-column gap-1">
-                        {% for batch in item.expired_batches[:3] %}
-                          <div class="d-flex justify-content-between align-items-center p-1 rounded">
-                            <small class="fw-medium">{{ batch.quantity }} {{ item.product.uom }}</small>
-                            {% if now is defined %}
-                              <small class="text-danger">{{ (now.date() - batch.exp_date).days }}d</small>
-                            {% else %}
-                              <small class="text-danger">N/A</small>
-                            {% endif %}
-                          </div>
-                        {% endfor %}
-                        {% if item.expired_batches|length > 3 %}
-                          <small class="text-muted text-center">+ {{ item.expired_batches|length - 3 }} more batches</small>
-                        {% endif %}
-                      </div>
-                    </td>
-                    <td>
-                      <div class="text-center">
-                        <div class="fw-bold text-danger">
-                          {{ item.total_expired_qty }}
-                        </div>
-                        <small class="text-muted">{{ item.product.uom }}</small>
-                      </div>
-                    </td>
-                  </tr>
-                {% else %}
-                  <tr>
-                    <td colspan="4" class="text-center py-4">
-                      <div class="empty-state">
-                        <i class="fas fa-check-circle text-success fa-2x mb-3"></i>
-                        <h6 class="mb-0">No expired products</h6>
-                      </div>
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
       <!-- Favorite Products (Top 5) -->
       <div class="card dashboard-card expiring-products mt-4" data-widget="favorites">
         <div class="card-header border-0 bg-dark text-white">
@@ -535,10 +311,8 @@
                   <tr>
                     <td class="ps-4">
                       <div class="d-flex align-items-center">
-                        <div class="product-icon me-3">
-                          {% set barcode_path = 'product_barcodes/company_' ~ product.company_id|string ~ '/' ~ product.barcode ~ '.png' %}
-                          <img src="{{ url_for('static', filename=barcode_path) }}" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
-                        </div>
+                        {% set barcode_path = 'product_barcodes/company_' ~ product.company_id|string ~ '/' ~ product.barcode ~ '.png' %}
+                        <img class="me-3" src="{{ url_for('static', filename=barcode_path) }}" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.outerHTML='<span class=text-muted>Barcode not available</span>';">
                         <div>
                           <h6 class="mb-1 text-dark">
                             <i class="fas fa-star text-warning me-1"></i>{{ product.name }}
@@ -641,6 +415,230 @@
       </div>
     </div>
 
+    <!-- Expired Products (Top 5) -->
+    <div class="col-12" data-widget="expired">
+      <div class="card dashboard-card expiring-products">
+        <div class="card-header border-0 bg-dark text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+              <i class="fas fa-ban text-danger me-2"></i>Expired Products (Top 5)
+            </h5>
+            <span class="badge bg-danger">{{ expired_products_top5|length }}</span>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 border-0">
+              <thead
+                <tr>
+                  <th class="ps-4">Product Details</th>
+                  <th>Earliest Expired</th>
+                  <th>Expired Batches</th>
+                  <th>Total Expired</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in expired_products_top5 %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center">
+                        {% set barcode_path = 'product_barcodes/company_' ~ item.product.company_id|string ~ '/' ~ item.product.barcode ~ '.png' %}
+                        <img class="me-3" src="{{ url_for('static', filename=barcode_path) }}" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.outerHTML='<span class=text-muted>Barcode not available</span>';">
+                        <div>
+                          <h6 class="mb-1 text-dark">{{ item.product.name }}</h6>
+                          <span class="badge bg-dark">{{ item.product.barcode }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <div class="me-2">
+                          <div class="fw-medium">{{ item.earliest_expired_batch.exp_date.strftime('%Y-%m-%d') }}</div>
+                          <small class="text-danger">
+                            <i class="fas fa-exclamation-circle"></i> {{ item.days_overdue }} days overdue
+                          </small>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="d-flex flex-column gap-1">
+                        {% for batch in item.expired_batches[:3] %}
+                          <div class="d-flex justify-content-between align-items-center p-1 rounded">
+                            <small class="fw-medium">{{ batch.quantity }} {{ item.product.uom }}</small>
+                            {% if now is defined %}
+                              <small class="text-danger">{{ (now.date() - batch.exp_date).days }}d</small>
+                            {% else %}
+                              <small class="text-danger">N/A</small>
+                            {% endif %}
+                          </div>
+                        {% endfor %}
+                        {% if item.expired_batches|length > 3 %}
+                          <small class="text-muted text-center">+ {{ item.expired_batches|length - 3 }} more batches</small>
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="text-center">
+                        <div class="fw-bold text-danger">
+                          {{ item.total_expired_qty }}
+                        </div>
+                        <small class="text-muted">{{ item.product.uom }}</small>
+                      </div>
+                    </td>
+                  </tr>
+                {% else %}
+                  <tr>
+                    <td colspan="4" class="text-center py-4">
+                      <div class="empty-state">
+                        <i class="fas fa-check-circle text-success fa-2x mb-3"></i>
+                        <h6 class="mb-0">No expired products</h6>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expiring Products -->
+    <div class="col-lg-8" data-widget="expiring">
+      <div class="card dashboard-card expiring-products">
+        <div class="card-header border-0 bg-dark text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+              <i class="fas fa-clock text-warning me-2"></i>
+              <span id="expiring-title">Products Expiring in 30 Days</span>
+            </h5>
+            <div class="d-flex align-items-center gap-2">
+              <!-- Toggle Buttons -->
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" id="toggle-30days" 
+                   class="btn btn-warning" onclick="toggleExpiringView('30days')">
+                  30 Days
+                </button>
+                <button type="button" id="toggle-3months" 
+                   class="btn btn-outline-warning" onclick="toggleExpiringView('3months')">
+                  3 Months
+                </button>
+              </div>
+              <span class="badge bg-warning text-dark" id="expiring-count">{{ expiring_products|length }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 border-0">
+              <thead
+                <tr>
+                  <th class="ps-4">Product Details</th>
+                  <th>Earliest Expiry</th>
+                  <th>Expiring Batches</th>
+                  <th>Total Expiring</th>
+                </tr>
+              </thead>
+              <tbody id="expiring-products-table">
+                {% for product in expiring_products %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center">
+                        {% set barcode_path = 'product_barcodes/company_' ~ product.company_id|string ~ '/' ~ product.barcode ~ '.png' %}
+                        <img class="me-3" src="{{ url_for('static', filename=barcode_path) }}" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.outerHTML='<span class=text-muted>Barcode not available</span>';">
+                        <div>
+                          <h6 class="mb-1 text-dark">{{ product.name }}</h6>
+                          <span class="badge bg-dark">{{ product.barcode }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <div class="me-2">
+                          <div class="fw-medium">{{ product.warehouse_batches[0].exp_date.strftime('%Y-%m-%d') }}</div>
+                          <small class="text-warning">
+                            <i class="fas fa-clock"></i> {{ (product.warehouse_batches[0].exp_date - now.date()).days }} days left
+                          </small>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="d-flex flex-column gap-1">
+                        {% for batch in product.warehouse_batches[:3] %}
+                          {% if batch.quantity > 0 %}
+                            {% set days_until = (batch.exp_date - now.date()).days %}
+                            {% if days_until <= 30 %}
+                              <div class="d-flex justify-content-between align-items-center p-1 rounded">
+                                <small class="fw-medium">{{ batch.quantity }} {{ product.uom }}</small>
+                                <small>
+                                  {% if days_until <= 0 %}
+                                    <span class="text-danger">Expired</span>
+                                  {% else %}
+                                    <span class="text-danger">{{ days_until }}d</span>
+                                  {% endif %}
+                                </small>
+                              </div>
+                            {% endif %}
+                          {% endif %}
+                        {% endfor %}
+                        {% if product.warehouse_batches|length > 3 %}
+                          <small class="text-muted text-center">+ {{ product.warehouse_batches|length - 3 }} more batches</small>
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="text-center">
+                        <div class="fw-bold text-warning">
+                          {{ product.quantity }}
+                        </div>
+                        <small class="text-muted">{{ product.uom }}</small>
+                      </div>
+                    </td>
+                  </tr>
+                 {% else %}
+                  <tr>
+                    <td colspan="4" class="text-center py-4">
+                      <div class="empty-state">
+                        <i class="fas fa-calendar-check text-success fa-2x mb-3"></i>
+                        <h6 class="mb-0">
+                          No products expiring in 30 days
+                        </h6>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <style>
+        .btn-group .btn {
+          border-radius: 0;
+          font-size: 0.8rem;
+          padding: 0.25rem 0.5rem;
+        }
+        .btn-group .btn:first-child {
+          border-top-left-radius: 0.25rem;
+          border-bottom-left-radius: 0.25rem;
+        }
+        .btn-group .btn:last-child {
+          border-top-right-radius: 0.25rem;
+          border-bottom-right-radius: 0.25rem;
+        }
+        .btn-outline-warning {
+          color: #ffc107;
+          border-color: #ffc107;
+        }
+        .btn-outline-warning:hover {
+          color: #000;
+          background-color: #ffc107;
+          border-color: #ffc107;
+        }
+      </style>
+    </div>
+
     <!-- Recent Activities -->
     <div class="col-lg-4" data-widget="recent-activities">
       <div class="card dashboard-card expiring-products">
@@ -692,6 +690,7 @@
         </div>
       </div>
     </div>
+
   </div>
 </div>
 
@@ -703,7 +702,7 @@
 <script>
 // Area Chart Configuration
 const ctx1 = document.getElementById('areaChart').getContext('2d');
-new Chart(ctx1, {
+const stockMovementChart = new Chart(ctx1, {
   type: "line",
   data: {
     labels: {{ labels | tojson }},
@@ -711,27 +710,28 @@ new Chart(ctx1, {
       {
         label: "Stock Added (Units)",
         data: {{ added_data | tojson }},
-        backgroundColor: "rgba(59, 130, 246, 0.1)",
-        borderColor: "rgba(59, 130, 246, 1)",
+        backgroundColor: "rgba(244, 244, 245, 0.07)",
+        borderColor: "#f4f4f5",
         borderWidth: 2,
         fill: true,
-        tension: 0.4,
-        pointRadius: 4,
-        pointBackgroundColor: "rgba(59, 130, 246, 1)",
-        pointBorderColor: "#fff",
+        tension: 0.28,
+        pointRadius: 2,
+        pointBackgroundColor: "#f4f4f5",
+        pointBorderColor: "#09090b",
         pointBorderWidth: 2
       },
       {
         label: "Stock Removed (Units)",
         data: {{ removed_data | tojson }},
-        backgroundColor: "rgba(239, 68, 68, 0.1)",
-        borderColor: "rgba(239, 68, 68, 1)",
+        backgroundColor: "rgba(161, 161, 170, 0.035)",
+        borderColor: "#71717a",
         borderWidth: 2,
+        borderDash: [5, 4],
         fill: true,
-        tension: 0.4,
-        pointRadius: 4,
-        pointBackgroundColor: "rgba(239, 68, 68, 1)",
-        pointBorderColor: "#fff",
+        tension: 0.28,
+        pointRadius: 2,
+        pointBackgroundColor: "#a1a1aa",
+        pointBorderColor: "#09090b",
         pointBorderWidth: 2
       }
     ]
@@ -745,22 +745,25 @@ new Chart(ctx1, {
         labels: {
           usePointStyle: true,
           padding: 20,
+          color: "#a1a1aa",
           font: {
             size: 12,
-            family: "Inter, sans-serif"
+            family: "Space Grotesk, sans-serif"
           }
         }
       },
       tooltip: {
         backgroundColor: "rgba(0, 0, 0, 0.8)",
+        titleColor: "#fafafa",
+        bodyColor: "#d4d4d8",
         padding: 12,
         titleFont: {
           size: 14,
-          family: "Inter, sans-serif"
+          family: "Space Grotesk, sans-serif"
         },
         bodyFont: {
           size: 13,
-          family: "Inter, sans-serif"
+          family: "Space Grotesk, sans-serif"
         },
         displayColors: false
       }
@@ -771,21 +774,23 @@ new Chart(ctx1, {
           display: false
         },
         ticks: {
+          color: "#a1a1aa",
           font: {
             size: 12,
-            family: "Inter, sans-serif"
+            family: "Space Grotesk, sans-serif"
           }
         }
       },
       y: {
         beginAtZero: true,
         grid: {
-          color: "rgba(0, 0, 0, 0.05)"
+          color: "rgba(255, 255, 255, 0.07)"
         },
         ticks: {
+          color: "#a1a1aa",
           font: {
             size: 12,
-            family: "Inter, sans-serif"
+            family: "Space Grotesk, sans-serif"
           }
         }
       }
@@ -795,18 +800,18 @@ new Chart(ctx1, {
 
 // Donut Chart Configuration
 const ctx2 = document.getElementById('donutChart').getContext('2d');
-new Chart(ctx2, {
+const topProductsChart = new Chart(ctx2, {
   type: "doughnut",
   data: {
     labels: {{ top_product_labels | tojson }},
     datasets: [{
       data: {{ top_product_quantities | tojson }},
       backgroundColor: [
-        "rgba(59, 130, 246, 0.9)",
-        "rgba(16, 185, 129, 0.9)",
-        "rgba(245, 158, 11, 0.9)",
-        "rgba(99, 102, 241, 0.9)",
-        "rgba(236, 72, 153, 0.9)"
+        "#f4f4f5",
+        "#d4d4d8",
+        "#a1a1aa",
+        "#71717a",
+        "#3f3f46"
       ],
       borderWidth: 0,
       hoverOffset: 15
@@ -822,27 +827,69 @@ new Chart(ctx2, {
         labels: {
           padding: 20,
           usePointStyle: true,
+          color: "#a1a1aa",
           font: {
             size: 12,
-            family: "Inter, sans-serif"
+            family: "Space Grotesk, sans-serif"
           }
         }
       },
       tooltip: {
         backgroundColor: "rgba(0, 0, 0, 0.8)",
+        titleColor: "#fafafa",
+        bodyColor: "#d4d4d8",
         padding: 12,
         titleFont: {
           size: 14,
-          family: "Inter, sans-serif"
+          family: "Space Grotesk, sans-serif"
         },
         bodyFont: {
           size: 13,
-          family: "Inter, sans-serif"
+          family: "Space Grotesk, sans-serif"
         }
       }
     }
   }
 });
+
+function syncDashboardChartTheme() {
+  const isDark = document.documentElement.classList.contains('dark-mode');
+  const text = isDark ? '#a1a1aa' : '#71717a';
+  const grid = isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(24, 24, 27, 0.08)';
+  const tooltipBg = isDark ? '#18181b' : '#ffffff';
+  const tooltipText = isDark ? '#f4f4f5' : '#18181b';
+  const series = isDark
+    ? [{ line: '#f4f4f5', fill: 'rgba(244,244,245,.07)', point: '#f4f4f5' }, { line: '#71717a', fill: 'rgba(161,161,170,.035)', point: '#a1a1aa' }]
+    : [{ line: '#18181b', fill: 'rgba(24,24,27,.07)', point: '#18181b' }, { line: '#71717a', fill: 'rgba(113,113,122,.05)', point: '#71717a' }];
+
+  stockMovementChart.data.datasets.forEach((dataset, index) => {
+    const color = series[index];
+    dataset.borderColor = color.line;
+    dataset.backgroundColor = color.fill;
+    dataset.pointBackgroundColor = color.point;
+    dataset.pointBorderColor = isDark ? '#09090b' : '#ffffff';
+  });
+  stockMovementChart.options.plugins.legend.labels.color = text;
+  stockMovementChart.options.plugins.tooltip.backgroundColor = tooltipBg;
+  stockMovementChart.options.plugins.tooltip.titleColor = tooltipText;
+  stockMovementChart.options.plugins.tooltip.bodyColor = tooltipText;
+  stockMovementChart.options.scales.x.ticks.color = text;
+  stockMovementChart.options.scales.y.ticks.color = text;
+  stockMovementChart.options.scales.y.grid.color = grid;
+  stockMovementChart.update('none');
+
+  topProductsChart.data.datasets[0].backgroundColor = isDark
+    ? ['#f4f4f5', '#d4d4d8', '#a1a1aa', '#71717a', '#3f3f46']
+    : ['#18181b', '#3f3f46', '#71717a', '#a1a1aa', '#d4d4d8'];
+  topProductsChart.options.plugins.legend.labels.color = text;
+  topProductsChart.options.plugins.tooltip.backgroundColor = tooltipBg;
+  topProductsChart.options.plugins.tooltip.titleColor = tooltipText;
+  topProductsChart.options.plugins.tooltip.bodyColor = tooltipText;
+  topProductsChart.update('none');
+}
+
+syncDashboardChartTheme();
+window.addEventListener('icount:theme-change', syncDashboardChartTheme);
 
 // Chart period toggle functionality
 let currentChart;
@@ -945,9 +992,7 @@ async function toggleExpiringView(view) {
             <tr>
               <td class="ps-4">
                 <div class="d-flex align-items-center">
-                  <div class="product-icon me-3">
-                    <img src="/static/product_barcodes/company_${product.company_id}/${product.barcode}.png" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
-                  </div>
+                  <img class="me-3" src="/static/product_barcodes/company_${product.company_id}/${product.barcode}.png" alt="Barcode" style="height: 30px;" onerror="this.onerror=null;this.outerHTML='<span class=text-muted>Barcode not available</span>';">
                   <div>
                     <h6 class="mb-1 text-dark">${product.name}</h6>
                     <span class="badge bg-dark">${product.barcode}</span>
@@ -1020,12 +1065,12 @@ async function toggleExpiringView(view) {
 </script>
 
 <!-- Widget Customization Modal -->
-<div class="modal fade" id="widgetModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="widgetModal" tabindex="-1" aria-labelledby="widgetModalTitle" aria-hidden="true">
   <div class="modal-dialog modal-sm modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header border-0">
-        <h6 class="modal-title fw-bold"><i class="fas fa-sliders-h me-2"></i>Customize Dashboard</h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <h6 class="modal-title fw-bold" id="widgetModalTitle"><i class="fas fa-sliders-h me-2"></i>Customize Dashboard</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body pt-0">
         <div class="widget-list" id="widgetList"></div>
@@ -1037,23 +1082,6 @@ async function toggleExpiringView(view) {
     </div>
   </div>
 </div>
-
-<style>
-.widget-item { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); }
-.widget-item:last-child { border-bottom:none; }
-.widget-item .widget-label { font-size:0.85rem; font-weight:500; color:var(--text-primary); }
-.widget-item .widget-desc { font-size:0.72rem; color:var(--text-muted); }
-
-/* Toggle Switch */
-.widget-toggle { position:relative; width:40px; height:22px; flex-shrink:0; }
-.widget-toggle input { opacity:0; width:0; height:0; }
-.widget-toggle .slider { position:absolute; inset:0; cursor:pointer; background:#d1d5db; border-radius:22px; transition:0.3s; }
-.widget-toggle .slider::before { content:""; position:absolute; left:3px; bottom:3px; width:16px; height:16px; background:#fff; border-radius:50%; transition:0.3s; }
-.widget-toggle input:checked + .slider { background:#6366f1; }
-.widget-toggle input:checked + .slider::before { transform:translateX(18px); }
-:where(.dark-mode) .widget-toggle .slider { background:#374151; }
-:where(.dark-mode) .widget-toggle input:checked + .slider { background:#6366f1; }
-</style>
 
 <script>
 const WIDGETS = [
@@ -1087,6 +1115,10 @@ function applyWidgetVisibility() {
 
 function openWidgetModal() {
   const state = getWidgetState();
+  const modalElement = document.getElementById('widgetModal');
+  if (modalElement.parentElement !== document.body) {
+    document.body.appendChild(modalElement);
+  }
   const list = document.getElementById('widgetList');
   list.innerHTML = WIDGETS.map(w => {
     const checked = state[w.id] !== undefined ? state[w.id] : w.default;
@@ -1103,7 +1135,7 @@ function openWidgetModal() {
       </div>
     `;
   }).join('');
-  const modal = new bootstrap.Modal(document.getElementById('widgetModal'));
+  const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
   modal.show();
 }
 

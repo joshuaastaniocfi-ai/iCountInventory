@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>iCount — Inventory & Requisition</title>
+<title>Store Inventory & Requisitions — iCount</title>
+
+<!-- Preload theme to avoid dark-mode flash -->
 <script>
 (function() {
   var isDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
@@ -11,1400 +13,45 @@
   if (isDark) document.documentElement.classList.add('dark-mode');
 })();
 </script>
+
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/app-system.css') }}?v=20261021-store-receiving" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/requisition-form.css') }}?v=20261021-store-receiving" rel="stylesheet">
 <style>
-:root {
-  --accent: #2563EB; --accent-dark: #1D4ED8; --accent-bg: #EFF6FF;
-  --green: #059669; --green-bg: #ECFDF5;
-  --amber: #D97706; --amber-bg: #FFFBEB;
-  --red: #DC2626; --red-bg: #FEF2F2;
-  --g50: #F9FAFB; --g100: #F3F4F6; --g200: #E5E7EB; --g300: #D1D5DB;
-  --g400: #9CA3AF; --g500: #6B7280; --g600: #4B5563; --g700: #374151;
-  --g800: #1F2937; --g900: #111827;
-  --sb-bg: #ffffff; --sb-txt: #4B5563;
-  --radius: 8px; --radius-lg: 12px; --radius-xl: 16px;
-  --bg: var(--g50); --surf: #ffffff;
-  --bord: var(--g200); --txt: var(--g800); --muted: var(--g500);
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.02);
-  --focus: 0 0 0 3px rgba(37,99,235,0.2);
+/* Unconditional Font Awesome icon protection */
+.fa, .fas, .far, .fal, .fab, .fad, .fak, .fa-solid, .fa-regular, .fa-light, .fa-thin, .fa-duotone, .fa-brands, [class*="fa-"], i.fas, i.far, i.fab, i.fa {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", "Font Awesome 5 Free", "FontAwesome" !important;
+  font-style: normal !important;
+  display: inline-block;
+  line-height: 1;
 }
-
-[data-bs-theme="dark"] {
-  --bg: #030712; --surf: #111827; --bord: #1F2937;
-  --txt: #F9FAFB; --muted: #9CA3AF;
-  --accent-bg: rgba(37,99,235,0.15); --green-bg: rgba(5,150,105,0.15); 
-  --amber-bg: rgba(217,119,6,0.15); --red-bg: rgba(220,38,38,0.15);
-  --sb-bg: #030712;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
-  --shadow-lg: 0 12px 32px rgba(0,0,0,0.5);
-  --focus: 0 0 0 3px rgba(37,99,235,0.4);
+.fab, .fa-brands {
+  font-family: "Font Awesome 6 Brands" !important;
 }
-
-[data-bs-theme="dark"] .sb-link:hover { background: rgba(255,255,255,0.04); color: #fff; }
-[data-bs-theme="dark"] .sb-link.act { background: rgba(37,99,235,0.15); color: #fff; }
-[data-bs-theme="dark"] .sb-logout { background: rgba(220,38,38,0.12); color: #f87171; }
-[data-bs-theme="dark"] .sb-logout:hover { background: rgba(220,38,38,0.2); color: #fca5a5; }
-[data-bs-theme="dark"] .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
-
-[data-bs-theme="dark"] .finput, [data-bs-theme="dark"] .fselect { background: var(--surf); border-color: var(--bord); color: var(--txt); }
-[data-bs-theme="dark"] .finput[readonly], [data-bs-theme="dark"] .finput:disabled { background: rgba(255,255,255,0.03); color: var(--muted); }
-[data-bs-theme="dark"] .uom-card, [data-bs-theme="dark"] .cs, [data-bs-theme="dark"] .recv-card, [data-bs-theme="dark"] .stat-chip, [data-bs-theme="dark"] .summary-card { background: var(--surf); border-color: var(--bord); }
-[data-bs-theme="dark"] .wizard-steps { background: transparent; }
-[data-bs-theme="dark"] .wizard-nav { background: transparent; }
-[data-bs-theme="dark"] .igrp-txt { background: transparent; }
-[data-bs-theme="dark"] .cs-hd { background: transparent; }
-[data-bs-theme="dark"] .recv-items-wrap { background: transparent; }
-[data-bs-theme="dark"] .recv-card:hover { border-color: var(--bord); }
-
-*, *::before, *::after { box-sizing: border-box; }
-html { font-size: 16px; -webkit-text-size-adjust: 100%; }
-body { 
-  font-family: 'Inter', system-ui, -apple-system, sans-serif; 
-  background: var(--bg); color: var(--txt); 
-  font-size: 0.875rem; line-height: 1.5; 
-  min-height: 100vh; display: flex; flex-direction: column;
-  -webkit-font-smoothing: antialiased;
-}
-body, body * { transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s; }
-
-/* ── TOPBAR ── */
-.topbar { height: 60px; background: var(--surf); border-bottom: 1px solid var(--bord); display: flex; align-items: center; justify-content: space-between; padding: 0 1.25rem; position: sticky; top: 0; z-index: 300; box-shadow: var(--shadow-sm); }
-.tl { display: flex; align-items: center; gap: 0.75rem; }
-.brand { font-size: 1rem; font-weight: 700; color: var(--accent); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; letter-spacing: -0.02em; }
-.brand-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent), var(--accent-dark)); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.85rem; flex-shrink: 0; box-shadow: 0 2px 4px rgba(37,99,235,0.3); }
-.tdiv { width: 1px; height: 16px; background: var(--bord); margin: 0 0.25rem; }
-.page-lbl { font-size: 0.85rem; color: var(--g600); font-weight: 600; letter-spacing: -0.01em; }
-.tr2 { display: flex; align-items: center; gap: 0.75rem; }
-.uchip { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.75rem 0.25rem 0.25rem; background: var(--g100); border-radius: 99px; font-size: 0.75rem; font-weight: 500; border: 1px solid transparent; }
-[data-bs-theme="dark"] .uchip { background: var(--bg); border-color: var(--bord); }
-.uchip .av { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; }
-.rbadge { font-size: 0.6rem; font-weight: 600; padding: 0.2em 0.6em; border-radius: 99px; background: var(--accent-bg); color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; }
-.bti { width: 36px; height: 36px; border-radius: var(--radius); border: 1px solid var(--bord); background: var(--surf); color: var(--g600); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.85rem; text-decoration: none; flex-shrink: 0; transition: all 0.15s; }
-.bti:hover { background: var(--g50); color: var(--txt); border-color: var(--g300); }
-.bti-danger { border-color: rgba(220,38,38,0.2); color: var(--red); }
-.bti-danger:hover { background: var(--red-bg); color: var(--red); border-color: rgba(220,38,38,0.3); }
-.topbar .bti { border-color: transparent; }
-.topbar .bti:hover { background: var(--g100); }
-
-@media(max-width: 640px) { .page-lbl, .tdiv { display: none; } }
-@media(max-width: 480px) {
-  .topbar { padding: 0 0.75rem; height: 56px; }
-  .uchip { padding: 0.15rem 0.5rem 0.15rem 0.15rem; gap: 0.3rem; }
-  .uchip .av { width: 24px; height: 24px; font-size: 0.55rem; }
-  .uchip > span { max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.7rem; }
-  .rbadge { display: none; }
-  .brand { font-size: 0.9rem; }
-  .brand-icon { width: 26px; height: 26px; font-size: 0.7rem; }
-  .tr2 { gap: 0.4rem; }
-  .bti { width: 32px; height: 32px; font-size: 0.8rem; }
-}
-
-/* ── SIDEBAR ── */
-.app-body { display: flex; flex: 1; min-height: 0; }
-.sidebar { width: 260px; background: var(--sb-bg); display: flex; flex-direction: column; flex-shrink: 0; position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; scrollbar-width: thin; border-right: 1px solid var(--bord); }
-.sidebar::-webkit-scrollbar { width: 4px; }
-.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
-.sb-section { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--g500); padding: 1.5rem 1.25rem 0.5rem; }
-.sb-item { list-style: none; }
-.sb-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1.25rem; color: var(--sb-txt); text-decoration: none; font-size: 0.85rem; font-weight: 500; cursor: pointer; border: none; background: transparent; width: 100%; text-align: left; transition: all 0.2s; position: relative; }
-.sb-link .ico { width: 20px; text-align: center; font-size: 0.9rem; opacity: 0.6; flex-shrink: 0; transition: opacity 0.2s; }
-.sb-link:hover { background: rgba(0,0,0,0.04); color: var(--txt); }
-.sb-link:hover .ico { opacity: 1; }
-.sb-link.act { background: rgba(37,99,235,0.08); color: var(--accent); font-weight: 600; }
-.sb-link.act::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); border-radius: 0 4px 4px 0; }
-.sb-link.act .ico { opacity: 1; color: var(--accent); }
-.sb-badge { margin-left: auto; font-size: 0.65rem; font-weight: 700; padding: 0.15em 0.6em; border-radius: 99px; background: var(--accent); color: #fff; }
-.sb-footer { margin-top: auto; padding: 1rem 1.25rem; border-top: 1px solid var(--bord); }
-.sb-logout { width: 100%; display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; background: rgba(220,38,38,0.06); border-radius: var(--radius); color: #dc2626; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.15s; justify-content: center; }
-.sb-logout:hover { background: rgba(220,38,38,0.12); color: #b91c1c; }
-
-@media(max-width: 768px) {
-  .sidebar { display: none; }
-  .sb-ovl { display: none; }
-  .topbar .bti[title="Menu"] { display: none; }
-}
-
-/* ── STORE PRODUCTION BUTTON STYLES ── */
-.btn-production-hdr {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.52rem 1.05rem;
-  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-  color: #ffffff !important;
-  font-weight: 700;
-  font-size: 0.82rem;
-  border-radius: var(--radius-sm, 8px);
-  text-decoration: none !important;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
-  transition: all 0.22s ease;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  cursor: pointer;
-}
-.btn-production-hdr:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
-  color: #ffffff !important;
-}
-.prod-badge-pill {
-  background: rgba(0, 0, 0, 0.22);
-  color: #ecfdf5;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 99px;
-  letter-spacing: 0.02em;
-}
-
-/* ── ULTRA-MODERN MOBILE BOTTOM NAVIGATION BAR ── */
-.bottom-bar { display: none; }
-.more-sheet-backdrop { display: none; }
-.more-sheet { display: none; }
-
-@media(max-width: 768px) {
-  .bottom-bar {
-    display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 68px;
-    background: rgba(17, 24, 39, 0.90);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.35);
-    z-index: 1000;
-    justify-content: space-around;
-    align-items: center;
-    padding: 0 0.5rem;
-    padding-bottom: max(env(safe-area-inset-bottom, 0px), 4px);
-  }
-
-  [data-bs-theme="light"] .bottom-bar,
-  :root:not([data-bs-theme="dark"]) .bottom-bar {
-    background: rgba(255, 255, 255, 0.94);
-    border-top: 1px solid rgba(226, 232, 240, 0.85);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
-  }
-
-  .bottom-bar-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    padding: 6px 8px;
-    min-width: 58px;
-    background: transparent;
-    border: none;
-    border-radius: 14px;
-    cursor: pointer;
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: #94a3b8;
-    text-decoration: none !important;
-    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    font-family: inherit;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  [data-bs-theme="light"] .bottom-bar-item {
-    color: #64748b;
-  }
-
-  .bottom-bar-item .bb-icon-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 24px;
-  }
-
-  .bottom-bar-item i {
-    font-size: 1.18rem;
-    transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease;
-  }
-
-  .bottom-bar-item span {
-    line-height: 1;
-    letter-spacing: -0.01em;
-  }
-
-  .bottom-bar-item:active {
-    transform: scale(0.92);
-  }
-
-  .bottom-bar-item.active {
-    color: #3b82f6;
-    background: rgba(59, 130, 246, 0.12);
-  }
-
-  .bottom-bar-item.active i {
-    transform: scale(1.12);
-    color: #3b82f6;
-  }
-
-  .bottom-bar-item.active::after {
-    content: '';
-    position: absolute;
-    bottom: 2px;
-    width: 14px;
-    height: 3px;
-    background: #3b82f6;
-    border-radius: 99px;
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
-  }
-
-  /* Production Item Styling */
-  .bottom-bar-item.bb-prod {
-    color: #10b981;
-  }
-  .bottom-bar-item.bb-prod i {
-    color: #10b981;
-  }
-  .bottom-bar-item.bb-prod .bb-badge-dot {
-    position: absolute;
-    top: 0px;
-    right: -2px;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #10b981;
-    box-shadow: 0 0 6px #10b981;
-    animation: pulseGlow 2s infinite;
-  }
-  @keyframes pulseGlow {
-    0% { transform: scale(0.9); opacity: 0.8; }
-    50% { transform: scale(1.25); opacity: 1; }
-    100% { transform: scale(0.9); opacity: 0.8; }
-  }
-  .bottom-bar-item.bb-prod.active {
-    color: #10b981;
-    background: rgba(16, 185, 129, 0.12);
-  }
-  .bottom-bar-item.bb-prod.active i {
-    color: #10b981;
-  }
-  .bottom-bar-item.bb-prod.active::after {
-    background: #10b981;
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
-  }
-
-  /* Badge counts in icon wrap */
-  .bb-badge-count {
-    position: absolute;
-    top: -4px;
-    right: -7px;
-    background: #ef4444;
-    color: #ffffff;
-    font-size: 0.6rem;
-    font-weight: 800;
-    min-width: 17px;
-    height: 17px;
-    padding: 0 4px;
-    border-radius: 99px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid var(--surf, #111827);
-    box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4);
-  }
-
-  /* Center Floating Action Button (Request) */
-  .bottom-bar-center {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-family: inherit;
-    position: relative;
-    margin-top: -24px;
-    text-decoration: none !important;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .bottom-bar-center .bb-plus {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.35rem;
-    box-shadow: 0 8px 24px -2px rgba(37, 99, 235, 0.55), 0 0 0 4px var(--surf, #111827);
-    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
-  }
-
-  [data-bs-theme="light"] .bottom-bar-center .bb-plus,
-  :root:not([data-bs-theme="dark"]) .bottom-bar-center .bb-plus {
-    box-shadow: 0 8px 22px -2px rgba(37, 99, 235, 0.45), 0 0 0 4px #ffffff;
-  }
-
-  .bottom-bar-center:active .bb-plus {
-    transform: scale(0.92);
-  }
-
-  .bottom-bar-center .bb-plus-lbl {
-    font-size: 0.66rem;
-    font-weight: 700;
-    color: #3b82f6;
-    letter-spacing: -0.01em;
-  }
-
-  .bottom-bar-center.active .bb-plus {
-    box-shadow: 0 0 0 4px var(--surf, #111827), 0 0 16px rgba(59, 130, 246, 0.7);
-    transform: scale(1.05);
-  }
-
-  /* spin animation */
-  .bb-plus.spin { animation: plusSpin 0.4s cubic-bezier(0.4,0,0.2,1); }
-  @keyframes plusSpin { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.15); } 100% { transform: rotate(360deg) scale(1); } }
-
-  /* push main content up so bottom bar doesn't overlap */
-  .main { padding-bottom: calc(2rem + 76px); }
-
-  /* ── MORE MENU BOTTOM SHEET ── */
-  .more-sheet-backdrop {
-    display: block;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    z-index: 1099;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .more-sheet-backdrop.open {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .more-sheet {
-    display: block;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--surf, #111827);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 24px 24px 0 0;
-    padding: 12px 18px 28px 18px;
-    z-index: 1100;
-    box-shadow: 0 -12px 35px rgba(0, 0, 0, 0.5);
-    transform: translateY(105%);
-    transition: transform 0.32s cubic-bezier(0.32, 1, 0.23, 1);
-    max-height: 80vh;
-    overflow-y: auto;
-  }
-  [data-bs-theme="light"] .more-sheet,
-  :root:not([data-bs-theme="dark"]) .more-sheet {
-    border-top-color: rgba(0, 0, 0, 0.08);
-    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.12);
-  }
-  .more-sheet.open {
-    transform: translateY(0);
-  }
-
-  .more-sheet-handle-bar {
-    display: flex;
-    justify-content: center;
-    padding-bottom: 12px;
-  }
-  .more-sheet-handle {
-    width: 44px;
-    height: 5px;
-    border-radius: 99px;
-    background: rgba(148, 163, 184, 0.35);
-  }
-
-  .more-sheet-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 14px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--bord, #1f2937);
-  }
-  .more-sheet-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--txt, #f9fafb);
-  }
-  .more-sheet-close {
-    background: none;
-    border: none;
-    color: var(--muted, #9ca3af);
-    font-size: 1.1rem;
-    padding: 4px 8px;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-
-  .more-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .more-card {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 12px 14px;
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--bord, rgba(255, 255, 255, 0.06));
-    color: var(--txt, #f9fafb);
-    text-decoration: none !important;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: inherit;
-    width: 100%;
-    text-align: left;
-  }
-  [data-bs-theme="light"] .more-card {
-    background: #f8fafc;
-    border-color: #e2e8f0;
-  }
-  .more-card:hover, .more-card:active {
-    background: rgba(255, 255, 255, 0.08);
-    transform: translateX(3px);
-  }
-  [data-bs-theme="light"] .more-card:hover,
-  [data-bs-theme="light"] .more-card:active {
-    background: #f1f5f9;
-  }
-
-  .more-card-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.15rem;
-    flex-shrink: 0;
-  }
-  .icon-blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
-  .icon-amber { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
-  .icon-purple { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
-  .icon-emerald { background: rgba(16, 185, 129, 0.15); color: #10b981; }
-  .icon-slate { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
-
-  .more-card-info {
-    flex: 1;
-    min-width: 0;
-  }
-  .more-card-title {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--txt, #f9fafb);
-    line-height: 1.2;
-  }
-  .more-card-desc {
-    font-size: 0.72rem;
-    color: var(--muted, #9ca3af);
-    margin-top: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .more-card-arr {
-    color: var(--muted, #64748b);
-    font-size: 0.8rem;
-  }
-}
-
-@media(max-width: 480px) {
-  .bottom-bar { height: 64px; }
-  .bottom-bar-item { min-width: 48px; font-size: 0.62rem; padding: 4px 6px; }
-  .bottom-bar-item i { font-size: 1.1rem; }
-  .bottom-bar-center .bb-plus { width: 48px; height: 48px; font-size: 1.2rem; }
-  .main { padding-bottom: calc(1rem + 72px); }
-}
-
-/* ── MAIN CONTENT ── */
-.main { flex: 1; overflow-y: auto; padding: 2rem; position: relative; }
-.panel { display: none; animation: fadeIn 0.3s ease; }
-.panel.act { display: block; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-@media(max-width: 768px) { .main { padding: 1.25rem; } }
-@media(max-width: 480px) { .main { padding: 1rem 0.75rem; } }
-
-/* ── PAGE HEADER ── */
-.ph { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
-.panel-storeinv { position: relative; }
-.si-date-corner { position: absolute; top: 0; right: 0; }
-.ph-title { font-size: 1.35rem; font-weight: 700; color: var(--txt); letter-spacing: -0.02em; line-height: 1.2; }
-.ph-sub { font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem; font-weight: 400; }
-@media(max-width: 640px) { .ph { margin-bottom: 1rem; } .ph-title { font-size: 1.2rem; } }
-@media(max-width: 480px) { .ph-title { font-size: 1.1rem; } .ph-sub { font-size: 0.75rem; } }
-
-/* ── WIZARD ── */
-.wizard-wrap { background: var(--surf); border: 1px solid var(--bord); border-radius: var(--radius-lg); margin-bottom: 1.5rem; overflow: hidden; box-shadow: var(--shadow-sm); }
-.wizard-steps { display: flex; background: var(--g50); border-bottom: 1px solid var(--bord); }
-.wstep { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 1rem 0.5rem; cursor: pointer; border: none; background: transparent; color: var(--g400); position: relative; font-size: 0.85rem; font-weight: 600; transition: all 0.2s; }
-.wstep::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 3px; background: transparent; transition: background 0.2s; }
-.wstep:hover { color: var(--g600); background: var(--g100); }
-.wstep.act { color: var(--accent); background: var(--surf); }
-.wstep.act::after { background: var(--accent); }
-.wstep.done { color: var(--green); }
-.wstep.done::after { background: var(--green); }
-.wstep-circle { width: 24px; height: 24px; border-radius: 50%; border: 2px solid currentColor; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; }
-.wstep.act .wstep-circle { background: var(--accent); color: #fff; border-color: var(--accent); }
-.wstep.done .wstep-circle { background: var(--green); color: #fff; border-color: var(--green); }
-.wstep-label { white-space: nowrap; }
-
-.wizard-body { padding: 1.5rem; }
-.wizard-pane { display: none; } .wizard-pane.act { display: block; animation: fadeIn 0.3s; }
-.wizard-nav { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-top: 1px solid var(--bord); background: var(--g50); }
-
-@media(max-width: 640px) {
-  .wizard-body { padding: 1.25rem; }
-  .wizard-nav { padding: 0.75rem 1.25rem; }
-  .wstep-label { display: none; }
-  .wstep-circle { width: 22px; height: 22px; font-size: 0.65rem; }
-  .wstep { padding: 0.75rem 0.25rem; }
-}
-
-/* ── FORMS ── */
-.flabel { font-size: 0.8rem; font-weight: 600; color: var(--g700); margin-bottom: 0.35rem; display: block; }
-[data-bs-theme="dark"] .flabel { color: var(--g300); }
-.flabel .req { color: var(--red); margin-left: 0.2rem; }
-.finput { display: block; width: 100%; padding: 0.6rem 0.75rem; font-size: 0.875rem; font-family: inherit; color: var(--txt); background: var(--surf); border: 1px solid var(--bord); border-radius: var(--radius); outline: none; transition: all 0.2s; box-shadow: var(--shadow-sm); -webkit-appearance: none; }
-.finput::placeholder { color: var(--g400); }
-.finput:focus { border-color: var(--accent); box-shadow: var(--focus); }
-.finput[readonly], .finput:disabled { background: var(--g50); color: var(--g500); cursor: not-allowed; box-shadow: none; }
-textarea.finput { resize: vertical; min-height: 80px; }
-.fhint { font-size: 0.7rem; color: var(--muted); margin-top: 0.35rem; }
-.igrp { display: flex; box-shadow: var(--shadow-sm); border-radius: var(--radius); }
-.igrp-txt { display: flex; align-items: center; padding: 0 0.75rem; background: var(--g100); border: 1px solid var(--bord); border-right: none; border-radius: var(--radius) 0 0 var(--radius); color: var(--g600); font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
-.igrp .finput { border-radius: 0 var(--radius) var(--radius) 0; box-shadow: none; }
-
-@media(max-width: 480px) {
-  .finput { font-size: 16px; padding: 0.65rem; } /* Prevent iOS zoom */
-  .igrp-txt { font-size: 16px; }
-}
-
-/* ── URGENCY CARDS ── */
-.uom-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem; }
-.uom-card { padding: 0.5rem 1rem; border: 1px solid var(--bord); border-radius: var(--radius); font-size: 0.8rem; font-weight: 600; cursor: pointer; background: var(--surf); color: var(--g600); display: flex; align-items: center; justify-content: center; flex: 1; min-width: 80px; transition: all 0.2s; box-shadow: var(--shadow-sm); }
-.uom-card:hover { border-color: var(--g400); background: var(--g50); }
-.uom-card.sel { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-
-/* ── PILLS ── */
-.pill { display: inline-flex; align-items: center; padding: 0.2em 0.6em; border-radius: 99px; font-size: 0.7rem; font-weight: 600; line-height: 1.4; gap: 0.25rem; white-space: nowrap; letter-spacing: 0.02em; }
-.pill-ok { background: var(--green-bg); color: var(--green); }
-.pill-warn { background: var(--amber-bg); color: var(--amber); }
-.pill-bad { background: var(--red-bg); color: var(--red); }
-.pill-blue { background: var(--accent-bg); color: var(--accent); }
-.pill-neu { background: var(--g100); color: var(--g600); }
-[data-bs-theme="dark"] .pill-neu { background: rgba(255,255,255,0.1); color: var(--g300); }
-
-/* ── BUTTONS ── */
-.btn-p, .btn-ok, .btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border-radius: var(--radius); font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; line-height: 1.5; padding: 0.5rem 1rem; border: 1px solid transparent; transition: all 0.2s; }
-.btn-p { background: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
-.btn-p:hover { background: var(--accent-dark); box-shadow: var(--shadow-md); }
-.btn-p:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-ok { background: var(--green); color: #fff; box-shadow: var(--shadow-sm); }
-.btn-ok:hover { background: #047857; box-shadow: var(--shadow-md); }
-.btn-ghost { background: var(--surf); color: var(--g700); border-color: var(--bord); box-shadow: var(--shadow-sm); }
-.btn-ghost:hover { background: var(--g50); color: var(--txt); border-color: var(--g300); }
-.btn-sm { padding: 0.35rem 0.75rem; font-size: 0.75rem; }
-
-@media(max-width: 480px) { .btn-p, .btn-ok, .btn-ghost { padding: 0.5rem 0.85rem; font-size: 0.85rem; } }
-
-/* ── CARDS & LAYOUTS ── */
-.cs { background: var(--surf); border-radius: var(--radius-lg); margin-bottom: 1.5rem; border: 1px solid var(--bord); box-shadow: var(--shadow-sm); overflow: hidden; }
-.cs-hd { padding: 1rem 1.25rem; border-bottom: 1px solid var(--bord); display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; background: var(--g50); }
-.cs-title { font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; color: var(--txt); }
-.cs-body { padding: 1.25rem; }
-.req-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
-
-/* ── TABLES ── */
-.rev-table, .it, .inv-t { width: 100%; border-collapse: collapse; text-align: left; }
-.rev-table th, .it th, .inv-t th { padding: 0.75rem 1rem; font-size: 0.7rem; font-weight: 700; color: var(--g500); background: var(--g50); border-bottom: 1px solid var(--bord); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
-.rev-table td, .it td, .inv-t td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--bord); font-size: 0.875rem; vertical-align: middle; color: var(--txt); }
-.rev-table tbody tr:last-child td, .it tbody tr:last-child td, .inv-t tbody tr:last-child td { border-bottom: none; }
-.rev-table tbody tr:hover, .it tbody tr:hover, .inv-t tbody tr:hover { background: var(--g50); }
-[data-bs-theme="dark"] .rev-table tbody tr:hover, [data-bs-theme="dark"] .it tbody tr:hover, [data-bs-theme="dark"] .inv-t tbody tr:hover { background: rgba(255,255,255,0.02); }
-.sticky-th th { position: sticky; top: 0; z-index: 10; box-shadow: inset 0 -1px 0 var(--bord); }
-.ovx { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-
-/* ── REQUEST ITEM ROWS (card-style) ── */
-.req-item-row td { padding: 0.85rem 1rem 0.85rem 0; }
-.req-item-row { background: var(--surf); transition: box-shadow 0.2s, transform 0.2s; }
-.req-item-row:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); position: relative; z-index: 2; }
-.req-item-row td:first-child { border-left: 3px solid var(--accent); border-radius: var(--radius) 0 0 var(--radius); padding-left: 1.5rem; }
-.req-item-row td:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
-[data-bs-theme="dark"] .req-item-row:hover { background: var(--surf); }
-.req-item-row .finput:focus { border-color: var(--accent); box-shadow: var(--focus); }
-
-/* ── RECEIVING DETAIL ROWS ── */
-#recvDetailBody tr td { padding: 0.85rem 1rem; }
-#recvDetailBody tr { background: var(--surf); transition: background 0.15s; }
-#recvDetailBody tr:hover { background: var(--g50); }
-[data-bs-theme="dark"] #recvDetailBody tr:hover { background: rgba(255,255,255,0.02); }
-#recvDetailBody tr td:first-child { border-left: 3px solid var(--accent); padding-left: 1.5rem; }
-#recvDetailBody .finput:focus { border-color: var(--accent); box-shadow: var(--focus); }
-@media(max-width:640px) {
-  #recvDetailBody tr td:first-child { border-left: 3px solid var(--accent); padding-left: 0.75rem; }
-  #recvDetailBody .finput { width: 72px !important; }
-}
-
-/* ── TEXT ALIGNMENT ── */
-.tc { text-align: center; }
-.te { text-align: right; }
-
-/* ── STORE INVENTORY ── */
-.si-save-row { margin-top: 1rem; display: flex; justify-content: flex-end; }
-.si-row td { padding: 0.85rem 1rem; }
-.si-row { background: var(--surf); transition: background 0.15s; }
-.si-row:hover { background: var(--g50); }
-[data-bs-theme="dark"] .si-row:hover { background: rgba(255,255,255,0.02); }
-.si-row .finput { width: 80px; padding: 0.35rem 0.5rem; font-weight: 600; text-align: right; border: 1px solid var(--bord); border-radius: var(--radius); background: var(--bg); }
-.si-row .finput:focus { border-color: var(--accent); box-shadow: var(--focus); }
-.si-row .si-static { font-weight: 700; font-size: 0.95rem; color: var(--txt); }
-.si-row .pill { font-size: 0.75rem; }
-@media(max-width: 640px) {
-  .si-save-row .btn-p { width: 100%; }
-  .si-row .finput { width: 80px !important; }
-}
-@media(max-width: 640px) {
-  .mobile-cards thead { display: none; }
-  .mobile-cards tbody, .mobile-cards tr, .mobile-cards td { display: block; width: 100%; }
-  .mobile-cards tr { background: var(--surf); border: 1px solid var(--bord); border-radius: var(--radius); margin-bottom: 0.75rem; padding: 0.75rem; box-shadow: var(--shadow-sm); transition: box-shadow 0.2s; }
-  .mobile-cards tr:active { box-shadow: var(--shadow-md); }
-  .mobile-cards td { padding: 0.4rem 0; font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px dashed var(--g200); text-align: right; }
-  [data-bs-theme="dark"] .mobile-cards td { border-bottom-color: var(--g800); }
-  .mobile-cards td:last-child { border-bottom: none; padding-bottom: 0; }
-  .mobile-cards td:first-child { padding-top: 0; font-weight: 600; font-size: 0.95rem; justify-content: flex-start; text-align: left; }
-  .mobile-cards td::before { content: attr(data-label); font-size: 0.7rem; font-weight: 600; color: var(--g500); text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
-  .mobile-cards td:first-child::before { display: none; }
-  .mobile-cards input[type="number"] { width: 80px !important; text-align: right; font-size: 16px; padding: 0.35rem; }
-  .sticky-th { overflow: visible; }
-  /* req-item-row mobile enhancements */
-  .req-item-row { border-left: 3px solid var(--accent); border-radius: var(--radius) !important; padding: 0.75rem 1rem 0.65rem 1.5rem; position: relative; }
-  .req-item-row td:first-child { font-size: 1rem; padding: 0; border-left: none; display: block; text-align: left; padding-right: 90px; }
-  .req-item-row td:first-child .fs-sm { margin-top: 0.3rem; font-size: 0.72rem; color: var(--g500); display: block; }
-  .req-item-row td:last-child { position: absolute; top: 0.75rem; right: 1rem; display: flex; align-items: center; width: auto; border-bottom: none; }
-  .req-item-row td:last-child::before { display: none; }
-  .req-item-row .finput { border: 1px solid var(--bord); border-radius: var(--radius); background: var(--bg); width: 72px !important; }
-}
-
-/* ── FILTER BAR ── */
-.fbar { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
-.fsearch { position: relative; flex: 1; min-width: 200px; }
-.fsearch .fsi { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: var(--g400); font-size: 0.85rem; pointer-events: none; }
-.fsearch .finput { padding-left: 2.25rem; border-radius: var(--radius-xl); background: var(--surf); }
-.fselect { border: 1px solid var(--bord); background: var(--surf); color: var(--txt); border-radius: var(--radius-xl); padding: 0.5rem 2rem 0.5rem 1rem; font-size: 0.85rem; outline: none; cursor: pointer; font-family: inherit; font-weight: 500; box-shadow: var(--shadow-sm); transition: all 0.2s; appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 0.85rem; }
-.fselect:focus { border-color: var(--accent); box-shadow: var(--focus); }
-
-@media(max-width: 640px) {
-  .fbar { gap: 0.5rem; margin-bottom: 1rem; }
-  .fsearch { min-width: 100%; }
-  .fselect { flex: 1; min-width: 0; padding: 0.5rem 0.75rem; font-size: 0.8rem; }
-}
-
-/* ── STAT CHIPS & SUMMARY CARDS ── */
-.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-.stat-chip { background: var(--surf); border-radius: var(--radius-lg); padding: 1.25rem; border: 1px solid var(--bord); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 0.25rem; transition: transform 0.2s, box-shadow 0.2s; }
-.stat-chip:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-.sc-lbl { font-size: 0.75rem; color: var(--g500); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-.sc-val { font-size: 1.75rem; font-weight: 700; line-height: 1.1; color: var(--txt); }
-
-.summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-.summary-card { background: var(--g50); border-radius: var(--radius-lg); padding: 1.25rem; border: 1px solid var(--bord); }
-.summary-label { font-size: 0.7rem; color: var(--g500); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
-.summary-value { font-weight: 700; font-size: 1rem; color: var(--txt); }
-.summary-sub { font-size: 0.8rem; color: var(--g600); margin-top: 0.25rem; }
-
-@media(max-width: 640px) {
-  .stat-row { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1rem; }
-  .stat-chip { padding: 1rem; }
-  .sc-val { font-size: 1.5rem; }
-  .summary-cards { gap: 0.75rem; margin-bottom: 1rem; }
-  .summary-card { padding: 1rem; }
-}
-
-/* ── RECEIVING CARDS (Modern List) ── */
-.recv-grid { display: flex; flex-direction: column; gap: 0.75rem; }
-.recv-card { background: var(--surf); border-radius: var(--radius-lg); border: 1px solid var(--bord); box-shadow: var(--shadow-sm); transition: all 0.2s; overflow: hidden; }
-.recv-card:hover { border-color: var(--g300); box-shadow: var(--shadow-md); }
-.recv-card-hd { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; cursor: pointer; gap: 1rem; flex-wrap: wrap; }
-.recv-card-meta { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; flex: 1; }
-.recv-ref { font-size: 0.95rem; font-weight: 700; color: var(--txt); display: flex; align-items: center; gap: 0.5rem; }
-.recv-dates { font-size: 0.75rem; color: var(--g500); display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem; width: 100%; }
-.recv-card-actions { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
-.recv-chevron { font-size: 0.8rem; color: var(--g400); transition: transform 0.3s; padding: 0.25rem; }
-.recv-card.open .recv-chevron { transform: rotate(180deg); }
-.recv-items-wrap { display: none; border-top: 1px solid var(--bord); background: var(--g50); padding: 0.5rem; }
-.recv-card.open .recv-items-wrap { display: block; animation: fadeIn 0.3s; }
-
-@media(max-width: 640px) {
-  .recv-card-hd { padding: 0.85rem 1rem; }
-  .recv-ref { font-size: 0.9rem; }
-  .recv-card-actions { gap: 0.5rem; }
-}
-
-/* ── COMPACT RECEIVING DETAIL MODAL/CARD (Highly Optimized for Mobile) ── */
-#recvDetailWrap .cs { border-radius: var(--radius-lg); }
-#recvDetailWrap .it th { padding: 0.5rem 0.75rem; font-size: 0.65rem; }
-#recvDetailWrap .it td { padding: 0.5rem 0.75rem; font-size: 0.8rem; vertical-align: middle; }
-#recvDetailWrap input.finput { min-height: 30px; padding: 0.2rem 0.5rem; font-size: 0.85rem; width: 80px; font-weight: 600; text-align: center; }
-
-@media(max-width: 640px) {
-  #recvDetailWrap .cs-hd { padding: 0.75rem 1rem; }
-  #recvDetailWrap .cs-title { font-size: 0.9rem; }
-  /* Make mobile cards extremely compact in this section */
-  #recvDetailWrap .mobile-cards tr { padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; border-radius: var(--radius); }
-  #recvDetailWrap .mobile-cards td { padding: 0.25rem 0; font-size: 0.75rem; gap: 0.5rem; border-bottom: 1px solid var(--g100); }
-  [data-bs-theme="dark"] #recvDetailWrap .mobile-cards td { border-bottom-color: rgba(255,255,255,0.05); }
-  #recvDetailWrap .mobile-cards td:last-child { border-bottom: none; }
-  #recvDetailWrap .mobile-cards td::before { font-size: 0.65rem; }
-  #recvDetailWrap .mobile-cards td:first-child { font-size: 0.85rem; padding-bottom: 0.25rem; }
-  #recvDetailWrap input.finput { width: 70px !important; min-height: 28px; padding: 0.15rem 0.35rem; font-size: 0.8rem; }
-  #recvDetailWrap .wizard-nav { padding: 0.75rem 1rem; }
-  #recvDetailWrap .pill { padding: 0.15em 0.5em; font-size: 0.65rem; }
-}
-
-/* ── STOCK BAR ── */
-.sb-wrap { display: flex; align-items: center; gap: 0.75rem; }
-.sb-bar { flex: 1; height: 6px; background: var(--g200); border-radius: 99px; overflow: hidden; min-width: 60px; }
-[data-bs-theme="dark"] .sb-bar { background: var(--g800); }
-.sb-fill { height: 100%; border-radius: 99px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-.sb-val { font-size: 0.75rem; font-weight: 700; white-space: nowrap; min-width: 32px; text-align: right; }
-
-/* ── EMPTY STATES ── */
-.empty { padding: 3rem 1rem; text-align: center; color: var(--g500); }
-.empty-ico { font-size: 2rem; margin-bottom: 1rem; opacity: 0.2; color: var(--g600); }
-.empty p { font-size: 0.9rem; max-width: 260px; margin: 0 auto; font-weight: 500; }
-@media(max-width: 480px) { .empty { padding: 2rem 1rem; } .empty-ico { font-size: 1.75rem; } }
-
-/* ── TOASTS & MODALS ── */
-.toast-stack { position: fixed; bottom: 1rem; right: 1rem; left: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none; }
-.ti { padding: 0.75rem 1rem; border-radius: var(--radius); font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.75rem; box-shadow: var(--shadow-lg); animation: tin 0.3s cubic-bezier(0.4,0,0.2,1); pointer-events: all; max-width: 360px; margin-left: auto; color: #fff; }
-.ti-ok { background: var(--green); } .ti-bad { background: var(--red); }
-.ti-inf { background: var(--g800); } .ti-warn { background: var(--amber); }
-@keyframes tin { from { opacity: 0; transform: translateY(10px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@media(max-width: 480px) { .toast-stack { bottom: 0.75rem; right: 0.75rem; left: 0.75rem; } .ti { max-width: 100%; margin-left: 0; } }
-
-.moverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; opacity: 0; pointer-events: none; transition: opacity 0.2s; backdrop-filter: blur(2px); }
-.moverlay.open { opacity: 1; pointer-events: all; }
-.mbox { background: var(--surf); border-radius: var(--radius-xl); padding: 2rem; max-width: 440px; width: 100%; text-align: center; box-shadow: var(--shadow-lg); transform: scale(0.95); transition: transform 0.2s cubic-bezier(0.4,0,0.2,1); max-height: 90vh; overflow-y: auto; border: 1px solid var(--bord); }
-.moverlay.open .mbox { transform: scale(1); }
-.mico { font-size: 2.5rem; margin-bottom: 1rem; }
-.mttl { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--txt); letter-spacing: -0.01em; }
-.mmsg { font-size: 0.9rem; color: var(--g500); margin-bottom: 1.5rem; line-height: 1.5; }
-.macts { display: flex; gap: 0.75rem; justify-content: center; }
-
-@media(max-width: 480px) {
-  .mbox { padding: 1.5rem; border-radius: var(--radius-lg); }
-  .mico { font-size: 2rem; margin-bottom: 0.75rem; }
-  .mttl { font-size: 1.1rem; }
-}
-
-/* ── LOADING OVERLAY ── */
-.lovl { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
-.lbox { background: var(--surf); border-radius: var(--radius-lg); padding: 1.5rem 2.5rem; text-align: center; box-shadow: var(--shadow-lg); max-width: 90vw; }
-.ldots { display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 0.75rem; }
-.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); animation: bonce 0.8s infinite; }
-.dot:nth-child(2) { animation-delay: 0.15s; } .dot:nth-child(3) { animation-delay: 0.3s; }
-@keyframes bonce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-.llbl { font-size: 0.85rem; font-weight: 700; color: var(--accent); letter-spacing: 0.05em; text-transform: uppercase; }
-
-/* ── UTILITIES ── */
-.d-flex { display: flex; } .align-center { align-items: center; } .justify-between { justify-content: space-between; } .justify-end { justify-content: flex-end; } .flex-wrap { flex-wrap: wrap; }
-.gap-2 { gap: 0.5rem; } .gap-3 { gap: 0.75rem; } .mb-3 { margin-bottom: 1rem; } .mb-2 { margin-bottom: 0.5rem; } .mt-2 { margin-top: 0.5rem; } .pb-2 { padding-bottom: 0.5rem; }
-.col-span-2 { grid-column: 1 / -1; }
-.text-muted { color: var(--muted); } .text-brand { color: var(--accent); }
-.fs-sm { font-size: 0.8rem; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
-button:focus:not(:focus-visible) { outline: none; }
 </style>
 </head>
 <body>
 
-<!-- ═══════ TOPBAR ═══════ -->
-<header class="topbar">
-  <div class="tl">
-    <button class="bti" onclick="toggleSidebar()" title="Menu"><i class="fas fa-bars"></i></button>
-    <a href="{{ url_for('main.dashboard') }}" class="brand">
-      <div class="brand-icon"><i class="fas fa-cube"></i></div>iCount
-    </a>
-    <div class="tdiv"></div>
-    <span class="page-lbl" id="pageLabel">Store Inventory</span>
-  </div>
-  <div class="tr2">
-    <div class="uchip">
-      <div class="av" id="userInitials">UN</div>
-      <span id="userFullName">{{ current_user.full_name }}</span>
-      <span class="rbadge">{{ current_user.role }}</span>
-    </div>
-    <button class="bti" onclick="toggleTheme()" id="themeToggle" title="Theme"><i class="fas fa-sun"></i></button>
-    <a href="{{ url_for('auth.logout') }}" class="bti bti-danger" title="Sign out"><i class="fas fa-sign-out-alt"></i></a>
-  </div>
-</header>
+{% include 'user/partials/topbar.html' %}
 
 <!-- ═══════ APP BODY ═══════ -->
 <div class="app-body">
+  {% include 'user/partials/sidebar.html' %}
 
-<!-- ═══════ SIDEBAR ═══════ -->
-<nav class="sidebar" id="sidebar">
-  <ul style="list-style:none;padding:0;margin:0">
-    <li><span class="sb-section">Main</span></li>
-    <li class="sb-item"><button class="sb-link" id="navRequisition" onclick="showPanel('requisition')"><span class="ico"><i class="fas fa-file-alt"></i></span>New Requisition</button></li>
-    <li class="sb-item"><button class="sb-link act" id="navStoreinv" onclick="showPanel('storeinv')"><span class="ico"><i class="fas fa-clipboard-check"></i></span>Store Inventory</button></li>
-    <li class="sb-item"><a href="{{ url_for('store.production') }}" class="sb-link" id="navProduction" style="text-decoration:none"><span class="ico" style="color:#10b981"><i class="fas fa-kitchen-set"></i></span><span>Production</span><span class="sb-badge" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border-radius:20px;font-size:0.62rem;font-weight:700;padding:2px 7px;margin-left:auto">NEW</span></a></li>
-    <li class="sb-item"><button class="sb-link" id="navInventory" onclick="showPanel('inventory')"><span class="ico"><i class="fas fa-boxes"></i></span>Warehouse Stock</button></li>
-    <li class="sb-item"><button class="sb-link" id="navInvcount" onclick="showPanel('invcount')"><span class="ico"><i class="fas fa-clipboard-check"></i></span>Inventory Count</button></li>
-    <li class="sb-item"><button class="sb-link" id="navReceiving" onclick="showPanel('receiving')"><span class="ico"><i class="fas fa-truck-loading"></i></span>Receiving{% if pending_receiving_count is defined and pending_receiving_count > 0 %}<span class="sb-badge" style="background:#3b82f6;color:#fff;border-radius:50%;font-size:0.6rem;padding:2px 6px;margin-left:6px">{{ pending_receiving_count }}</span>{% endif %}</button></li>
-    <li><span class="sb-section">Account</span></li>
-    <li class="sb-item"><a href="{{ url_for('main.dashboard') }}" class="sb-link"><span class="ico"><i class="fas fa-th-large"></i></span>Dashboard</a></li>
-    <li class="sb-item"><button class="sb-link" id="navHistory" onclick="showPanel('history')"><span class="ico"><i class="fas fa-history"></i></span>My Requests<span class="sb-badge" id="histBadge">0</span></button></li>
-  </ul>
-  <div class="sb-footer">
-    <a href="{{ url_for('auth.logout') }}" class="sb-logout"><i class="fas fa-sign-out-alt"></i>Sign Out</a>
-  </div>
-</nav>
-
-<!-- ═══════ MAIN ═══════ -->
-<main class="main" id="mainContent">
-
-<!-- ──────────────────────────────────────────────────
-     PANEL: REQUISITION (multi-step wizard)
-────────────────────────────────────────────────── -->
-<div class="panel" id="panel-requisition">
-  <div class="ph">
-    <div>
-      <div class="ph-title">New Requisition</div>
-      <div class="ph-sub">Request items from your warehouse inventory</div>
-    </div>
-  </div>
-
-  <form id="reqForm" method="POST" action="{{ url_for('requisitions.submit_requisition') }}" onsubmit="return handleSubmit(event)">
-  <div class="wizard-wrap">
-    <!-- Step tabs -->
-    <div class="wizard-steps">
-      <button type="button" class="wstep act" id="ws0" onclick="goStep(0)">
-        <div class="wstep-circle">1</div>
-        <div class="wstep-label">Choose Station</div>
-      </button>
-      <button type="button" class="wstep" id="ws1" onclick="goStep(1)">
-        <div class="wstep-circle">2</div>
-        <div class="wstep-label">Request Items</div>
-      </button>
-      <button type="button" class="wstep" id="ws2" onclick="goStep(2)">
-        <div class="wstep-circle">3</div>
-        <div class="wstep-label">Review & Submit</div>
-      </button>
-    </div>
-
-    <!-- ── STEP 0: CHOOSE STATION ── -->
-    <div class="wizard-pane act" id="wp0">
-      <div class="wizard-body">
-        <div style="text-align:center;margin-bottom:1.25rem">
-          <div style="font-size:2rem;margin-bottom:0.5rem">🏭</div>
-          <div style="font-weight:700;font-size:1.1rem;color:var(--txt)">Select Station</div>
-          <div class="text-muted fs-sm" style="margin-top:0.25rem">Choose the station you're ordering for</div>
-        </div>
-        <div class="req-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.75rem" id="stationGrid">
-          <button type="button" class="uom-card" data-station="Sandwich" onclick="pickStation(this)" style="flex-direction:column;padding:1.25rem 1rem;gap:0.5rem;text-align:center">
-            <i class="fas fa-hamburger" style="font-size:1.5rem;color:var(--amber)"></i>
-            <span style="font-weight:700">Sandwich</span>
-          </button>
-          <button type="button" class="uom-card" data-station="Counter" onclick="pickStation(this)" style="flex-direction:column;padding:1.25rem 1rem;gap:0.5rem;text-align:center">
-            <i class="fas fa-cash-register" style="font-size:1.5rem;color:var(--accent)"></i>
-            <span style="font-weight:700">Counter</span>
-          </button>
-          <button type="button" class="uom-card" data-station="Soda" onclick="pickStation(this)" style="flex-direction:column;padding:1.25rem 1rem;gap:0.5rem;text-align:center">
-            <i class="fas fa-glass-water" style="font-size:1.5rem;color:var(--green)"></i>
-            <span style="font-weight:700">Soda</span>
-          </button>
-          <button type="button" class="uom-card" data-station="Maincourse" onclick="pickStation(this)" style="flex-direction:column;padding:1.25rem 1rem;gap:0.5rem;text-align:center">
-            <i class="fas fa-plate-wheat" style="font-size:1.5rem;color:var(--red)"></i>
-            <span style="font-weight:700">Maincourse</span>
-          </button>
-          <button type="button" class="uom-card" data-station="Warehouse" onclick="pickStation(this)" style="flex-direction:column;padding:1.25rem 1rem;gap:0.5rem;text-align:center">
-            <i class="fas fa-warehouse" style="font-size:1.5rem;color:var(--g500)"></i>
-            <span style="font-weight:700">Warehouse</span>
-          </button>
-          <button type="button" class="uom-card" data-station="Coffee Bar" onclick="pickStation(this)" style="flex-direction:column;padding:1.25rem 1rem;gap:0.5rem;text-align:center">
-            <i class="fas fa-mug-hot" style="font-size:1.5rem;color:#8B4513"></i>
-            <span style="font-weight:700">Coffee Bar</span>
-          </button>
-        </div>
-      </div>
-      <div class="wizard-nav">
-        <button type="button" class="btn-p" id="toItemsBtn" onclick="nextStep(0)" disabled>Next <i class="fas fa-arrow-right"></i></button>
-      </div>
-    </div>
-
-    <!-- ── STEP 1: REQUEST ITEMS (filtered by station) ── -->
-    <div class="wizard-pane" id="wp1">
-      <div class="wizard-body">
-        <div class="d-flex align-items-center justify-between mb-2" style="flex-wrap:wrap;gap:0.5rem">
-          <div class="d-flex align-items-center gap-2">
-            <span class="pill pill-blue" id="stationPill" style="font-size:0.75rem"></span>
-            <span class="text-muted fs-sm" id="stationProductCount"></span>
-          </div>
-          <div class="fsearch" style="min-width:200px;max-width:280px">
-            <i class="fas fa-search fsi"></i>
-            <input type="text" class="finput" id="reqSearch" placeholder="Search products..." oninput="filterReqItems(this.value)" autocomplete="off">
-          </div>
-        </div>
-        <div class="ovx" style="max-height:50vh; overflow-y:auto; border: 1px solid var(--bord); border-radius: var(--radius);">
-          <table class="it sticky-th mobile-cards" style="margin: 0;">
-            <thead>
-              <tr>
-                <th style="width:65%">Product</th>
-                <th style="width:35%;text-align:right">Order Qty</th>
-              </tr>
-            </thead>
-            <tbody id="reqItemsBody"></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="wizard-nav">
-        <button type="button" class="btn-ghost" onclick="prevStep(1)"><i class="fas fa-arrow-left"></i> Back</button>
-        <button type="button" class="btn-p" onclick="nextStep(1)">Review <i class="fas fa-arrow-right"></i></button>
-      </div>
-    </div>
-
-    <!-- ── STEP 2: REVIEW & SUBMIT ── -->
-    <div class="wizard-pane" id="wp2">
-      <div class="wizard-body">
-        <div class="req-grid">
-          <div>
-            <label class="flabel">Contact Number <span class="req">*</span></label>
-            <div class="igrp">
-              <span class="igrp-txt">+63</span>
-              <input id="contactInput" class="finput" name="contact_number" placeholder="9XX XXX XXXX" maxlength="10" required
-                oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)">
-            </div>
-            <div class="fhint">Philippine mobile number — 10 digits</div>
-          </div>
-          <div>
-            <label class="flabel">Expected Delivery Date <span class="req">*</span></label>
-            <input type="date" class="finput" name="expected_delivery_date" id="reqDeliveryDate" required>
-          </div>
-          <div>
-            <label class="flabel">Urgency Level</label>
-            <div class="uom-grid" id="urgencyCards">
-              <div class="uom-card sel" data-val="normal" onclick="pickUrgency(this)">Normal</div>
-              <div class="uom-card" data-val="urgent" onclick="pickUrgency(this)">Urgent</div>
-              <div class="uom-card" data-val="critical" onclick="pickUrgency(this)">Critical</div>
-            </div>
-            <input type="hidden" name="urgency" id="urgencyVal" value="normal">
-          </div>
-          <div class="col-span-2">
-            <label class="flabel">Notes / Remarks (optional)</label>
-            <textarea class="finput" name="notes" placeholder="Any special instructions or notes…"></textarea>
-          </div>
-        </div>
-        <hr style="border:none;border-top:1px solid var(--bord);margin:1.25rem 0">
-        <div class="summary-cards">
-          <div class="summary-card">
-            <div class="summary-label">Requester</div>
-            <div class="summary-value" id="rev-name">—</div>
-            <div class="summary-sub" id="rev-branch">—</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Station & Delivery</div>
-            <div class="summary-value" id="rev-station">—</div>
-            <div class="summary-sub" id="rev-deldate">—</div>
-            <div class="mt-2" id="rev-urgency"></div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Notes</div>
-            <div class="summary-sub" id="rev-notes" style="font-style: italic;">None</div>
-          </div>
-        </div>
-        <div class="ovx cs" style="margin-bottom: 0;">
-          <table class="rev-table mobile-cards">
-            <thead>
-              <tr>
-                <th style="width:50%">Product</th>
-                <th style="width:25%;text-align:right">Order Qty</th>
-                <th style="width:25%" class="tc">UOM</th>
-              </tr>
-            </thead>
-            <tbody id="revBody"></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="wizard-nav">
-        <button type="button" class="btn-ghost" onclick="prevStep(2)"><i class="fas fa-arrow-left"></i> Back</button>
-        <button type="submit" class="btn-ok" id="submitBtn"><i class="fas fa-paper-plane"></i> Submit Request</button>
-      </div>
-    </div>
-  </div><!-- /wizard-wrap -->
-
-  <input type="hidden" name="items_json" id="items_json">
-  <input type="hidden" name="station" id="stationInput">
-  </form>
-</div><!-- /panel-requisition -->
-
-<!-- ──────────────────────────────────────────────────
-     PANEL: LATEST INVENTORY
-────────────────────────────────────────────────── -->
-<div class="panel panel-storeinv act" id="panel-storeinv">
-  <div class="ph">
-    <div>
-      <div class="ph-title">Latest Inventory</div>
-      <div class="ph-sub">Current store stock levels</div>
-    </div>
-    <div style="display:flex;gap:0.55rem;align-items:center;flex-wrap:wrap">
-      <a href="{{ url_for('store.production') }}" class="btn-production-hdr" id="btnStoreProduction">
-        <i class="fas fa-kitchen-set"></i>
-        <span>Store Production</span>
-        <span class="prod-badge-pill">21 Recipes</span>
-      </a>
-      <button class="btn-p" onclick="showPanel('inventory')"><i class="fas fa-warehouse"></i> View Full Inventory</button>
-    </div>
-  </div>
-
-  <div class="stat-row" style="margin-bottom:0.75rem">
-    <div class="stat-chip"><div class="sc-lbl">Total Items</div><div class="sc-val" id="siStatTotal">—</div></div>
-    <div class="stat-chip"><div class="sc-lbl">In Stock</div><div class="sc-val" style="color:var(--green)" id="siStatInStock">—</div></div>
-    <div class="stat-chip"><div class="sc-lbl">Low Stock</div><div class="sc-val" style="color:var(--amber)" id="siStatLow">—</div></div>
-    <div class="stat-chip"><div class="sc-lbl">Out of Stock</div><div class="sc-val" style="color:var(--red)" id="siStatOut">—</div></div>
-  </div>
-
-  <div class="fsearch" style="flex:1;min-width:180px;margin-bottom:1rem">
-    <i class="fas fa-search fsi"></i>
-    <input class="finput" id="storeInvSearch" placeholder="Search products…" oninput="filterStoreInv(this.value)">
-  </div>
-
-  <div class="ovx" style="border:1px solid var(--bord);border-radius:var(--radius-lg);overflow:hidden">
-    <table class="it mobile-cards" style="margin:0">
-      <thead>
-        <tr>
-          <th style="width:36%">Product</th>
-          <th style="width:12%" class="te">UOM</th>
-          <th style="width:16%" class="te">Stock</th>
-          <th style="width:16%" class="te">Min. Level</th>
-          <th style="width:20%" class="te">Status</th>
-        </tr>
-      </thead>
-      <tbody id="storeInvBody"><!-- filled by JS --></tbody>
-    </table>
-  </div>
-</div><!-- /panel-storeinv -->
-
-<!-- ──────────────────────────────────────────────────
-     PANEL: WAREHOUSE INVENTORY
-────────────────────────────────────────────────── -->
-<div class="panel" id="panel-inventory">
-  <div class="ph">
-    <div>
-      <div class="ph-title">Warehouse Inventory</div>
-      <div class="ph-sub">Current stock levels and reorder suggestions</div>
-    </div>
-    <button class="btn-p" onclick="showPanel('requisition')"><i class="fas fa-plus"></i> New Request</button>
-  </div>
-
-  <div class="stat-row">
-    <div class="stat-chip"><div class="sc-lbl">Total Items</div><div class="sc-val" id="statTotal">—</div></div>
-    <div class="stat-chip"><div class="sc-lbl">In Stock</div><div class="sc-val text-green" id="statIn" style="color: var(--green);">—</div></div>
-    <div class="stat-chip"><div class="sc-lbl">Low Stock</div><div class="sc-val text-warn" id="statLow" style="color: var(--amber);">—</div></div>
-    <div class="stat-chip"><div class="sc-lbl">Out of Stock</div><div class="sc-val text-bad" id="statOut" style="color: var(--red);">—</div></div>
-  </div>
-
-  <div class="fbar">
-    <div class="fsearch"><i class="fas fa-search fsi"></i><input class="finput" id="invSearch" placeholder="Search products…" oninput="filterInv()"></div>
-    <select class="fselect" id="invFilter" onchange="filterInv()">
-      <option value="all">All Status</option>
-      <option value="in">In Stock</option>
-      <option value="low">Low Stock</option>
-      <option value="out">Out of Stock</option>
-      <option value="reorder">Needs Reorder</option>
-    </select>
-    <select class="fselect" id="invSort" onchange="filterInv()">
-      <option value="name">Sort: Name</option>
-      <option value="stock-asc">Stock: Low → High</option>
-      <option value="stock-desc">Stock: High → Low</option>
-      <option value="pct-asc">Level %: Low → High</option>
-      <option value="pct-desc">Level %: High → Low</option>
-    </select>
-  </div>
-
-  <div class="cs">
-    <div class="ovx">
-      <table class="inv-t mobile-cards">
-        <thead><tr>
-          <th style="width:25%">Product</th>
-          <th style="width:10%">UOM</th>
-          <th style="width:25%">Stock Level Bar</th>
-          <th style="width:10%" class="tc">Qty</th>
-          <th style="width:15%" class="tc">Reorder Sugg.</th>
-          <th style="width:15%" class="tc">Status</th>
-        </tr></thead>
-        <tbody id="invBody"></tbody>
-      </table>
-    </div>
-  </div>
-</div><!-- /panel-inventory -->
-
-<!-- ──────────────────────────────────────────────────
-     PANEL: RECEIVING / DELIVERIES
-────────────────────────────────────────────────── -->
-<div class="panel" id="panel-receiving">
-  <div class="ph">
-    <div>
-      <div class="ph-title">Receiving</div>
-      <div class="ph-sub">Confirm quantities received per batch</div>
-    </div>
-  </div>
-
-  <div class="fbar" id="recvFilters">
-    <div class="fsearch"><i class="fas fa-search fsi"></i>
-      <input class="finput" id="recvSearch" placeholder="Search by ref or product…" oninput="filterRecvList(this.value)">
-    </div>
-    <select class="fselect" id="recvStatusFilter" onchange="filterRecvList(document.getElementById('recvSearch').value)">
-      <option value="all">All</option>
-      <option value="pending">Pending</option>
-      <option value="partial">Partial</option>
-    </select>
-  </div>
-
-  <!-- Batch card list -->
-  <div id="recvListWrap">
-    <div class="recv-grid" id="recvGrid">
-      <!-- filled by JS -->
-    </div>
-  </div>
-
-  <!-- Confirm receiving detail -->
-  <div id="recvDetailWrap" style="display:none;">
-    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem;flex-wrap:wrap">
-      <button class="btn-ghost" onclick="closeRecvDetail()"><i class="fas fa-arrow-left"></i> Back</button>
-      <span style="font-weight:700;font-size:1rem;color:var(--txt)" id="recvDetailTitle"></span>
-      <span id="recvDetailStatus"></span>
-    </div>
-    <div class="ovx" style="border:1px solid var(--bord);border-radius:var(--radius-lg);overflow:hidden">
-      <table class="it mobile-cards" style="margin:0">
-        <thead>
-          <tr>
-            <th style="width:30%">Product</th>
-            <th style="width:14%" class="te">Requested</th>
-            <th style="width:18%" class="te">To Receive (Released)</th>
-            <th style="width:20%" class="te">Actual Received</th>
-            <th style="width:18%" class="te">Variance</th>
-          </tr>
-        </thead>
-        <tbody id="recvDetailBody"></tbody>
-      </table>
-    </div>
-    <!-- Optional: Add product not in original requisition -->
-    <div id="recvOptSection" style="margin-top:1rem;border-top:1px solid var(--bord);padding-top:1rem">
-      <details style="margin-bottom:0.75rem">
-        <summary style="cursor:pointer;font-weight:600;color:var(--txt)"><i class="fas fa-plus-circle" style="color:var(--blue)"></i> Add Optional Product (not in original request)</summary>
-        <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:end">
-          <div style="flex:1;min-width:180px">
-            <label class="fs-sm text-muted">Scan barcode or search product</label>
-            <input class="finput" id="optProductSearch" placeholder="Scan barcode or type name…" style="width:100%" onkeydown="if(event.key==='Enter'){event.preventDefault();lookupOptionalProduct()}">
-          </div>
-          <div style="display:flex;gap:0.35rem">
-            <button class="btn-p btn-sm" onclick="lookupOptionalProduct()"><i class="fas fa-search"></i> Find</button>
-          </div>
-        </div>
-        <div id="optProductResult" style="margin-top:0.5rem"></div>
-      </details>
-      <div id="optItemsWrap" style="display:none;margin-top:0.5rem">
-        <div class="ovx" style="border:1px solid var(--bord);border-radius:var(--radius-lg);overflow:hidden">
-          <table class="it mobile-cards" style="margin:0">
-            <thead>
-              <tr>
-                <th style="width:36%">Optional Product</th>
-                <th style="width:16%" class="te">Released</th>
-                <th style="width:24%" class="te">Received</th>
-                <th style="width:24%" class="te"></th>
-              </tr>
-            </thead>
-            <tbody id="optItemsBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div style="margin-top:1.25rem;padding-bottom:1rem">
-      <button class="btn-ok" style="width:100%;padding:0.75rem;font-size:1rem" onclick="submitReceiving()"><i class="fas fa-check-double"></i> Confirm Receiving</button>
-    </div>
-  </div>
-</div><!-- /panel-receiving -->
-
-<!-- ──────────────────────────────────────────────────
-     PANEL: MY REQUESTS HISTORY
-────────────────────────────────────────────────── -->
-<div class="panel" id="panel-history">
-  <div class="ph">
-    <div><div class="ph-title">My Requests</div><div class="ph-sub">All requisitions you've submitted</div></div>
-    <button class="btn-p" onclick="showPanel('requisition')"><i class="fas fa-plus"></i> New Request</button>
-  </div>
-  <div class="fbar">
-    <div class="fsearch"><i class="fas fa-search fsi"></i><input class="finput" id="histSearch" placeholder="Search requests…" oninput="filterHist()"></div>
-    <select class="fselect" id="histStatusFilter" onchange="filterHist()">
-      <option value="all">All Status</option>
-      <option value="pending">Pending</option>
-      <option value="approved">Approved</option>
-      <option value="rejected">Rejected</option>
-      <option value="delivered">Delivered</option>
-    </select>
-  </div>
-  <div class="cs">
-    <div class="ovx">
-      <table class="it mobile-cards">
-        <thead><tr><th>Ref #</th><th>Date</th><th class="tc">Items</th><th class="tc">Urgency</th><th class="tc">Status</th><th class="tc">Action</th></tr></thead>
-        <tbody id="histBody"></tbody>
-      </table>
-    </div>
-  </div>
-</div><!-- /panel-history -->
-
-<!-- ──────────────────────────────────────────────────
-     PANEL: INVENTORY COUNT (Daily)
-────────────────────────────────────────────────── -->
-<div class="panel" id="panel-invcount">
-  <div class="ph">
-    <div>
-      <div class="ph-title">Daily Inventory Count</div>
-      <div class="ph-sub">Count actual stock for all products today</div>
-    </div>
-  </div>
-
-  <!-- Instructions -->
-  <div class="cs" style="margin-bottom:1rem">
-    <div class="cs-body d-flex align-items-start gap-3">
-      <div style="width:32px;height:32px;border-radius:50%;background:var(--green-bg);color:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem">
-        <i class="fas fa-info-circle"></i>
-      </div>
-      <div>
-        <div style="font-weight:700;font-size:0.85rem;margin-bottom:0.25rem">How to count inventory</div>
-        <div class="fs-sm text-muted" style="line-height:1.5">
-          Enter the <strong>actual quantity</strong> you physically counted for each product. The system will calculate the variance automatically. <span class="pill pill-ok" style="font-size:0.65rem">Match</span> means correct, <span class="pill pill-warn" style="font-size:0.65rem">Over</span> means excess, <span class="pill pill-bad" style="font-size:0.65rem">Short</span> means missing.
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Stats Bar -->
-  <div class="cs" style="margin-bottom:1rem">
-    <div class="cs-body d-flex flex-wrap gap-3 align-items-center" style="padding:0.6rem 1.25rem">
-      <div class="d-flex align-items-center gap-2">
-        <i class="fas fa-cubes text-muted" style="font-size:0.8rem"></i>
-        <span class="fw-bold" style="color:var(--txt)" id="icTotal">0</span>
-        <span class="text-muted fs-sm">products</span>
-      </div>
-      <div style="width:1px;height:16px;background:var(--bord)"></div>
-      <div class="d-flex align-items-center gap-1">
-        <span class="fw-bold" style="color:var(--green)" id="icMatched">0</span>
-        <span class="text-muted fs-sm">matched</span>
-      </div>
-      <div class="d-flex align-items-center gap-1">
-        <span class="fw-bold" style="color:var(--amber)" id="icOver">0</span>
-        <span class="text-muted fs-sm">over</span>
-      </div>
-      <div class="d-flex align-items-center gap-1">
-        <span class="fw-bold" style="color:var(--red)" id="icShort">0</span>
-        <span class="text-muted fs-sm">short</span>
-      </div>
-      <div class="d-flex align-items-center gap-1">
-        <span class="fw-bold" style="color:var(--accent)" id="icCounted">0</span>
-        <span class="text-muted fs-sm">counted</span>
-      </div>
-      <div class="ms-auto">
-        <div class="fsearch" style="min-width:180px;width:200px">
-          <i class="fas fa-search fsi"></i>
-          <input class="finput" id="icSearch" placeholder="Search products…" oninput="filterCountRows(this.value)">
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Count Table -->
-  <div class="cs">
-    <div class="ovx" style="max-height:55vh;overflow-y:auto">
-      <table class="it mobile-cards" style="margin:0">
-        <thead>
-          <tr>
-            <th style="width:5%">#</th>
-            <th style="width:35%">Product Name</th>
-            <th class="tc" style="width:15%">System Qty</th>
-            <th class="tc" style="width:22%">Actual Count</th>
-            <th class="tc" style="width:23%">Variance</th>
-          </tr>
-        </thead>
-        <tbody id="icBody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Submit Bar -->
-  <div class="d-flex justify-between align-center mt-3 gap-3" style="flex-wrap:wrap">
-    <div class="d-flex align-items-center gap-2">
-      <label class="fs-sm text-muted" style="font-weight:600">Counted By:</label>
-      <input type="text" class="finput" id="icVerifiedBy" value="{{ current_user.full_name }}" style="width:200px;padding:0.4rem 0.6rem;font-size:0.8rem">
-    </div>
-    <div class="d-flex gap-2">
-      <button class="btn-ghost" onclick="resetCountForm()"><i class="fas fa-rotate-left"></i> Reset</button>
-      <button class="btn-p" onclick="submitDailyCount()" id="icSubmitBtn"><i class="fas fa-paper-plane"></i> Submit Count</button>
-    </div>
-  </div>
-</div><!-- /panel-invcount -->
-
-</main>
+  <!-- ═══════ MAIN ═══════ -->
+  <main class="main" id="mainContent">
+    {% include 'user/partials/panel_requisition.html' %}
+    {% include 'user/partials/panel_store_inventory.html' %}
+    {% include 'user/partials/panel_warehouse_inventory.html' %}
+    {% include 'user/partials/panel_receiving.html' %}
+    {% include 'user/partials/panel_history.html' %}
+    {% include 'user/partials/panel_daily_count.html' %}
+  </main>
 </div><!-- /app-body -->
 
-<!-- ═══════ SUCCESS MODAL ═══════ -->
-<div class="moverlay" id="successModal">
-  <div class="mbox">
-    <div class="mico">✅</div>
-    <div class="mttl" id="successTitle">Submitted!</div>
-    <div class="mmsg" id="successMsg">Action completed successfully.</div>
-    <div class="macts">
-      <button class="btn-ghost" style="width:100%" onclick="closeModal('successModal')">Awesome</button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════ ITEM DETAIL MODAL ═══════ -->
-<div class="moverlay" id="histModal">
-  <div class="mbox" style="max-width:520px;text-align:left;padding: 1.5rem;">
-    <div class="d-flex justify-between align-center mb-3">
-      <div class="mttl m-0" id="histModalTitle">Request Detail</div>
-      <button class="btn-ghost btn-sm" style="padding: 0.35rem 0.6rem;" onclick="closeModal('histModal')"><i class="fas fa-times"></i></button>
-    </div>
-    <div id="histModalBody"></div>
-  </div>
-</div>
-
-<!-- ═══════ LOADING OVERLAY ═══════ -->
-<div class="lovl" id="loadingOvl" style="display:none">
-  <div class="lbox"><div class="ldots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><div class="llbl">Processing</div></div>
-</div>
-
-<!-- ═══════ TOAST STACK ═══════ -->
-<div class="toast-stack" id="toastStack"></div>
+{% include 'user/partials/modals.html' %}
 
 <!-- ═══════ DATA & SCRIPTS ═══════ -->
 <script>
@@ -1418,14 +65,30 @@ function getLocalToday() {
 }
 const TODAY_STR = getLocalToday();
 
+/* ── Stock quantity cleaner for clean decimals ── */
+function formatStock(val){
+  if(val === null || val === undefined || val === '') return '0';
+  const num = Number(val);
+  if(isNaN(num)) return val;
+  return Number.isInteger(num) ? num.toString() : parseFloat(num.toFixed(2)).toString();
+}
+
 /* ── Products from Jinja ── */
 const products = [
   {% for p in products %}{
-    "id":{{ p.id }},"name":"{{ p.name }}","stock":{{ p.quantity }},
-    "initial":{{ p.initial_quantity }},"threshold":{{ p.low_stock_threshold }},
-    "stock_level":{{ p.reorder_level if p.reorder_level else 0 }},
-    "uom":"{{ p.uom }}","company_id":{{ p.company_id }},
-    "station":"{{ p.station or '' }}"
+    "id": {{ p.id }},
+    "name": {{ p.name | tojson }},
+    "store_qty": {{ (p.store_qty or 0.0) | float }},
+    "warehouse_qty": {{ (p.warehouse_qty or 0.0) | float }},
+    "stock": {{ (p.store_qty or 0.0) | float }},
+    "wh_stock": {{ (p.warehouse_qty or 0.0) | float }},
+    "initial": {{ (p.store_initial_qty or p.initial_quantity or 0.0) | float }},
+    "wh_initial": {{ (p.warehouse_initial_qty or p.initial_quantity or 0.0) | float }},
+    "threshold": {{ p.low_stock_threshold or 10 }},
+    "stock_level": {{ p.reorder_level if p.reorder_level else 0 }},
+    "uom": {{ (p.uom or '') | tojson }},
+    "company_id": {{ p.company_id or 'null' }},
+    "station": {{ (p.station or '') | tojson }}
   }{% if not loop.last %},{% endif %}{% endfor %}
 ];
 
@@ -1437,7 +100,7 @@ if(userCompanyId !== null){
 }
 
 /* ── Requisition History from Database ── */
-const HISTORY_DATA = {{ history_data | tojson | safe }};
+const HISTORY_DATA = {{ (history_data or []) | tojson | safe }};
 
 // Receiving data — loaded from API
 let RECEIVING_DATA = [];
@@ -1470,9 +133,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('reqDeliveryDate').value =
     `${tmr.getFullYear()}-${String(tmr.getMonth()+1).padStart(2,'0')}-${String(tmr.getDate()).padStart(2,'0')}`;
 
-  // Set Latest Inventory as the default view
+  // Determine starting panel: URL param (?panel=...), URL hash (#...), server hint, or default to storeinv
   restoreTheme();
-  showPanel('storeinv');
+  const urlParams = new URLSearchParams(window.location.search);
+  const hashPanel = window.location.hash ? window.location.hash.replace('#', '') : '';
+  const serverPanel = "{{ initial_panel or '' }}";
+  const defaultPanel = urlParams.get('panel') || hashPanel || serverPanel || 'storeinv';
+
+  showPanel(defaultPanel, false);
   loadStoreInvDataForDate();
   buildInvTable();
   buildHistory();
@@ -1540,7 +208,8 @@ const panelLabels = {
   requisition:'Requisitions', storeinv:'Store Inventory',
   inventory:'Warehouse Inventory', invcount:'Inventory Count', receiving:'Receiving', history:'My Requests'
 };
-function showPanel(id){
+function showPanel(id, updateUrl = true){
+  if(!id) id = 'storeinv';
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('act'));
   const pTarget = document.getElementById('panel-'+id);
   if(pTarget) pTarget.classList.add('act');
@@ -1548,6 +217,14 @@ function showPanel(id){
   const nb = document.getElementById('nav'+id.charAt(0).toUpperCase()+id.slice(1));
   if(nb) nb.classList.add('act');
   document.getElementById('pageLabel').textContent = panelLabels[id] || id;
+
+  // Toggle in-req-wizard class on body (hides sticky topbar and mobile bottom bar)
+  if(id === 'requisition'){
+    document.body.classList.add('in-req-wizard');
+  } else {
+    document.body.classList.remove('in-req-wizard');
+  }
+
   document.querySelectorAll('.bottom-bar-item').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.bottom-bar-center').forEach(b => b.classList.remove('active'));
   const bb = document.getElementById('bb-'+id);
@@ -1561,6 +238,19 @@ function showPanel(id){
   if(id === 'inventory') buildInvTable();
   if(id === 'invcount') buildCountTable();
   if(id === 'receiving') loadReceivingList();
+
+  if(updateUrl && window.history && window.history.replaceState){
+    try {
+      const u = new URL(window.location.href);
+      if(id === 'storeinv' && !u.searchParams.has('panel')){
+        // Keep default clean
+      } else {
+        u.searchParams.set('panel', id);
+        window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+      }
+    } catch(e){}
+  }
+
   window.scrollTo(0,0);
 }
 
@@ -1598,7 +288,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ══════════════════════════════════════════════════════
-   LATEST INVENTORY
+   STORE INVENTORY PANEL
 ══════════════════════════════════════════════════════ */
 function loadStoreInvDataForDate(){
   const tbody = document.getElementById('storeInvBody');
@@ -1609,13 +299,15 @@ function loadStoreInvDataForDate(){
 
   tbody.innerHTML = products.map(p => {
     const slq = p.stock_level || 0;
-    const stCls = p.stock <= 0 ? 'pill-bad' : p.stock <= (p.threshold || 0) ? 'pill-warn' : 'pill-ok';
-    const stLbl = p.stock <= 0 ? 'Out of Stock' : p.stock <= (p.threshold || 0) ? 'Low Stock' : 'In Stock';
+    const storeStock = p.store_qty !== undefined ? p.store_qty : (p.stock || 0);
+    const threshold = slq > 0 ? slq : (p.threshold || 0);
+    const stCls = storeStock <= 0 ? 'pill-bad' : storeStock <= threshold ? 'pill-warn' : 'pill-ok';
+    const stLbl = storeStock <= 0 ? 'Out of Stock' : storeStock <= threshold ? 'Low Stock' : 'In Stock';
     return `<tr id="storeInvRow_${p.id}" class="si-row">
-      <td style="font-weight:600">${p.name}</td>
-      <td class="te" data-label="UOM"><span class="text-muted fs-sm">${p.uom}</span></td>
-      <td class="te" data-label="Stock"><span class="fw-semibold">${p.stock}</span></td>
-      <td class="te" data-label="Min. Level"><span class="pill pill-neu">${slq}</span></td>
+      <td style="font-weight:600">${escapeHtml(p.name)}</td>
+      <td class="te" data-label="UOM"><span class="text-muted fs-sm">${escapeHtml(p.uom)}</span></td>
+      <td class="te" data-label="Store Stock"><span class="fw-semibold">${formatStock(storeStock)}</span></td>
+      <td class="te" data-label="Min. Level"><span class="pill pill-neu">${formatStock(slq)}</span></td>
       <td class="te" data-label="Status"><span class="pill ${stCls}" style="font-size:0.65rem">${stLbl}</span></td>
     </tr>`;
   }).join('');
@@ -1627,8 +319,10 @@ function updateStoreStats(){
   let total = 0, inStock = 0, low = 0, out = 0;
   products.forEach(p => {
     total++;
-    if(p.stock <= 0) out++;
-    else if(p.stock <= (p.threshold || 0)) low++;
+    const storeStock = p.store_qty !== undefined ? p.store_qty : (p.stock || 0);
+    const threshold = (p.stock_level > 0) ? p.stock_level : (p.threshold || 0);
+    if(storeStock <= 0) out++;
+    else if(storeStock <= threshold) low++;
     else inStock++;
   });
   document.getElementById('siStatTotal').textContent = total;
@@ -1649,8 +343,10 @@ function filterStoreInv(q){
     if(row) row.style.display = visible ? '' : 'none';
     if(!visible) return;
     total++;
-    if(p.stock <= 0) out++;
-    else if(p.stock <= (p.threshold || 0)) low++;
+    const storeStock = p.store_qty !== undefined ? p.store_qty : (p.stock || 0);
+    const threshold = (p.stock_level > 0) ? p.stock_level : (p.threshold || 0);
+    if(storeStock <= 0) out++;
+    else if(storeStock <= threshold) low++;
     else inStock++;
   });
   document.getElementById('siStatTotal').textContent = total;
@@ -1663,41 +359,73 @@ function filterStoreInv(q){
 }
 
 function getLatestStoreInv(productId){
-  if(invHistory[TODAY_STR] && invHistory[TODAY_STR][productId] !== undefined) return invHistory[TODAY_STR][productId];
-  const dates = Object.keys(invHistory).sort((a,b) => b.localeCompare(a));
-  for(let d of dates){
-    if(invHistory[d][productId] !== undefined) return invHistory[d][productId];
-  }
-  return null;
+  const p = products.find(x => x.id === productId);
+  if(p && p.store_qty !== undefined) return p.store_qty;
+  return 0;
 }
 
 /* ══════════════════════════════════════════════════════
    WIZARD STEPS (REQUISITION)
 ══════════════════════════════════════════════════════ */
-function goStep(n){
-  if(n > currentStep) return;
-  setStep(n);
+function handleReqBack(){
+  if(currentStep > 0){
+    prevStep(currentStep);
+  } else {
+    cancelRequisition();
+  }
 }
+
+function cancelRequisition(){
+  resetRequisitionWizard();
+  showPanel('storeinv');
+}
+
+function goStep(n){
+  if(n === currentStep) return;
+  if(n < currentStep){
+    setStep(n);
+  } else if(n === 1){
+    nextStep(0);
+  } else if(n === 2){
+    nextStep(1);
+  }
+}
+
 function nextStep(from){
   if(from === 0 && !selectedStation){ showToast('Please select a station','bad'); return; }
   if(from === 0) { buildReqTable(); setStep(1); return; }
   if(from === 1 && !validateStep1()) return;
   if(from === 1) { buildReview(); setStep(2); return; }
 }
+
 function prevStep(from){ setStep(from - 1); }
+
 function setStep(n){
   currentStep = n;
   document.querySelectorAll('.wizard-pane').forEach((p,i) => { p.classList.toggle('act', i === n); });
   document.querySelectorAll('.wstep').forEach((s,i) => {
     s.classList.remove('act','done');
-    if(i < n) setStepDone(s);
-    else if(i === n) s.classList.add('act');
+    const c = s.querySelector('.wstep-circle');
+    if(i < n){
+      s.classList.add('done');
+      if(c) c.innerHTML = '<i class="fas fa-check" style="font-size:0.65rem"></i>';
+    } else if(i === n){
+      s.classList.add('act');
+      if(c) c.textContent = (i + 1);
+    } else {
+      if(c) c.textContent = (i + 1);
+    }
   });
+
+  const stepTitles = [
+    'Step 1 of 3 · Choose Station',
+    'Step 2 of 3 · Request Items',
+    'Step 3 of 3 · Review & Submit'
+  ];
+  const stepSubEl = document.getElementById('reqHeaderSubtitle');
+  if(stepSubEl) stepSubEl.textContent = stepTitles[n] || `Step ${n+1} of 3`;
+
   document.querySelector('.main').scrollTo({top:0,behavior:'smooth'});
-}
-function setStepDone(el){
-  el.classList.add('done');
-  el.querySelector('.wstep-circle').innerHTML = '<i class="fas fa-check" style="font-size:0.6rem"></i>';
 }
 
 /* ── STATION SELECTION ── */
@@ -1709,11 +437,25 @@ function pickStation(el){
   document.getElementById('toItemsBtn').disabled = false;
 }
 
+/* ── Quantities Store for Requisition Flow ── */
+let reqQuantities = {};
+try {
+  const savedData = JSON.parse(localStorage.getItem('reqStoreData') || '{}');
+  for(const pid in savedData){
+    if(savedData[pid] && savedData[pid].oq !== undefined){
+      const q = parseFloat(savedData[pid].oq);
+      if(q > 0) reqQuantities[pid] = q;
+    }
+  }
+} catch(e) { reqQuantities = {}; }
+
 function resetRequisitionWizard(){
   // Reset to step 0 (station selection)
   setStep(0);
   // Clear station selection
   selectedStation = '';
+  reqQuantities = {};
+  localStorage.removeItem('reqStoreData');
   document.getElementById('stationInput').value = '';
   document.getElementById('toItemsBtn').disabled = true;
   document.querySelectorAll('#stationGrid .uom-card').forEach(c => c.classList.remove('sel'));
@@ -1723,20 +465,24 @@ function validateStep1(){
   let hasItems = false;
   let isValid = true;
 
-  products.forEach(p => {
-    if(p.station !== selectedStation) return;
-    const el = document.getElementById(`orderQty_${p.id}`);
-    if(!el) return;
-    const oq = parseFloat(el.value || 0);
+  for(const p of products){
+    if(p.station !== selectedStation) continue;
+    const oq = parseFloat(reqQuantities[p.id] || 0);
     if(oq > 0){
       hasItems = true;
-      if(oq > p.stock){
-        showToast(`"${p.name}" order qty (${oq}) exceeds warehouse stock (${p.stock}).`, 'bad');
-        el.focus();
+      const whStock = p.warehouse_qty !== undefined ? p.warehouse_qty : (p.stock || 0);
+      if(oq > whStock){
+        showToast(`"${p.name}" order qty (${oq}) exceeds warehouse stock (${formatStock(whStock)}).`, 'bad');
+        const el = document.getElementById(`orderQty_${p.id}`);
+        if(el){
+          el.scrollIntoView({behavior:'smooth', block:'center'});
+          el.focus();
+        }
         isValid = false;
+        break;
       }
     }
-  });
+  }
 
   if(!isValid) return false;
   if(!hasItems){
@@ -1762,64 +508,323 @@ function validateStep2(){
 }
 
 /* ══════════════════════════════════════════════════════
-   REQUEST ITEMS TABLE (filtered by station)
+   REQUEST ITEMS (LAZY LOADED & RESPONSIVE STEP 2)
 ══════════════════════════════════════════════════════ */
+let reqCurrentTab = 'all';
+let reqSearchQuery = '';
+let reqStationProducts = [];
+let reqFilteredProducts = [];
+let reqRenderedCount = 0;
+const REQ_BATCH_SIZE = 16;
+let reqLazyObserver = null;
+
+function renderProductCardHtml(p){
+  const storeStock = p.store_qty !== undefined ? p.store_qty : 0;
+  const whStock = p.warehouse_qty !== undefined ? p.warehouse_qty : (p.stock || 0);
+  const val = parseFloat(reqQuantities[p.id] || 0);
+  const hasOrder = val > 0;
+  const hasError = val > whStock;
+
+  let whStockCls = 'wh-good';
+  let whLabel = formatStock(whStock);
+  if(whStock <= 0) {
+    whStockCls = 'wh-out';
+  } else if(whStock <= p.threshold) {
+    whStockCls = 'wh-low';
+  }
+
+  const uomClean = (p.uom || '').replace('piece/s', 'pcs');
+
+  return `
+    <div class="req-item-card ${hasOrder ? 'has-order' : ''} ${hasError ? 'has-error' : ''}" id="reqRow_${p.id}" data-pid="${p.id}">
+      <div class="req-item-info">
+        <div class="req-item-name">${escapeHtml(p.name)}</div>
+        <div class="req-item-meta">
+          <span class="stock-pill store-stock" title="Current Store Stock">Store: <b>${formatStock(storeStock)}</b></span>
+          <span class="stock-pill wh-stock ${whStockCls}" title="Available in Warehouse">Warehouse: <b>${whLabel}</b></span>
+          <span class="stock-pill uom-pill">${escapeHtml(uomClean)}</span>
+        </div>
+        <div class="req-item-warn" id="reqWarn_${p.id}" style="${hasError ? 'display:flex' : 'display:none'}">
+          <i class="fas fa-exclamation-triangle"></i> Exceeds warehouse stock (${formatStock(whStock)})
+        </div>
+      </div>
+      <div class="req-item-stepper">
+        <button type="button" class="stepper-btn minus" id="stepMinus_${p.id}" onclick="stepQty(${p.id}, -1)" ${val <= 0 ? 'disabled' : ''} aria-label="Decrease quantity">
+          <i class="fas fa-minus"></i>
+        </button>
+        <input type="number" min="0" max="${whStock}" step="any"
+          class="stepper-input" id="orderQty_${p.id}"
+          value="${val > 0 ? val : ''}"
+          placeholder="0"
+          inputmode="decimal"
+          oninput="handleQtyChange(${p.id}, this.value)"
+          onblur="formatQtyInput(${p.id}, this)">
+        <button type="button" class="stepper-btn plus" id="stepPlus_${p.id}" onclick="stepQty(${p.id}, 1)" aria-label="Increase quantity">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 function buildReqTable(){
-  const tbody = document.getElementById('reqItemsBody');
-  const filtered = products.filter(p => p.station === selectedStation);
+  reqStationProducts = products.filter(p => p.station === selectedStation);
 
   // Update station pill and count
   const pill = document.getElementById('stationPill');
   const countEl = document.getElementById('stationProductCount');
   if(pill) pill.textContent = selectedStation;
-  if(countEl) countEl.textContent = filtered.length + ' product' + (filtered.length !== 1 ? 's' : '');
+  if(countEl) countEl.textContent = reqStationProducts.length + ' product' + (reqStationProducts.length !== 1 ? 's' : '');
 
-  if(!filtered.length){
-    tbody.innerHTML = '<tr><td colspan="2"><div class="empty"><div class="empty-ico"><i class="fas fa-inbox"></i></div><p>No products found for this station.</p></div></td></tr>';
+  // Reset search and tab
+  const searchInput = document.getElementById('reqSearch');
+  if(searchInput) searchInput.value = '';
+  const searchClear = document.getElementById('reqSearchClear');
+  if(searchClear) searchClear.style.display = 'none';
+  reqSearchQuery = '';
+  reqCurrentTab = 'all';
+
+  document.querySelectorAll('.req-tab-btn').forEach(b => b.classList.remove('act'));
+  const tabAllBtn = document.getElementById('reqTabAll');
+  if(tabAllBtn) tabAllBtn.classList.add('act');
+
+  updateReqFilterCounts();
+  applyReqFilterAndRender();
+  setupReqLazyObserver();
+}
+
+function setReqTab(tab){
+  reqCurrentTab = tab;
+  document.querySelectorAll('.req-tab-btn').forEach(b => b.classList.remove('act'));
+  const btn = document.getElementById(tab === 'ordered' ? 'reqTabOrdered' : tab === 'low' ? 'reqTabLow' : 'reqTabAll');
+  if(btn) btn.classList.add('act');
+  applyReqFilterAndRender();
+}
+
+function handleReqSearch(val){
+  reqSearchQuery = (val || '').trim().toLowerCase();
+  const searchClear = document.getElementById('reqSearchClear');
+  if(searchClear){
+    searchClear.style.display = reqSearchQuery ? 'flex' : 'none';
+  }
+  applyReqFilterAndRender();
+}
+
+function clearReqSearch(){
+  const searchInput = document.getElementById('reqSearch');
+  if(searchInput){
+    searchInput.value = '';
+    searchInput.focus();
+  }
+  const searchClear = document.getElementById('reqSearchClear');
+  if(searchClear) searchClear.style.display = 'none';
+  reqSearchQuery = '';
+  applyReqFilterAndRender();
+}
+
+function updateReqFilterCounts(){
+  if(!selectedStation) return;
+  const stationItems = products.filter(p => p.station === selectedStation);
+  const orderedItems = stationItems.filter(p => parseFloat(reqQuantities[p.id] || 0) > 0);
+  const lowItems = stationItems.filter(p => {
+    const storeStock = p.store_qty !== undefined ? p.store_qty : 0;
+    const threshold = (p.stock_level > 0) ? p.stock_level : (p.threshold || 0);
+    return storeStock <= threshold;
+  });
+
+  const tabAll = document.getElementById('tabCountAll');
+  const tabOrd = document.getElementById('tabCountOrdered');
+  const tabLow = document.getElementById('tabCountLow');
+  if(tabAll) tabAll.textContent = stationItems.length;
+  if(tabOrd) tabOrd.textContent = orderedItems.length;
+  if(tabLow) tabLow.textContent = lowItems.length;
+
+  const summaryPill = document.getElementById('reqOrderSummaryPill');
+  const summaryCount = document.getElementById('reqOrderSummaryCount');
+  if(summaryPill && summaryCount){
+    if(orderedItems.length > 0){
+      summaryCount.textContent = orderedItems.length;
+      summaryPill.style.display = 'inline-flex';
+    } else {
+      summaryPill.style.display = 'none';
+    }
+  }
+}
+
+function applyReqFilterAndRender(){
+  const listEl = document.getElementById('reqProductsList');
+  const spinnerEl = document.getElementById('reqLazySpinner');
+  const endEl = document.getElementById('reqLazyEnd');
+  if(!listEl) return;
+
+  listEl.innerHTML = '';
+  reqRenderedCount = 0;
+
+  let list = products.filter(p => p.station === selectedStation);
+
+  if(reqCurrentTab === 'ordered'){
+    list = list.filter(p => parseFloat(reqQuantities[p.id] || 0) > 0);
+  } else if(reqCurrentTab === 'low'){
+    list = list.filter(p => {
+      const storeStock = p.store_qty !== undefined ? p.store_qty : 0;
+      const threshold = (p.stock_level > 0) ? p.stock_level : (p.threshold || 0);
+      return storeStock <= threshold;
+    });
+  }
+
+  if(reqSearchQuery){
+    list = list.filter(p => p.name.toLowerCase().includes(reqSearchQuery));
+  }
+
+  reqFilteredProducts = list;
+
+  if(!reqFilteredProducts.length){
+    let emptyMsg = 'No products found for this station.';
+    if(reqCurrentTab === 'ordered') emptyMsg = 'No products ordered yet in this station.';
+    else if(reqCurrentTab === 'low') emptyMsg = 'No low-stock products in this station.';
+    else if(reqSearchQuery) emptyMsg = `No products match "${escapeHtml(reqSearchQuery)}".`;
+
+    listEl.innerHTML = `<div class="empty" style="padding:2.5rem 1rem">
+      <div class="empty-ico"><i class="fas fa-box-open"></i></div>
+      <p>${emptyMsg}</p>
+    </div>`;
+    if(spinnerEl) spinnerEl.style.display = 'none';
+    if(endEl) endEl.style.display = 'none';
     return;
   }
 
-  const reqData = JSON.parse(localStorage.getItem('reqStoreData') || '{}');
-
-  tbody.innerHTML = filtered.map(p => {
-    const latestSi = getLatestStoreInv(p.id);
-    const siDisplay = latestSi !== null ? latestSi : '—';
-    let ordVal = (reqData[p.id] && reqData[p.id].oq !== undefined) ? reqData[p.id].oq : '';
-
-    return `<tr id="reqRow_${p.id}" class="req-item-row">
-      <td style="font-weight:600">${p.name}
-        <div class="text-muted fs-sm" style="font-weight:400;margin-top:0.15rem;line-height:1.4">Store: ${siDisplay} · Warehouse: ${p.stock} · ${p.uom.replace('piece/s', 'pcs')}</div>
-      </td>
-      <td style="text-align:right" data-label="Order Qty">
-        <input type="number" class="finput" style="width:72px;padding:0.4rem 0.5rem;font-weight:600;text-align:right;border:1px solid var(--bord);border-radius:var(--radius);background:var(--bg);"
-          id="orderQty_${p.id}" placeholder="0" min="0" value="${ordVal}"
-          oninput="saveReqItemsToStorage()">
-      </td>
-    </tr>`;
-  }).join('');
+  renderNextReqItemsBatch();
 }
 
-function filterReqItems(q){
-  const lq = q.toLowerCase();
-  products.forEach(p => {
-    if(p.station !== selectedStation) return;
-    const row = document.getElementById(`reqRow_${p.id}`);
-    if(row) row.style.display = p.name.toLowerCase().includes(lq) ? '' : 'none';
-  });
+function renderNextReqItemsBatch(){
+  const listEl = document.getElementById('reqProductsList');
+  const spinnerEl = document.getElementById('reqLazySpinner');
+  const endEl = document.getElementById('reqLazyEnd');
+  if(!listEl || reqRenderedCount >= reqFilteredProducts.length) return;
+
+  const nextBatch = reqFilteredProducts.slice(reqRenderedCount, reqRenderedCount + REQ_BATCH_SIZE);
+  const html = nextBatch.map(p => renderProductCardHtml(p)).join('');
+  listEl.insertAdjacentHTML('beforeend', html);
+  reqRenderedCount += nextBatch.length;
+
+  if(reqRenderedCount >= reqFilteredProducts.length){
+    if(spinnerEl) spinnerEl.style.display = 'none';
+    if(endEl) endEl.style.display = reqFilteredProducts.length > REQ_BATCH_SIZE ? 'flex' : 'none';
+  } else {
+    if(spinnerEl) spinnerEl.style.display = 'flex';
+    if(endEl) endEl.style.display = 'none';
+  }
+}
+
+function setupReqLazyObserver(){
+  if(reqLazyObserver){
+    reqLazyObserver.disconnect();
+    reqLazyObserver = null;
+  }
+
+  const sentinel = document.getElementById('reqLazySentinel');
+  if(!sentinel) return;
+
+  if('IntersectionObserver' in window){
+    reqLazyObserver = new IntersectionObserver((entries) => {
+      if(entries[0].isIntersecting && reqRenderedCount < reqFilteredProducts.length){
+        renderNextReqItemsBatch();
+      }
+    }, { rootMargin: '300px 0px' });
+    reqLazyObserver.observe(sentinel);
+  }
+
+  window.removeEventListener('scroll', handleReqWindowScroll);
+  window.addEventListener('scroll', handleReqWindowScroll, { passive: true });
+}
+
+function handleReqWindowScroll(){
+  if(currentStep === 1 && reqRenderedCount < reqFilteredProducts.length){
+    if((window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 450)){
+      renderNextReqItemsBatch();
+    }
+  }
+}
+
+function setProductQty(pid, qty){
+  const p = products.find(item => item.id === pid);
+  if(!p) return;
+  const num = Math.max(0, parseFloat(qty) || 0);
+  const cleanVal = Number.isInteger(num) ? num : parseFloat(num.toFixed(2));
+
+  if(cleanVal > 0){
+    reqQuantities[pid] = cleanVal;
+  } else {
+    delete reqQuantities[pid];
+  }
+
+  const inputEl = document.getElementById(`orderQty_${pid}`);
+  const cardEl = document.getElementById(`reqRow_${pid}`);
+  const minusBtn = document.getElementById(`stepMinus_${pid}`);
+  const warnEl = document.getElementById(`reqWarn_${pid}`);
+
+  if(inputEl){
+    inputEl.value = cleanVal > 0 ? cleanVal : '';
+  }
+  if(minusBtn){
+    minusBtn.disabled = cleanVal <= 0;
+  }
+  if(cardEl){
+    cardEl.classList.toggle('has-order', cleanVal > 0);
+    const whStock = p.warehouse_qty !== undefined ? p.warehouse_qty : (p.stock || 0);
+    const hasErr = cleanVal > whStock;
+    cardEl.classList.toggle('has-error', hasErr);
+    if(warnEl){
+      if(hasErr){
+        warnEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Exceeds warehouse stock (${formatStock(whStock)})`;
+        warnEl.style.display = 'flex';
+      } else {
+        warnEl.style.display = 'none';
+      }
+    }
+  }
+
+  saveReqItemsToStorage();
+  updateReqFilterCounts();
+}
+
+function stepQty(pid, delta){
+  const curr = parseFloat(reqQuantities[pid] || 0);
+  setProductQty(pid, curr + delta);
+}
+
+function handleQtyChange(pid, rawVal){
+  if(rawVal === '' || rawVal === null || rawVal === undefined){
+    setProductQty(pid, 0);
+  } else {
+    setProductQty(pid, rawVal);
+  }
+}
+
+function formatQtyInput(pid, inputEl){
+  const curr = parseFloat(reqQuantities[pid] || 0);
+  inputEl.value = curr > 0 ? curr : '';
 }
 
 function pickUrgency(el){
   document.querySelectorAll('#urgencyCards .uom-card').forEach(c => c.classList.remove('sel'));
   el.classList.add('sel');
-  document.getElementById('urgencyVal').value = el.dataset.val;
+  const val = el.dataset.val || 'normal';
+  document.getElementById('urgencyVal').value = val;
+  const urgClr = {normal:'pill-ok',urgent:'pill-warn',critical:'pill-bad'};
+  const revUrg = document.getElementById('rev-urgency');
+  if(revUrg){
+    revUrg.innerHTML = `<span class="pill ${urgClr[val]||'pill-neu'}">${val.charAt(0).toUpperCase()+val.slice(1)}</span>`;
+  }
 }
 
 function saveReqItemsToStorage(){
   const d = {};
-  products.forEach(p => {
-    const oq = document.getElementById(`orderQty_${p.id}`)?.value;
-    if(oq) d[p.id] = {oq};
-  });
+  for(const pid in reqQuantities){
+    if(parseFloat(reqQuantities[pid]) > 0){
+      d[pid] = { oq: reqQuantities[pid] };
+    }
+  }
   localStorage.setItem('reqStoreData', JSON.stringify(d));
 }
 
@@ -1832,37 +837,132 @@ function escapeHtml(s){
 /* ══════════════════════════════════════════════════════
    REVIEW STEP
 ══════════════════════════════════════════════════════ */
+function formatReviewDate(dateStr){
+  if(!dateStr) return 'Not set';
+  try {
+    const parts = dateStr.split('-');
+    if(parts.length === 3){
+      const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+  } catch(e){}
+  return dateStr;
+}
+
+function getStationIconAndClass(station){
+  const map = {
+    'Sandwich': { icon: 'fa-burger', cls: 'st-sandwich' },
+    'Counter': { icon: 'fa-cash-register', cls: 'st-counter' },
+    'Soda': { icon: 'fa-glass-water', cls: 'st-soda' },
+    'Maincourse': { icon: 'fa-plate-wheat', cls: 'st-maincourse' },
+    'Warehouse': { icon: 'fa-warehouse', cls: 'st-warehouse' },
+    'Coffee Bar': { icon: 'fa-mug-hot', cls: 'st-coffee' }
+  };
+  return map[station] || { icon: 'fa-tag', cls: '' };
+}
+
+function syncRevContact(val){
+  const el = document.getElementById('rev-contact');
+  if(el) el.textContent = val ? '+63 ' + val : '—';
+}
+
+function syncRevDate(val){
+  const el = document.getElementById('rev-deldate');
+  if(el) el.textContent = formatReviewDate(val);
+}
+
+function syncRevNotes(val){
+  const el = document.getElementById('rev-notes');
+  if(!el) return;
+  const clean = (val || '').trim();
+  if(clean){
+    el.textContent = clean;
+    el.classList.remove('text-muted');
+    el.style.fontStyle = 'normal';
+  } else {
+    el.textContent = 'No special instructions provided';
+    el.classList.add('text-muted');
+    el.style.fontStyle = 'italic';
+  }
+}
+
 function buildReview(){
-  document.getElementById('rev-name').textContent = {{ current_user.full_name | tojson }};
-  document.getElementById('rev-branch').textContent = {{ (current_user.company.franchise_name if current_user.company and current_user.company.franchise_name else current_user.company.name if current_user.company else '') | tojson }};
-  document.getElementById('rev-station').textContent = selectedStation || '—';
-  document.getElementById('rev-deldate').textContent = document.getElementById('reqDeliveryDate').value || 'Not set';
+  // 1. Requester details & Avatar Initials
+  const fullName = {{ current_user.full_name | tojson }} || 'User';
+  const nameEl = document.getElementById('rev-name');
+  if(nameEl) nameEl.textContent = fullName;
 
-  const urg = document.getElementById('urgencyVal').value;
+  const branchEl = document.getElementById('rev-branch');
+  if(branchEl) branchEl.textContent = {{ (current_user.company.franchise_name if current_user.company and current_user.company.franchise_name else current_user.company.name if current_user.company else '') | tojson }} || 'Main Store';
+
+  const avatarEl = document.getElementById('rev-avatar');
+  if(avatarEl){
+    const parts = fullName.trim().split(/\s+/);
+    let initials = parts[0].charAt(0);
+    if(parts.length > 1) initials += parts[parts.length - 1].charAt(0);
+    else if(parts[0].length > 1) initials += parts[0].charAt(1);
+    avatarEl.textContent = initials.toUpperCase();
+  }
+
+  // 2. Station Review Badge with Icon & Station Color
+  const stInfo = getStationIconAndClass(selectedStation);
+  const stWrap = document.getElementById('revStationWrap');
+  if(stWrap){
+    stWrap.innerHTML = `<span class="station-rev-pill ${stInfo.cls}"><i class="fas ${stInfo.icon}"></i> ${escapeHtml(selectedStation || 'Station')}</span>`;
+  }
+
+  // 3. Expected Delivery Date (formatted)
+  const dateInput = document.getElementById('reqDeliveryDate');
+  syncRevDate(dateInput ? dateInput.value : '');
+
+  // 4. Urgency
+  const urg = document.getElementById('urgencyVal')?.value || 'normal';
   const urgClr = {normal:'pill-ok',urgent:'pill-warn',critical:'pill-bad'};
-  document.getElementById('rev-urgency').innerHTML = `<span class="pill ${urgClr[urg]||'pill-neu'}">${urg.charAt(0).toUpperCase()+urg.slice(1)}</span>`;
-  
-  const notes = document.querySelector('[name="notes"]').value;
-  document.getElementById('rev-notes').textContent = notes || 'None';
-  document.getElementById('rev-notes').style.fontStyle = notes ? 'normal' : 'italic';
+  const urgEl = document.getElementById('rev-urgency');
+  if(urgEl){
+    urgEl.innerHTML = `<span class="pill ${urgClr[urg]||'pill-neu'}">${urg.charAt(0).toUpperCase()+urg.slice(1)}</span>`;
+  }
 
+  // 5. Contact
+  const contactInput = document.getElementById('contactInput');
+  syncRevContact(contactInput ? contactInput.value : '');
+
+  // 6. Notes
+  const notesText = document.querySelector('[name="notes"]')?.value || '';
+  syncRevNotes(notesText);
+
+  // 7. Order Items Breakdown Table
   const tbody = document.getElementById('revBody');
   tbody.innerHTML = '';
-  let hasItems = false;
+  let totalProductsCount = 0;
+  let totalUnitsCount = 0;
+
   products.forEach(p => {
     if(p.station !== selectedStation) return;
-    const oq = parseFloat(document.getElementById(`orderQty_${p.id}`)?.value || 0);
+    const oq = parseFloat(reqQuantities[p.id] || 0);
     if(oq > 0){
-      hasItems = true;
+      totalProductsCount++;
+      totalUnitsCount += oq;
       tbody.innerHTML += `<tr>
-        <td style="font-weight:600">${p.name}</td>
-        <td style="text-align:right" data-label="Order Qty"><span class="pill pill-ok" style="font-size:0.85rem">${oq}</span></td>
-        <td class="tc" data-label="UOM"><span class="text-muted" style="font-size:0.8rem">${p.uom.replace('piece/s', 'pcs')}</span></td>
+        <td style="font-weight:600">${escapeHtml(p.name)}</td>
+        <td style="text-align:right" data-label="Order Qty"><span class="pill pill-ok" style="font-size:0.85rem;font-weight:700">${oq}</span></td>
+        <td class="tc" data-label="UOM"><span class="text-muted" style="font-size:0.8rem">${escapeHtml(p.uom.replace('piece/s', 'pcs'))}</span></td>
       </tr>`;
     }
   });
-  if(!hasItems){
+
+  if(!totalProductsCount){
     tbody.innerHTML = '<tr><td colspan="3" class="text-muted tc" style="padding:1.5rem">No items selected.</td></tr>';
+  }
+
+  // 8. Items summary pill & badge
+  const itemsSumEl = document.getElementById('rev-items-summary');
+  if(itemsSumEl){
+    itemsSumEl.textContent = `${totalProductsCount} item${totalProductsCount !== 1 ? 's' : ''} (${formatStock(totalUnitsCount)} units)`;
+  }
+  const itemsHdrBadge = document.getElementById('revItemsCountBadge');
+  if(itemsHdrBadge){
+    itemsHdrBadge.textContent = `${totalProductsCount} item${totalProductsCount !== 1 ? 's' : ''}`;
   }
 }
 
@@ -1877,7 +977,7 @@ function handleSubmit(e){
   const arr = [];
   products.forEach(p => {
     if(p.station !== selectedStation) return;
-    const oq = parseFloat(document.getElementById(`orderQty_${p.id}`)?.value || 0);
+    const oq = parseFloat(reqQuantities[p.id] || 0);
     if(oq > 0){
       arr.push({product_id:p.id,product_name:p.name,quantity:oq,uom:p.uom});
     }
@@ -1905,6 +1005,7 @@ function handleSubmit(e){
   .then(data => {
     if(data.success){
       localStorage.removeItem('reqStoreData');
+      reqQuantities = {};
       localStorage.setItem('reqSuccess','true');
       window.location.href = window.location.href;
     } else {
@@ -1924,7 +1025,13 @@ function handleSubmit(e){
 ══════════════════════════════════════════════════════ */
 function buildInvTable(){
   let t=0,inS=0,low=0,out=0;
-  products.forEach(p=>{t++;if(p.stock<=0)out++;else if(p.stock<=p.threshold)low++;else inS++;});
+  products.forEach(p=>{
+    t++;
+    const wh = p.warehouse_qty !== undefined ? p.warehouse_qty : (p.stock || 0);
+    if(wh<=0) out++;
+    else if(wh<=p.threshold) low++;
+    else inS++;
+  });
   document.getElementById('statTotal').textContent = t;
   document.getElementById('statIn').textContent = inS;
   document.getElementById('statLow').textContent = low;
@@ -1940,25 +1047,36 @@ function filterInv(){
   let list = products.filter(p => {
     const nm = p.name.toLowerCase().includes(q);
     const slq = p.stock_level || 0;
-    const latestSi = getLatestStoreInv(p.id);
-    const needsOrder = (latestSi !== null && latestSi < slq);
+    const storeStock = p.store_qty !== undefined ? p.store_qty : 0;
+    const whQty = p.warehouse_qty !== undefined ? p.warehouse_qty : (p.stock || 0);
+    const needsOrder = (slq > 0 && storeStock < slq);
     let sm = true;
-    if(f === 'in') sm = p.stock > p.threshold;
-    if(f === 'low') sm = p.stock > 0 && p.stock <= p.threshold;
-    if(f === 'out') sm = p.stock <= 0;
+    if(f === 'in') sm = whQty > p.threshold;
+    if(f === 'low') sm = whQty > 0 && whQty <= p.threshold;
+    if(f === 'out') sm = whQty <= 0;
     if(f === 'reorder') sm = needsOrder;
     return nm && sm;
   });
 
   if(s === 'name') list.sort((a,b) => a.name.localeCompare(b.name));
-  else if(s === 'stock-asc') list.sort((a,b) => a.stock - b.stock);
-  else if(s === 'stock-desc') list.sort((a,b) => b.stock - a.stock);
+  else if(s === 'stock-asc') list.sort((a,b) => (a.warehouse_qty || 0) - (b.warehouse_qty || 0));
+  else if(s === 'stock-desc') list.sort((a,b) => (b.warehouse_qty || 0) - (a.warehouse_qty || 0));
   else if(s === 'pct-asc') list.sort((a,b) => pct(a) - pct(b));
   else if(s === 'pct-desc') list.sort((a,b) => pct(b) - pct(a));
 
   renderInv(list);
 }
-function pct(p){ return p.initial > 0 ? Math.min(100, Math.round((p.stock / p.initial) * 100)) : 0; }
+function pct(p){
+  const wh = p.warehouse_qty !== undefined ? p.warehouse_qty : (p.stock || 0);
+  const init = p.wh_initial || p.initial || 0;
+  return init > 0 ? Math.min(100, Math.round((wh / init) * 100)) : 0;
+}
+function stockSt(p){
+  const wh = p.warehouse_qty !== undefined ? p.warehouse_qty : (p.stock || 0);
+  if(wh <= 0) return {label:'Out of Stock',cls:'pill-bad'};
+  if(wh <= p.threshold) return {label:'Low Stock',cls:'pill-warn'};
+  return {label:'In Stock',cls:'pill-ok'};
+}
 function renderInv(list){
   const body = document.getElementById('invBody');
   if(!list.length){
@@ -1966,21 +1084,22 @@ function renderInv(list){
     return;
   }
   body.innerHTML = list.map(p => {
+    const whQty = p.warehouse_qty !== undefined ? p.warehouse_qty : (p.stock || 0);
+    const storeStock = p.store_qty !== undefined ? p.store_qty : 0;
     const st = stockSt(p);
     const pc = pct(p);
-    const bc = p.stock<=0?'var(--red)':p.stock<=p.threshold?'var(--amber)':'var(--green)';
+    const bc = whQty<=0?'var(--red)':whQty<=p.threshold?'var(--amber)':'var(--green)';
     const slq = p.stock_level || 0;
-    const latestSi = getLatestStoreInv(p.id);
-    let reorderSugg = `<span class="pill pill-neu">No Count</span>`;
-    if(latestSi !== null){
-      if(latestSi < slq) reorderSugg = `<span class="pill pill-warn"><i class="fas fa-shopping-cart"></i> Order</span>`;
+    let reorderSugg = `<span class="pill pill-neu">Sufficient</span>`;
+    if(slq > 0){
+      if(storeStock < slq) reorderSugg = `<span class="pill pill-warn"><i class="fas fa-shopping-cart"></i> Order (${formatStock(storeStock)}/${formatStock(slq)})</span>`;
       else reorderSugg = `<span class="pill pill-ok"><i class="fas fa-check"></i> Sufficient</span>`;
     }
     return `<tr>
-      <td style="font-weight:600">${p.name}</td>
-      <td class="text-muted" data-label="UOM">${p.uom}</td>
+      <td style="font-weight:600">${escapeHtml(p.name)}</td>
+      <td class="text-muted" data-label="UOM">${escapeHtml(p.uom)}</td>
       <td data-label="Stock Level"><div class="sb-wrap"><div class="sb-bar"><div class="sb-fill" style="width:${pc}%;background:${bc}"></div></div><span class="sb-val" style="color:${bc}">${pc}%</span></div></td>
-      <td class="tc" style="font-weight:700" data-label="Whse Qty">${p.stock}</td>
+      <td class="tc" style="font-weight:700" data-label="Whse Qty">${formatStock(whQty)}</td>
       <td class="tc" data-label="Reorder">${reorderSugg}</td>
       <td class="tc" data-label="Status"><span class="pill ${st.cls}">${st.label}</span></td>
     </tr>`;
@@ -1991,104 +1110,157 @@ function renderInv(list){
    RECEIVING
 ══════════════════════════════════════════════════════ */
 function loadReceivingList(){
+  const refreshIcon = document.getElementById('recvRefreshIcon');
+  if(refreshIcon) refreshIcon.classList.add('fa-spin');
+
   const url = '/receiving/api/list';
   fetch(url)
     .then(r => r.json())
     .then(data => {
+      if(refreshIcon) refreshIcon.classList.remove('fa-spin');
       if(data.success){
-        RECEIVING_DATA = data.rows.filter(r => r.status.toLowerCase() !== 'delivered' && r.status.toLowerCase() !== 'rejected');
-        renderRecvList(RECEIVING_DATA);
+        RECEIVING_DATA = data.rows || [];
+        updateRecvStats(RECEIVING_DATA);
+        filterRecvList(document.getElementById('recvSearch')?.value || '');
       } else {
         handleRecvError();
       }
     })
-    .catch(() => handleRecvError());
+    .catch(() => {
+      if(refreshIcon) refreshIcon.classList.remove('fa-spin');
+      handleRecvError();
+    });
+}
+
+function updateRecvStats(list){
+  const total = list.length;
+  const pending = list.filter(r => r.status.toLowerCase() !== 'delivered' && r.status !== 'Discrepancy - Pending Approval').length;
+  const delivered = list.filter(r => r.status.toLowerCase() === 'delivered').length;
+  const discrepancy = list.filter(r => r.status === 'Discrepancy - Pending Approval' || r.has_discrepancy).length;
+
+  const elTotal = document.getElementById('recvStatTotal');
+  const elPending = document.getElementById('recvStatPending');
+  const elDelivered = document.getElementById('recvStatDelivered');
+  const elDiscrepancy = document.getElementById('recvStatDiscrepancy');
+
+  if(elTotal) elTotal.textContent = total;
+  if(elPending) elPending.textContent = pending;
+  if(elDelivered) elDelivered.textContent = delivered;
+  if(elDiscrepancy) elDiscrepancy.textContent = discrepancy;
+}
+
+function quickFilterRecvStatus(status){
+  document.querySelectorAll('#panel-receiving .stat-chip').forEach(c => c.classList.remove('act'));
+  const chipMap = {
+    'all': 'chipRecvAll',
+    'pending': 'chipRecvPending',
+    'delivered': 'chipRecvDelivered',
+    'discrepancy': 'chipRecvDiscrepancy'
+  };
+  const chipId = chipMap[status];
+  if(chipId){
+    const chip = document.getElementById(chipId);
+    if(chip) chip.classList.add('act');
+  }
+  const sel = document.getElementById('recvStatusFilter');
+  if(sel) sel.value = status;
+  filterRecvList(document.getElementById('recvSearch')?.value || '');
+}
+
+function syncFilterFromSelect(status){
+  document.querySelectorAll('#panel-receiving .stat-chip').forEach(c => c.classList.remove('act'));
+  const chipMap = {
+    'all': 'chipRecvAll',
+    'pending': 'chipRecvPending',
+    'delivered': 'chipRecvDelivered',
+    'discrepancy': 'chipRecvDiscrepancy'
+  };
+  const chipId = chipMap[status];
+  if(chipId){
+    const chip = document.getElementById(chipId);
+    if(chip) chip.classList.add('act');
+  }
+  filterRecvList(document.getElementById('recvSearch')?.value || '');
 }
 
 function handleRecvError(){
   RECEIVING_DATA = [];
   renderRecvList([]);
+  updateRecvStats([]);
 }
 
 function filterRecvList(q){
-  const lq = q.toLowerCase();
-  const f = document.getElementById('recvStatusFilter').value;
+  const lq = (q || '').toLowerCase().trim();
+  const f = document.getElementById('recvStatusFilter')?.value || 'all';
   const filtered = RECEIVING_DATA.filter(r => {
-    const matchRef = r.ref.toLowerCase().includes(lq);
-    const matchItem = r.items.some(i => i.name.toLowerCase().includes(lq));
-    const matchStatus = (f === 'all') || (r.status.toLowerCase() === f);
-    return (matchRef || matchItem) && matchStatus;
+    const matchRef = (r.ref || '').toLowerCase().includes(lq);
+    const matchBranch = (r.branch || '').toLowerCase().includes(lq);
+    const matchItem = (r.items || []).some(i => (i.name || '').toLowerCase().includes(lq));
+    const isDiscrepancy = r.status === 'Discrepancy - Pending Approval' || r.has_discrepancy;
+    const isDelivered = r.status.toLowerCase() === 'delivered';
+    const isPending = !isDelivered && !isDiscrepancy;
+
+    let matchStatus = true;
+    if(f === 'pending') matchStatus = isPending;
+    else if(f === 'delivered') matchStatus = isDelivered;
+    else if(f === 'discrepancy') matchStatus = isDiscrepancy;
+    else if(f === 'partial') matchStatus = r.status.toLowerCase() === 'partial';
+
+    return (matchRef || matchBranch || matchItem) && matchStatus;
   });
   renderRecvList(filtered);
 }
 
 function renderRecvList(list){
-  const grid = document.getElementById('recvGrid');
+  const tbody = document.getElementById('recvTableBody');
+  if(!tbody) return;
+
   if(!list.length){
-    grid.innerHTML = `<div class="empty"><div class="empty-ico"><i class="fas fa-truck"></i></div><p>No requisitions found.</p></div>`;
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty"><div class="empty-ico"><i class="fas fa-truck-ramp-box"></i></div><p>No shipments found in this view.</p></div></td></tr>`;
     return;
   }
 
-  const statusCls = {pending:'pill-warn',partial:'pill-blue',delivered:'pill-ok',rejected:'pill-bad'};
-  const urgCls = {normal:'pill-ok',urgent:'pill-warn',critical:'pill-bad'};
-  const itemStatusCls = {pending:'pill-warn',partial:'pill-blue',delivered:'pill-ok',rejected:'pill-bad'};
+  tbody.innerHTML = list.map((r) => {
+    const isDiscrepancy = r.status === 'Discrepancy - Pending Approval' || r.has_discrepancy;
+    const isDelivered = r.status.toLowerCase() === 'delivered';
+    const canReceive = (!isDelivered && r.status.toLowerCase() !== 'rejected' && !isDiscrepancy);
 
-  grid.innerHTML = list.map((r) => {
-    const isDiscrepancy = r.status === 'Discrepancy - Pending Approval';
-    const sCls = isDiscrepancy ? 'pill-warn' : (statusCls[r.status.toLowerCase()] || 'pill-neu');
-    const uCls = urgCls[r.urgency] || 'pill-neu';
-    const canReceive = (r.status.toLowerCase() !== 'delivered' && r.status.toLowerCase() !== 'rejected' && !isDiscrepancy);
+    const sCls = isDiscrepancy ? 'pill-bad' : isDelivered ? 'pill-ok' : 'pill-warn';
+    const sText = isDiscrepancy ? 'Discrepancy' : isDelivered ? 'Delivered' : 'Ready to Receive';
 
-    const itemRows = r.items.map(it => {
-      const iCls = itemStatusCls[it.item_status.toLowerCase()] || 'pill-neu';
-      return `<tr>
-        <td style="font-weight:600;padding-left:1.5rem" data-label="Product">${it.name}</td>
-        <td class="tc text-muted" data-label="UOM">${it.uom}</td>
-        <td class="tc" data-label="Req Qty" style="font-weight:600">${it.req_qty}</td>
-        <td class="tc" data-label="Status"><span class="pill ${iCls}">${it.item_status}</span></td>
-      </tr>`;
-    }).join('');
+    const itemsSummary = (r.items || []).map(i => i.name).slice(0, 3).join(', ') + ((r.items && r.items.length > 3) ? '…' : '');
 
-    return `<div class="recv-card" id="recvCard_${r.id}">
-      <div class="recv-card-hd" onclick="toggleRecvCard(${r.id})">
-        <div class="recv-card-meta">
-          <span class="recv-ref">${r.ref}</span>
-          <span class="pill ${sCls}">${r.status}</span>
-          <span class="pill ${uCls}">${r.urgency}</span>
-          <div class="recv-dates">
-            <span><i class="fas fa-calendar-plus" style="opacity:0.6"></i> Requested: ${r.date_created}</span>
+    return `<tr onclick="openRecvDetail(event, ${r.id})" style="cursor:pointer" class="recv-table-row">
+      <td data-label="Shipment">
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="recv-ref-badge">${escapeHtml(r.ref)}</span>
+            ${canReceive ? `<span class="pill pill-warn" style="font-size:0.62rem">Inbound</span>` : ''}
           </div>
+          ${r.branch ? `<span class="text-muted" style="font-size:0.75rem">${escapeHtml(r.branch)}</span>` : ''}
         </div>
-        <div class="recv-card-actions">
-          <span style="font-size:0.75rem;color:var(--g500);font-weight:500;">${r.item_count} item${r.item_count!==1?'s':''}</span>
-          ${canReceive ? `<button class="btn-p btn-sm" onclick="openRecvDetail(event,${r.id})"><i class="fas fa-box-open"></i> Receive</button>` : (isDiscrepancy ? `<span class="pill pill-warn" style="font-size:0.75rem;"><i class="fas fa-clock"></i> Pending Approval</span>` : '')}
-          <i class="fas fa-chevron-down recv-chevron"></i>
+      </td>
+      <td class="te" data-label="Date">
+        <span class="text-secondary fs-sm">${escapeHtml(r.date_created)}</span>
+      </td>
+      <td data-label="Products">
+        <span class="text-secondary fs-sm text-truncate d-inline-block" style="max-width:280px" title="${escapeHtml((r.items || []).map(i => i.name).join(', '))}">${escapeHtml(itemsSummary || '—')}</span>
+      </td>
+      <td class="te" data-label="Items">
+        <span class="pill pill-neu" style="font-weight:600">${r.item_count} ${r.item_count === 1 ? 'item' : 'items'}</span>
+      </td>
+      <td class="te" data-label="Status / Action" onclick="event.stopPropagation()">
+        <div style="display:inline-flex;align-items:center;gap:6px">
+          <span class="pill ${sCls}" style="font-size:0.65rem">${sText}</span>
+          ${canReceive ? `<button class="btn-p btn-sm" style="padding:0.25rem 0.65rem;font-size:0.75rem" onclick="openRecvDetail(event, ${r.id})"><i class="fas fa-box-open me-1"></i> Receive</button>` : `<button class="btn-ghost btn-sm" style="padding:0.25rem 0.65rem;font-size:0.75rem" onclick="openRecvDetail(event, ${r.id})"><i class="fas fa-eye me-1"></i> Details</button>`}
         </div>
-      </div>
-      <div class="recv-items-wrap">
-        <table class="it mobile-cards" style="background:transparent;">
-          <thead>
-            <tr>
-              <th style="width:40%;padding-left:1.5rem;background:transparent;">Product</th>
-              <th class="tc" style="width:15%;background:transparent;">UOM</th>
-              <th class="tc" style="width:15%;background:transparent;">Req Qty</th>
-              <th class="tc" style="width:30%;background:transparent;">Item Status</th>
-            </tr>
-          </thead>
-          <tbody>${itemRows}</tbody>
-        </table>
-      </div>
-    </div>`;
+      </td>
+    </tr>`;
   }).join('');
 }
 
-function toggleRecvCard(id){
-  const card = document.getElementById(`recvCard_${id}`);
-  if(card) card.classList.toggle('open');
-}
-
 function openRecvDetail(e, reqId){
-  e.stopPropagation();
+  if(e && e.stopPropagation) e.stopPropagation();
   currentRecvReqId = reqId;
 
   // Fetch detail from API
@@ -2106,6 +1278,11 @@ function renderRecvDetail(req){
   document.getElementById('recvListWrap').style.display = 'none';
   document.getElementById('recvDetailWrap').style.display = 'block';
   document.getElementById('recvDetailTitle').textContent = req.ref;
+  
+  const elRequester = document.getElementById('recvDetailRequester');
+  const elDate = document.getElementById('recvDetailDate');
+  if(elRequester) elRequester.textContent = req.requested_by || '—';
+  if(elDate) elDate.textContent = req.date_created || '—';
 
   const sCls = {pending:'pill-warn',partial:'pill-blue',delivered:'pill-ok',approved:'pill-neu',dispatched:'pill-blue'};
   document.getElementById('recvDetailStatus').innerHTML = `<span class="pill ${sCls[req.status.toLowerCase()]||'pill-neu'}">${req.status}</span>`;
@@ -2115,24 +1292,29 @@ function renderRecvDetail(req){
     const recvPrefill = it.received_qty !== null ? it.received_qty : it.warehouse_released;
     const relPrefill = it.warehouse_released;
     const reqPrefill = it.requested_qty !== undefined ? it.requested_qty : it.warehouse_released;
-    const disId = `disp_${it.item_id}`;
     const isOpt = it.is_optional ? ' <span class="pill pill-blue" style="font-size:0.6rem">Optional</span>' : '';
+
     return `<tr id="recvRow_${it.item_id}">
-      <td style="font-weight:600">${it.product_name}${isOpt}
-        <div class="text-muted fs-sm" style="font-weight:400">${it.uom}</div>
+      <td data-label="Product">
+        <div style="font-weight:600;color:var(--text-primary)">${escapeHtml(it.product_name)}${isOpt}</div>
+        <div class="text-muted fs-sm" style="font-weight:400">${escapeHtml(it.uom)}</div>
       </td>
       <td class="te" data-label="Requested">
-        <span class="text-muted" style="font-weight:600;font-size:0.95rem">${reqPrefill}</span>
+        <span class="text-muted fw-semibold">${formatStock(reqPrefill)}</span>
       </td>
-      <td class="te" data-label="To Receive">
-        <span id="relRecv_${it.item_id}" class="pill pill-blue" style="font-weight:700;font-size:0.95rem;padding:3px 8px">${relPrefill}</span>
+      <td class="te" data-label="Released (WH)">
+        <span id="relRecv_${it.item_id}" class="pill pill-neu" style="font-weight:700;font-size:0.85rem">${formatStock(relPrefill)}</span>
       </td>
       <td class="te" data-label="Actual Received">
-        <input type="number" class="finput" style="width:76px;padding:0.35rem 0.5rem;font-weight:700;text-align:right;border:1px solid var(--bord);border-radius:var(--radius);background:var(--bg);"
-          id="actualRecv_${it.item_id}" value="${recvPrefill}" min="0" step="any"
-          oninput="calcOverShort(${it.item_id})">
+        <div class="qty-stepper">
+          <button type="button" class="qty-stepper-btn" onclick="stepPortalQty(${it.item_id}, -1)">-</button>
+          <input type="number" class="qty-stepper-input"
+            id="actualRecv_${it.item_id}" value="${formatStock(recvPrefill)}" min="0" step="any"
+            oninput="calcOverShort(${it.item_id})" onfocus="this.select()">
+          <button type="button" class="qty-stepper-btn" onclick="stepPortalQty(${it.item_id}, 1)">+</button>
+        </div>
       </td>
-      <td class="te" data-label="Variance"><span id="${disId}">—</span></td>
+      <td class="te" data-label="Status"><span id="disp_${it.item_id}">—</span></td>
     </tr>`;
   }).join('');
 
@@ -2146,6 +1328,15 @@ function renderRecvDetail(req){
   document.getElementById('optItemsBody').innerHTML = '';
   document.getElementById('optItemsWrap').style.display = 'none';
   document.querySelector('.main').scrollTo({top:0,behavior:'smooth'});
+}
+
+function stepPortalQty(itemId, delta){
+  const input = document.getElementById(`actualRecv_${itemId}`);
+  if(!input) return;
+  let val = parseFloat(input.value) || 0;
+  val = Math.max(0, val + delta);
+  input.value = formatStock(val);
+  calcOverShort(itemId);
 }
 
 function calcOverShort(itemId){
@@ -2162,13 +1353,42 @@ function calcOverShort(itemId){
   }
   const released = parseFloat(relStr);
   const actual = parseFloat(actualStr);
-  if(actual > released){
-    dispEl.innerHTML = `<span class="pill pill-warn" style="font-size:0.7rem">+${(actual-released).toFixed(0)} over</span>`;
-  } else if(actual < released){
-    dispEl.innerHTML = `<span class="pill pill-bad" style="font-size:0.7rem">-${(released-actual).toFixed(0)} short</span>`;
+  const diff = actual - released;
+  if(diff > 0){
+    dispEl.innerHTML = `<span class="pill pill-warn" style="font-size:0.7rem">+${formatStock(diff)} Over</span>`;
+  } else if(diff < 0){
+    dispEl.innerHTML = `<span class="pill pill-bad" style="font-size:0.7rem">-${formatStock(Math.abs(diff))} Short</span>`;
   } else {
-    dispEl.innerHTML = `<span class="pill pill-ok" style="font-size:0.7rem">✓ Exact</span>`;
+    dispEl.innerHTML = `<span class="pill pill-ok" style="font-size:0.7rem">✓ Match</span>`;
   }
+  checkPortalDiscrepancy();
+}
+
+function checkPortalDiscrepancy(){
+  let hasAny = false;
+  document.querySelectorAll('#recvDetailBody tr').forEach(row => {
+    const relEl = row.querySelector('span[id^="relRecv_"]');
+    const input = row.querySelector('input[id^="actualRecv_"]');
+    if(relEl && input){
+      const rel = parseFloat(relEl.textContent) || 0;
+      const recv = parseFloat(input.value) || 0;
+      if(rel !== recv) hasAny = true;
+    }
+  });
+  const warn = document.getElementById('portalDiscrepancyWarning');
+  if(warn) warn.style.display = hasAny ? 'block' : 'none';
+}
+
+function matchAllPortalRecv(){
+  document.querySelectorAll('#recvDetailBody tr').forEach(row => {
+    const relEl = row.querySelector('span[id^="relRecv_"]');
+    const input = row.querySelector('input[id^="actualRecv_"]');
+    if(relEl && input){
+      input.value = relEl.textContent.trim();
+      const id = relEl.id.replace('relRecv_', '');
+      calcOverShort(id);
+    }
+  });
 }
 
 function closeRecvDetail(){
@@ -2356,11 +1576,6 @@ function updateHistBadge(){
 /* ══════════════════════════════════════════════════════
    UTILITIES
 ══════════════════════════════════════════════════════ */
-function stockSt(p){
-  if(p.stock <= 0) return {label:'Out of Stock',cls:'pill-bad'};
-  if(p.stock <= p.threshold) return {label:'Low Stock',cls:'pill-warn'};
-  return {label:'In Stock',cls:'pill-ok'};
-}
 function openModal(id){ document.getElementById(id).classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 /* ══════════════════════════════════════════════════════
@@ -2373,17 +1588,18 @@ function buildCountTable(){
     return;
   }
   tbody.innerHTML = products.map((p, i) => {
+    const storeStock = p.store_qty !== undefined ? p.store_qty : (p.stock || 0);
     return `<tr class="ic-row" data-name="${p.name.toLowerCase()}">
       <td class="text-muted fs-sm">${i + 1}</td>
       <td>
-        <div style="font-weight:600;font-size:0.85rem">${p.name}</div>
-        <div class="text-muted" style="font-size:0.7rem">${p.uom}</div>
+        <div style="font-weight:600;font-size:0.85rem">${escapeHtml(p.name)}</div>
+        <div class="text-muted" style="font-size:0.7rem">${escapeHtml(p.uom)}</div>
       </td>
-      <td class="tc" style="font-weight:700;font-size:0.95rem">${p.stock}</td>
+      <td class="tc" style="font-weight:700;font-size:0.95rem">${formatStock(storeStock)}</td>
       <td class="tc">
         <input type="number" min="0" step="0.01" placeholder="—"
           class="finput ic-actual"
-          data-pid="${p.id}" data-sys="${p.stock}"
+          data-pid="${p.id}" data-sys="${storeStock}"
           oninput="updateCountVariance(this)"
           style="width:80px;padding:0.35rem 0.4rem;font-weight:600;text-align:center;border-radius:var(--radius)">
       </td>
@@ -2537,102 +1753,7 @@ function showToast(msg, type='ok'){
 }
 </script>
 
-<!-- Mobile Bottom Bar -->
-<nav class="bottom-bar" id="mobileBottomBar">
-  <!-- Store -->
-  <button type="button" class="bottom-bar-item active" id="bb-storeinv" onclick="showPanel('storeinv')" title="Store Inventory">
-    <div class="bb-icon-wrap"><i class="fas fa-store"></i></div>
-    <span>Store</span>
-  </button>
-
-  <!-- Production (Star Feature!) -->
-  <a href="{{ url_for('store.production') }}" class="bottom-bar-item bb-prod" id="bb-production" title="Store Production">
-    <div class="bb-icon-wrap">
-      <i class="fas fa-kitchen-set"></i>
-      <span class="bb-badge-dot"></span>
-    </div>
-    <span>Production</span>
-  </a>
-
-  <!-- Elevated Center FAB: Request -->
-  <button type="button" class="bottom-bar-center" id="bb-requisition" onclick="spinPlus(this);showPanel('requisition')" title="New Requisition">
-    <div class="bb-plus">
-      <i class="fas fa-plus"></i>
-    </div>
-    <span class="bb-plus-lbl">Request</span>
-  </button>
-
-  <!-- Receiving -->
-  <button type="button" class="bottom-bar-item" id="bb-receiving" onclick="showPanel('receiving')" title="Receiving Deliveries">
-    <div class="bb-icon-wrap">
-      <i class="fas fa-truck-ramp-box"></i>
-      {% if pending_receiving_count is defined and pending_receiving_count > 0 %}
-        <span class="bb-badge-count">{{ pending_receiving_count }}</span>
-      {% endif %}
-    </div>
-    <span>Receive</span>
-  </button>
-
-  <!-- More Options -->
-  <button type="button" class="bottom-bar-item" id="bb-more" onclick="toggleMoreSheet()" title="More Navigation Options">
-    <div class="bb-icon-wrap"><i class="fas fa-bars-staggered"></i></div>
-    <span>More</span>
-  </button>
-</nav>
-
-<!-- Mobile More Bottom Sheet Modal -->
-<div class="more-sheet-backdrop" id="moreSheetBackdrop" onclick="closeMoreSheet()"></div>
-<div class="more-sheet" id="moreSheet">
-  <div class="more-sheet-handle-bar"><div class="more-sheet-handle"></div></div>
-  <div class="more-sheet-header">
-    <div class="more-sheet-title"><i class="fas fa-cubes text-primary me-2"></i>Store Operations</div>
-    <button type="button" class="more-sheet-close" onclick="closeMoreSheet()"><i class="fas fa-times"></i></button>
-  </div>
-  <div class="more-grid">
-    <button type="button" class="more-card" onclick="selectFromMore('inventory')">
-      <div class="more-card-icon icon-blue"><i class="fas fa-boxes-stacked"></i></div>
-      <div class="more-card-info">
-        <div class="more-card-title">Warehouse Stock</div>
-        <div class="more-card-desc">Check central warehouse stock levels</div>
-      </div>
-      <i class="fas fa-chevron-right more-card-arr"></i>
-    </button>
-    <button type="button" class="more-card" onclick="selectFromMore('invcount')">
-      <div class="more-card-icon icon-amber"><i class="fas fa-clipboard-check"></i></div>
-      <div class="more-card-info">
-        <div class="more-card-title">Physical Count</div>
-        <div class="more-card-desc">Nightly physical count & log</div>
-      </div>
-      <i class="fas fa-chevron-right more-card-arr"></i>
-    </button>
-    <button type="button" class="more-card" onclick="selectFromMore('history')">
-      <div class="more-card-icon icon-purple"><i class="fas fa-clock-rotate-left"></i></div>
-      <div class="more-card-info">
-        <div class="more-card-title">My Requests</div>
-        <div class="more-card-desc">Track status & history of requisitions</div>
-      </div>
-      <span class="sb-badge" id="moreHistBadge" style="margin-left:auto;margin-right:8px;font-size:0.7rem;padding:2px 8px;border-radius:12px;background:#8b5cf6;color:#fff">0</span>
-      <i class="fas fa-chevron-right more-card-arr"></i>
-    </button>
-    <a href="{{ url_for('store.production') }}" class="more-card">
-      <div class="more-card-icon icon-emerald"><i class="fas fa-kitchen-set"></i></div>
-      <div class="more-card-info">
-        <div class="more-card-title">Store Production</div>
-        <div class="more-card-desc">Produce 21 recipe dishes & auto-deduct</div>
-      </div>
-      <span class="prod-badge-pill" style="margin-left:auto;margin-right:8px;background:rgba(16,185,129,0.18);color:#10b981;font-weight:700">NEW</span>
-      <i class="fas fa-chevron-right more-card-arr"></i>
-    </a>
-    <a href="{{ url_for('main.dashboard') }}" class="more-card">
-      <div class="more-card-icon icon-slate"><i class="fas fa-th-large"></i></div>
-      <div class="more-card-info">
-        <div class="more-card-title">Dashboard</div>
-        <div class="more-card-desc">Main account overview</div>
-      </div>
-      <i class="fas fa-chevron-right more-card-arr"></i>
-    </a>
-  </div>
-</div>
+{% include 'user/partials/mobile_nav.html' %}
 
 </body>
 </html>

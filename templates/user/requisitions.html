@@ -1,548 +1,525 @@
 {% extends 'layouts/base-sidebar.html' %}
 {% block title %}Requisitions - iCount{% endblock %}
 
+{% block styles %}
+<link href="{{ url_for('static', filename='css/requisitions.css') }}?v=20261020-redesign" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-<style>
-  /* Circular button styles */
-  .btn-circle {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-  }
-  
-  .btn-circle.btn-sm {
-    width: 30px;
-    height: 30px;
-  }
-  
-  .btn-circle.btn-lg {
-    width: 42px;
-    height: 42px;
-  }
-</style>
+{# ── Helpers ─────────────────────────────────────────── #}
+{% macro status_chip(raw) -%}
+  {%- set s = (raw or '')|lower -%}
+  {%- set s = 'rejected' if s == 'declined' else s -%}
+  <span class="req-chip req-chip--{{ s }}"><span class="req-chip-dot" aria-hidden="true"></span>{{ s|capitalize }}</span>
+{%- endmacro %}
+
+{% macro page_url(n, filters) -%}
+  {{ url_for('requisitions.view_requisitions', page=n, **filters) }}
+{%- endmacro %}
+
+{% set base_filters = {} %}
+{% for k, v in current_filters.items() if k != 'status' %}{% set _ = base_filters.update({k: v}) %}{% endfor %}
+{% set active_status = (status or '')|lower %}
+{% set validator_roles = ['SYS-Admin', 'WH-Admin', 'Company-Admin'] %}
 
 <!-- Full screen spinner overlay -->
-<div id="spinnerOverlay" class="spinner-overlay">
+<div id="spinnerOverlay" class="spinner-overlay" role="status" aria-live="polite">
   <div class="spinner"></div>
+  <span class="visually-hidden">Processing…</span>
 </div>
 
-<div class="container-fluid px-3 px-md-4">
+<div class="container-fluid py-3 requisitions-page">
 
-<!-- Page Header -->
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-4 gap-3">
-  <div>
-    <div class="d-flex align-items-center mb-2">
-      <div class="feature-icon d-inline-flex align-items-center justify-content-center text-bg-primary bg-gradient fs-4 rounded-3 me-3" style="width: 48px; height: 48px;">
-        <i class="fas fa-clipboard-list"></i>
-      </div>
-      <div>
-        <h4 class="fw-bold mb-1" style="background: linear-gradient(45deg, #0d6efd, #0a58ca); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-          Requisition Requests
-        </h4>
-        <p class="text-muted mb-0">
-          {% if current_filters.status == 'Pending' %}
-            Viewing pending requisition requests only
+  <!-- Header -->
+  <header class="req-header">
+    <div class="req-title-wrap">
+      <div class="req-page-icon" aria-hidden="true"><i class="fas fa-clipboard-list"></i></div>
+      <div class="min-w-0">
+        <div class="req-eyebrow">
+          <span>{{ now.strftime('%A') }}</span>
+          <span>{{ now.strftime('%B %d, %Y') }}</span>
+        </div>
+        <h1 class="req-title">Requisitions</h1>
+        <p class="req-subtitle">
+          {% if active_status == 'pending' %}
+            Showing pending requests awaiting validation and approval
+          {% elif active_status %}
+            Showing {{ active_status }} requests
           {% else %}
-            Manage and track inventory requisition requests
+            Review, approve and dispatch inventory requests
           {% endif %}
         </p>
       </div>
     </div>
-  </div>
-  
-  <div class="d-flex align-items-center gap-2 flex-wrap">
-    {% if current_user.role == 'WH-Admin' %}
-    <a href="{{ url_for('requisitions.transfer_requisition_form') }}" class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm py-2 px-3">
-      <i class="fas fa-arrow-right-arrow-left"></i>
-      <span class="fw-semibold">New Transfer Request</span>
-    </a>
-    {% endif %}
-
-    <!-- Quick Stats -->
-    <div class="d-flex gap-2 flex-wrap">
-    {% set pending_count = requisitions|selectattr('status', 'equalto', 'Pending')|list|length %}
-    {% set approved_count = requisitions|selectattr('status', 'equalto', 'approved')|list|length %}
-    {% set dispatched_count = requisitions|selectattr('status', 'equalto', 'Dispatched')|list|length %}
-    {% set delivered_count = requisitions|selectattr('status', 'equalto', 'Delivered')|list|length %}
-    {% set rejected_count = requisitions|selectattr('status', 'equalto', 'rejected')|list|length %}
-    
-    <div class="stat-card bg-warning-subtle border-warning p-2 rounded-2">
-      <div class="d-flex align-items-center gap-2">
-        <div class="stat-icon bg-warning rounded-circle p-1">
-          <i class="fas fa-clock text-white small"></i>
-        </div>
-        <div>
-          <div class="fw-bold text-warning h6 mb-0">{{ pending_count }}</div>
-          <div class="small text-warning-emphasis">Pending</div>
-        </div>
-      </div>
+    <div class="req-header-actions">
+      <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#reqFilterCollapse" aria-expanded="true" aria-controls="reqFilterCollapse" id="reqToggleFilters">
+        <i class="fas fa-filter" aria-hidden="true"></i> Filters
+      </button>
+      {% if current_user.role == 'WH-Admin' %}
+      <a href="{{ url_for('requisitions.transfer_requisition_form') }}" class="btn btn-primary btn-sm" id="reqNewTransfer">
+        <i class="fas fa-arrow-right-arrow-left" aria-hidden="true"></i> New Transfer Request
+      </a>
+      {% endif %}
     </div>
+  </header>
 
-    <div class="stat-card bg-success-subtle border-success p-2 rounded-2">
-      <div class="d-flex align-items-center gap-2">
-        <div class="stat-icon bg-success rounded-circle p-1">
-          <i class="fas fa-check text-white small"></i>
-        </div>
-        <div>
-          <div class="fw-bold text-success h6 mb-0">{{ approved_count }}</div>
-          <div class="small text-success-emphasis">Approved</div>
-        </div>
-      </div>
-    </div>
+  <!-- Status summary (click to filter) -->
+  {% set dispatched_total = status_counts.get('dispatched', 0) + status_counts.get('partial', 0) %}
+  {% set stat_cards = [
+    {'value': '',           'key': 'all',        'title': 'All Requests', 'count': total_count,                          'icon': 'fa-layer-group',  'label': 'matching filters'},
+    {'value': 'Pending',    'key': 'pending',    'title': 'Pending',      'count': status_counts.get('pending', 0),      'icon': 'fa-clock',        'label': 'awaiting approval'},
+    {'value': 'approved',   'key': 'approved',   'title': 'Approved',     'count': status_counts.get('approved', 0),     'icon': 'fa-check',        'label': 'ready to dispatch'},
+    {'value': 'Dispatched', 'key': 'dispatched', 'title': 'Dispatched',   'count': dispatched_total,                     'icon': 'fa-truck-fast',   'label': 'in transit'},
+    {'value': 'Delivered',  'key': 'delivered',  'title': 'Delivered',    'count': status_counts.get('delivered', 0),    'icon': 'fa-check-double', 'label': 'completed'},
+    {'value': 'rejected',   'key': 'rejected',   'title': 'Rejected',     'count': status_counts.get('rejected', 0),     'icon': 'fa-xmark',        'label': 'declined requests'}
+  ] %}
+  <nav class="req-stats" aria-label="Filter requisitions by status">
+    {% for card in stat_cards %}
+      {% set is_active = (card.key == 'all' and not active_status) or (active_status and active_status == card.value|lower) %}
+      {% set href = url_for('requisitions.view_requisitions', **(dict(base_filters, status=card.value) if card.value else base_filters)) %}
+      <a href="{{ href }}" class="req-stat req-stat--{{ card.key }} {{ 'is-active' if is_active }}" {% if is_active %}aria-current="true"{% endif %} id="reqStat-{{ card.key }}">
+        <span class="req-stat-icon" aria-hidden="true"><i class="fas {{ card.icon }}"></i></span>
+        <span class="req-stat-body">
+          <span class="req-stat-title">{{ card.title }}</span>
+          <span class="req-stat-value">{{ card.count }}</span>
+          <span class="req-stat-label">{{ card.label }}</span>
+        </span>
+      </a>
+    {% endfor %}
+  </nav>
 
-    <div class="stat-card bg-info-subtle border-info p-2 rounded-2">
-      <div class="d-flex align-items-center gap-2">
-        <div class="stat-icon bg-info rounded-circle p-1">
-          <i class="fas fa-shipping-fast text-white small"></i>
-        </div>
-        <div>
-          <div class="fw-bold text-info h6 mb-0">{{ dispatched_count }}</div>
-          <div class="small text-info-emphasis">Dispatched</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="stat-card bg-primary-subtle border-primary p-2 rounded-2">
-      <div class="d-flex align-items-center gap-2">
-        <div class="stat-icon bg-primary rounded-circle p-1">
-          <i class="fas fa-check-double text-white small"></i>
-        </div>
-        <div>
-          <div class="fw-bold text-primary h6 mb-0">{{ delivered_count }}</div>
-          <div class="small text-primary-emphasis">Delivered</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="stat-card bg-danger-subtle border-danger p-2 rounded-2">
-      <div class="d-flex align-items-center gap-2">
-        <div class="stat-icon bg-danger rounded-circle p-1">
-          <i class="fas fa-times text-white small"></i>
-        </div>
-        <div>
-          <div class="fw-bold text-danger h6 mb-0">{{ rejected_count }}</div>
-          <div class="small text-danger-emphasis">Rejected</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  </div>
-</div>
-
-<!-- Filters -->
-<div class="card filter-card shadow-sm border mb-4">
-  <div class="card-body">
-    <form method="get" action="" class="row g-3 align-items-end">
-      <div class="col-md-5">
-        <div class="input-group">
-          <span class="input-group-text bg-transparent border">
-            <i class="fas fa-search text-muted"></i>
-          </span>
-          <input type="text" name="q" class="form-control filter-input border" 
-                 placeholder="Search by name, franchise, or contact..." value="{{ request.args.get('q', '') }}">
-        </div>
-      </div>
-
-      <div class="col-md-3">
-        <select name="status" class="form-select filter-input border">
-          <option value="">All Status</option>
-          <option value="Pending" {{ 'selected' if request.args.get('status') == 'Pending' }}>Pending</option>
-          <option value="approved" {{ 'selected' if request.args.get('status') == 'approved' }}>Approved</option>
-          <option value="Dispatched" {{ 'selected' if request.args.get('status') == 'Dispatched' }}>Dispatched</option>
-          <option value="Partial" {{ 'selected' if request.args.get('status') == 'Partial' }}>Partial</option>
-          <option value="Delivered" {{ 'selected' if request.args.get('status') == 'Delivered' }}>Delivered</option>
-          <option value="declined" {{ 'selected' if request.args.get('status') == 'declined' }}>Declined</option>
-        </select>
-      </div>
-
-      <div class="col-md-2">
-        <input type="date" name="date" class="form-control filter-input border" value="{{ request.args.get('date', '') }}">
-      </div>
-
-      <div class="col-md-2 d-flex justify-content-end gap-2">
-        <button type="submit" class="btn btn-primary" title="Filter">
-          <i class="fas fa-filter"></i>
-        </button>
-        <a href="{{ url_for('requisitions.view_requisitions') }}" class="btn btn-primary" title="Reset">
-          <i class="fas fa-undo-alt me-1"></i>Reset
-        </a>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Requisition List -->
-  <div class="d-grid">
-    {% for requisition in requisitions %}
-      {% set status = requisition.status.lower() %}
-      <div class="card requisition-card border-0 shadow-sm mb-2">
-        <div class="card-body py-3 px-3">
-          <!-- Header (compact) -->
-          <div class="d-flex justify-content-between align-items-center">
-            <div class="d-flex flex-column">
-              <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
-                <div class="fw-semibold fs-6">{{ requisition.requested_by }}</div>
-                {% if requisition.requisition_type == 'transfer' %}
-                  <span class="badge bg-purple-subtle text-purple border border-purple-subtle rounded-pill py-1 px-2" style="font-size: 0.72rem;">
-                    <i class="fas fa-arrow-right-arrow-left me-1"></i>Transfer Request
-                  </span>
-                  <span class="small fw-semibold text-primary">
-                    {{ requisition.company.name if requisition.company else 'From' }}
-                    <i class="fas fa-arrow-right mx-1 text-muted" style="font-size: 0.65rem;"></i>
-                    {{ requisition.destination_company.name if requisition.destination_company else requisition.branch }}
-                  </span>
-                {% else %}
-                  <span class="text-muted small fw-medium">({{ requisition.branch or 'Branch' }})</span>
-                {% endif %}
-                <span class="badge rounded-pill 
-                  {% if status == 'pending' %}bg-warning-subtle text-warning
-                  {% elif status == 'approved' %}bg-success-subtle text-success
-                  {% elif status == 'dispatched' %}bg-info-subtle text-info
-                  {% elif status == 'partial' %}bg-warning-subtle text-warning
-                  {% elif status == 'delivered' %}bg-primary-subtle text-primary
-                  {% else %}bg-danger-subtle text-danger{% endif %}">
-                  <i class="fas fa-{% if status == 'pending' %}clock{% elif status == 'approved' %}check{% elif status == 'dispatched' %}shipping-fast{% elif status == 'partial' %}clock{% elif status == 'delivered' %}check-double{% else %}times{% endif %} me-1"></i>{{ status.capitalize() }}
-                </span>
-                <!-- Add validation badge -->
-                {% if status == 'pending' %}
-                  <span class="badge rounded-pill {% if requisition.validated %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary{% endif %}">
-                    <i class="fas fa-{% if requisition.validated %}check-circle{% else %}exclamation-circle{% endif %} me-1"></i>
-                    {% if requisition.validated %}Validated{% else %}Not Validated{% endif %}
-                  </span>
-                {% endif %}
-              </div>
-              <div class="text-muted small">
-                <i class="far fa-calendar me-1"></i>{{ requisition.date_created.strftime('%b %d, %Y') }}
-                <span class="mx-1">•</span>
-                <i class="far fa-clock me-1"></i>{{ requisition.date_created.strftime('%I:%M %p') }}
-                <span class="mx-1">•</span>
-                <i class="fas fa-boxes me-1"></i>{{ requisition.items|length }} item{{ 's' if requisition.items|length != 1 }}
-              </div>
-            </div>
-            
-            <!-- Actions (circular with colored backgrounds) -->
-            <div class="d-flex align-items-center gap-2">
-              {% if status == 'pending' %}
-                <!-- Mobile Fulfillment Scanner Button (only for admins) -->
-                {% if current_user.role in ['SYS-Admin', 'WH-Admin', 'Company-Admin'] and not requisition.validated %}
-                  <a href="{{ url_for('scanner.mobile_requisition_fulfillment', requisition_id=requisition.id) }}" class="btn btn-circle btn-info" title="Validate by Scanning">
-                    <i class="fas fa-shield-alt"></i>
-                  </a>
-                  <button type="button" class="btn btn-circle btn-secondary" title="Validate Manually" onclick="manualValidate({{ requisition.id }})">
-                    <i class="fas fa-check-double"></i>
-                  </button>
-                {% endif %}
-                <!-- Replace the direct form submission with a button that triggers the modal -->
-                <button type="button" class="btn btn-circle btn-success" title="Approve" 
-                        {% if not requisition.validated %}disabled{% endif %}
-                        data-req-id="{{ requisition.id }}"
-                        onclick="showDeliveryDateModal({{ requisition.id }})">
-                  <span class="btn-spinner"></span>
-                  <i class="fas fa-check"></i>
-                </button>
-                <form method="post" action="{{ url_for('requisitions.update_status', requisition_id=requisition.id) }}" class="d-inline">
-                  <input type="hidden" name="status" value="rejected">
-                  <button type="submit" class="btn btn-circle btn-danger" title="Reject">
-                    <span class="btn-spinner"></span>
-                    <i class="fas fa-times"></i>
-                  </button>
-                </form>
-              {% elif status == 'approved' or status == 'rejected' %}
-                {% if status == 'approved' %}
-                  <form method="post" action="{{ url_for('requisitions.dispatch_requisition', requisition_id=requisition.id) }}" class="d-inline">
-                    <button type="submit" class="btn btn-circle btn-info" title="Dispatch">
-                      <span class="btn-spinner"></span>
-                      <i class="fas fa-shipping-fast"></i>
-                    </button>
-                  </form>
-                  <a href="{{ url_for('requisitions.print_delivery_form', requisition_id=requisition.id) }}" target="_blank" class="btn btn-circle btn-primary" title="Print">
-                    <span class="btn-spinner"></span>
-                    <i class="fas fa-print"></i>
-                  </a>
-                {% endif %}
-                {% if status in ['dispatched', 'partial', 'delivered'] %}
-                  <a href="{{ url_for('requisitions.print_delivery_form', requisition_id=requisition.id) }}" target="_blank" class="btn btn-circle btn-primary" title="Print">
-                    <span class="btn-spinner"></span>
-                    <i class="fas fa-print"></i>
-                  </a>
-                {% endif %}
-                {% if current_user.role == 'SYS-Admin' %}
-                  <button type="button" class="btn btn-circle btn-danger" title="Delete"
-                    onclick="deleteRequisition({{ requisition.id }}, '{{ requisition.requested_by }}')">
-                    <span class="btn-spinner"></span>
-                    <i class="fas fa-trash"></i>
-                  </button>
-                {% endif %}
-              {% endif %}
-              <button class="btn btn-circle btn-secondary" data-bs-toggle="modal" data-bs-target="#viewRequisitionModal{{ requisition.id }}" title="View Details">
-                <i class="fas fa-eye"></i>
-              </button>
-            </div>
+  <!-- Filters -->
+  <div class="collapse show" id="reqFilterCollapse">
+    <div class="req-filter-card">
+      <form method="get" action="{{ url_for('requisitions.view_requisitions') }}" class="req-filter-form" role="search">
+        <div class="req-filter-search">
+          <div class="input-group">
+            <span class="input-group-text bg-transparent"><i class="fas fa-search" aria-hidden="true"></i></span>
+            <label class="visually-hidden" for="reqSearch">Search requisitions</label>
+            <input id="reqSearch" type="text" name="q" class="form-control border-start-0 ps-0"
+                   placeholder="Search by requester or branch…" value="{{ request.args.get('q', '') }}">
           </div>
         </div>
-      </div>
-    {% else %}
-      <div class="empty-state text-center py-5">
-        <i class="fas fa-clipboard fa-3x text-muted mb-3"></i>
-        <h5 class="text-muted">No Requisitions Found</h5>
-        <p class="text-muted mb-0">There are no requisition requests to display at this time.</p>
-      </div>
-    {% endfor %}
+        <div>
+          <label class="visually-hidden" for="reqStatusFilter">Filter by status</label>
+          <select id="reqStatusFilter" name="status" class="form-select">
+            <option value="">All statuses</option>
+            <option value="Pending" {{ 'selected' if request.args.get('status') == 'Pending' }}>Pending</option>
+            <option value="approved" {{ 'selected' if request.args.get('status') == 'approved' }}>Approved</option>
+            <option value="Dispatched" {{ 'selected' if request.args.get('status') == 'Dispatched' }}>Dispatched</option>
+            <option value="Partial" {{ 'selected' if request.args.get('status') == 'Partial' }}>Partial</option>
+            <option value="Delivered" {{ 'selected' if request.args.get('status') == 'Delivered' }}>Delivered</option>
+            <option value="rejected" {{ 'selected' if request.args.get('status') == 'rejected' }}>Rejected</option>
+          </select>
+        </div>
+        <div>
+          <label class="visually-hidden" for="reqDateFilter">Filter by date created</label>
+          <input id="reqDateFilter" type="date" name="date" class="form-control" value="{{ request.args.get('date', '') }}">
+        </div>
+        <div class="req-filter-actions">
+          <button type="submit" class="btn btn-primary" aria-label="Apply filters" title="Apply filters" id="reqApplyFilters"><i class="fas fa-filter"></i></button>
+          <a href="{{ url_for('requisitions.view_requisitions') }}" class="btn btn-outline-secondary" aria-label="Reset filters" title="Reset filters" id="reqResetFilters"><i class="fas fa-rotate-left"></i></a>
+        </div>
+      </form>
+    </div>
   </div>
+
+  <!-- Requisition table -->
+  <section class="req-table-card" aria-labelledby="reqTableTitle">
+    <div class="req-table-head">
+      <h2 id="reqTableTitle"><i class="fas fa-list-check" aria-hidden="true"></i>Requests</h2>
+      <span class="req-table-meta">
+        {% if pagination.total %}
+          {{ (pagination.page - 1) * pagination.per_page + 1 }}–{{ [pagination.page * pagination.per_page, pagination.total]|min }} of {{ pagination.total }}
+        {% else %}0 results{% endif %}
+      </span>
+    </div>
+
+    {% if requisitions %}
+    <div class="table-responsive" id="reqTableScroll" role="region" tabindex="0" aria-label="Requisitions table">
+      <table class="table align-middle req-table" id="requisitionTable">
+        <thead>
+          <tr>
+            <th scope="col">Request</th>
+            <th scope="col">Branch / Route</th>
+            <th scope="col">Created</th>
+            <th scope="col" class="text-center">Items</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for requisition in requisitions %}
+            {% set row_status = requisition.status.lower() %}
+            {% set row_status = 'rejected' if row_status == 'declined' else row_status %}
+            {% set can_validate = current_user.role in validator_roles and not requisition.validated %}
+            {% set can_print = row_status in ['approved', 'dispatched', 'partial', 'delivered'] %}
+            {% set name_parts = (requisition.requested_by or '?').split() %}
+            {% set item_count = requisition.items|length %}
+            <tr data-req-id="{{ requisition.id }}">
+              <td class="col-request">
+                <div class="req-who">
+                  <span class="req-avatar" aria-hidden="true">{{ name_parts[0][0] }}{{ name_parts[1][0] if name_parts|length > 1 }}</span>
+                  <div class="min-w-0">
+                    <div class="req-name" title="{{ requisition.requested_by }}">{{ requisition.requested_by }}</div>
+                    <div class="req-id">REQ-{{ '%05d'|format(requisition.id) }}</div>
+                  </div>
+                </div>
+              </td>
+              <td data-label="Branch">
+                {% if requisition.requisition_type == 'transfer' %}
+                  <div>
+                    <span class="req-type"><i class="fas fa-arrow-right-arrow-left" aria-hidden="true"></i>Transfer</span>
+                    <div class="req-route">
+                      <span>{{ requisition.company.name if requisition.company else 'From' }}</span>
+                      <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                      <span>{{ requisition.destination_company.name if requisition.destination_company else requisition.branch }}</span>
+                    </div>
+                  </div>
+                {% else %}
+                  <span class="req-branch">{{ requisition.branch or '—' }}</span>
+                {% endif %}
+              </td>
+              <td data-label="Created">
+                <div class="req-date">
+                  {{ requisition.date_created.strftime('%b %d, %Y') }}
+                  <span class="req-sub">{{ requisition.date_created.strftime('%I:%M %p') }}</span>
+                </div>
+              </td>
+              <td data-label="Items" class="text-center">
+                <span class="req-items">{{ item_count }}</span>
+                <span class="req-sub">item{{ 's' if item_count != 1 }}</span>
+              </td>
+              <td data-label="Status">
+                <div class="req-status-stack">
+                  {{ status_chip(requisition.status) }}
+                  {% if row_status == 'pending' %}
+                    {% if requisition.validated %}
+                      <span class="req-chip req-chip--validated"><span class="req-chip-dot" aria-hidden="true"></span>Validated</span>
+                    {% else %}
+                      <span class="req-chip req-chip--muted"><span class="req-chip-dot" aria-hidden="true"></span>Not validated</span>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </td>
+              <td class="col-actions req-actions-cell">
+                <div class="req-actions">
+                  {# Contextual next step #}
+                  {% if row_status == 'pending' and can_validate %}
+                    <a href="{{ url_for('scanner.mobile_requisition_fulfillment', requisition_id=requisition.id) }}" class="btn btn-sm btn-outline-secondary req-next" title="Validate by scanning">
+                      <i class="fas fa-shield-halved" aria-hidden="true"></i> Validate
+                    </a>
+                  {% elif row_status == 'pending' %}
+                    <button type="button" class="btn btn-sm btn-primary req-next" onclick="showDeliveryDateModal({{ requisition.id }})"
+                            {% if not requisition.validated %}disabled title="Requires validation before approval"{% endif %}>
+                      <i class="fas fa-check" aria-hidden="true"></i> Approve
+                    </button>
+                  {% elif row_status == 'approved' %}
+                    <form method="post" action="{{ url_for('requisitions.dispatch_requisition', requisition_id=requisition.id) }}" data-req-action="dispatch">
+                      <button type="submit" class="btn btn-sm btn-primary req-next">
+                        <i class="fas fa-truck-fast" aria-hidden="true"></i> Dispatch
+                      </button>
+                    </form>
+                  {% elif can_print %}
+                    <a href="{{ url_for('requisitions.print_delivery_form', requisition_id=requisition.id) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary req-next">
+                      <i class="fas fa-print" aria-hidden="true"></i> Print
+                    </a>
+                  {% else %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary req-next" data-bs-toggle="modal" data-bs-target="#viewRequisitionModal{{ requisition.id }}">
+                      <i class="fas fa-eye" aria-hidden="true"></i> View
+                    </button>
+                  {% endif %}
+
+                  {# Overflow menu #}
+                  <button type="button" class="btn btn-sm btn-outline-secondary product-actions-toggle" aria-label="More actions for requisition {{ requisition.id }}" aria-haspopup="menu" aria-expanded="false">
+                    <i class="fas fa-ellipsis" aria-hidden="true"></i>
+                  </button>
+                  <div class="product-actions-menu" role="menu" hidden>
+                    <button type="button" class="product-action-item" role="menuitem" data-bs-toggle="modal" data-bs-target="#viewRequisitionModal{{ requisition.id }}">
+                      <i class="fas fa-eye" aria-hidden="true"></i>View details
+                    </button>
+
+                    {% if row_status == 'pending' %}
+                      {% if can_validate %}
+                        <a class="product-action-item" role="menuitem" href="{{ url_for('scanner.mobile_requisition_fulfillment', requisition_id=requisition.id) }}">
+                          <i class="fas fa-shield-halved" aria-hidden="true"></i>Validate by scanning
+                        </a>
+                        <button type="button" class="product-action-item" role="menuitem" onclick="manualValidate({{ requisition.id }})">
+                          <i class="fas fa-check-double" aria-hidden="true"></i>Validate manually
+                        </button>
+                      {% endif %}
+                      <button type="button" class="product-action-item" role="menuitem" onclick="showDeliveryDateModal({{ requisition.id }})"
+                              {% if not requisition.validated %}disabled title="Requires validation before approval"{% endif %}>
+                        <i class="fas fa-check" aria-hidden="true"></i>Approve{% if not requisition.validated %} (validate first){% endif %}
+                      </button>
+                      <div class="product-action-divider" role="separator"></div>
+                      <form method="post" action="{{ url_for('requisitions.update_status', requisition_id=requisition.id) }}" data-req-action="reject"
+                            data-confirm="Reject requisition #{{ requisition.id }} from {{ requisition.requested_by }}?">
+                        <input type="hidden" name="status" value="rejected">
+                        <button type="submit" class="product-action-item is-destructive" role="menuitem">
+                          <i class="fas fa-xmark" aria-hidden="true"></i>Reject request
+                        </button>
+                      </form>
+                    {% endif %}
+
+                    {% if row_status == 'approved' %}
+                      <form method="post" action="{{ url_for('requisitions.dispatch_requisition', requisition_id=requisition.id) }}" data-req-action="dispatch">
+                        <button type="submit" class="product-action-item" role="menuitem">
+                          <i class="fas fa-truck-fast" aria-hidden="true"></i>Dispatch
+                        </button>
+                      </form>
+                    {% endif %}
+
+                    {% if can_print %}
+                      <a class="product-action-item" role="menuitem" href="{{ url_for('requisitions.print_delivery_form', requisition_id=requisition.id) }}" target="_blank" rel="noopener">
+                        <i class="fas fa-print" aria-hidden="true"></i>Print delivery form
+                      </a>
+                    {% endif %}
+
+                    {% if current_user.role == 'SYS-Admin' and row_status in ['approved', 'rejected'] %}
+                      <div class="product-action-divider" role="separator"></div>
+                      <button type="button" class="product-action-item is-destructive" role="menuitem"
+                              onclick="deleteRequisition({{ requisition.id }}, {{ requisition.requested_by|tojson|forceescape }})">
+                        <i class="fas fa-trash" aria-hidden="true"></i>Delete requisition
+                      </button>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="req-empty">
+        <div class="req-empty-icon" aria-hidden="true"><i class="fas fa-clipboard"></i></div>
+        <h3>No requisitions found</h3>
+        <p>
+          {% if current_filters %}No requests match the current filters.{% else %}There are no requisition requests to display yet.{% endif %}
+        </p>
+        {% if current_filters %}
+          <a href="{{ url_for('requisitions.view_requisitions') }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-rotate-left me-1"></i>Clear filters</a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <!-- Pagination -->
+  {% if pagination.pages > 1 %}
+    <div class="req-pagination">
+      <span class="req-table-meta">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+      <nav aria-label="Requisition pages">
+        <ul class="pagination">
+          <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+            <a class="page-link" href="{{ page_url(pagination.prev_num or 1, current_filters) }}" aria-label="Previous page"><i class="fas fa-chevron-left"></i></a>
+          </li>
+          {% if pagination.page > 2 %}
+            <li class="page-item"><a class="page-link" href="{{ page_url(1, current_filters) }}">1</a></li>
+            {% if pagination.page > 3 %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}
+          {% endif %}
+          {% set start = [1, pagination.page - 1]|max %}
+          {% set end = [pagination.pages + 1, pagination.page + 2]|min %}
+          {% for page_num in range(start, end) %}
+            <li class="page-item {{ 'active' if page_num == pagination.page }}">
+              <a class="page-link" href="{{ page_url(page_num, current_filters) }}" {% if page_num == pagination.page %}aria-current="page"{% endif %}>{{ page_num }}</a>
+            </li>
+          {% endfor %}
+          {% if pagination.page < pagination.pages - 1 %}
+            {% if pagination.page < pagination.pages - 2 %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}
+            <li class="page-item"><a class="page-link" href="{{ page_url(pagination.pages, current_filters) }}">{{ pagination.pages }}</a></li>
+          {% endif %}
+          <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+            <a class="page-link" href="{{ page_url(pagination.next_num or pagination.pages, current_filters) }}" aria-label="Next page"><i class="fas fa-chevron-right"></i></a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  {% endif %}
+</div>
 
 <script>const REQUISITIONS_DATA = {{ requisitions_json | safe }};</script>
 
-<!-- Requisition Details Modals -->
+<!-- Requisition detail modals -->
 {% for requisition in requisitions %}
   {% set modal_status = requisition.status.lower() %}
-  <div class="modal fade" id="viewRequisitionModal{{ requisition.id }}" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content border-0 shadow">
+  {% set modal_can_print = modal_status in ['approved', 'dispatched', 'partial', 'delivered'] %}
+  <div class="modal fade req-modal" id="viewRequisitionModal{{ requisition.id }}" tabindex="-1" aria-labelledby="viewRequisitionTitle{{ requisition.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
         <div class="modal-header">
-          <div>
-            <h5 class="modal-title fw-bold mb-1">Requisition #{{ requisition.id }}</h5>
-            <small class="text-muted">
-              <i class="fas fa-user me-1"></i>{{ requisition.requested_by }}
-              <span class="mx-2">•</span>
-              <i class="fas fa-building me-1"></i>{{ requisition.branch }}
-            </small>
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body p-4">
-          <div class="row g-4">
-            <!-- Requisition Overview -->
-            <div class="col-12">
-              <div class="row g-3">
-                <div class="col-sm-6 col-lg-3">
-                  <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
-                    <i class="fas fa-calendar fa-lg text-primary"></i>
-                    <div>
-                      <div class="text-muted small">Date Created</div>
-                      <div class="fw-bold">{{ requisition.date_created.strftime('%b %d, %Y') }}</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-lg-3">
-                  <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
-                    <i class="fas fa-clock fa-lg text-info"></i>
-                    <div>
-                      <div class="text-muted small">Time</div>
-                      <div class="fw-bold">{{ requisition.date_created.strftime('%I:%M %p') }}</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-lg-3">
-                  <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
-                    <i class="fas fa-phone fa-lg text-success"></i>
-                    <div>
-                      <div class="text-muted small">Contact</div>
-                      <div class="fw-bold">{{ requisition.contact_number or 'N/A' }}</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-lg-3">
-                  <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
-                    <i class="fas fa-tag fa-lg text-warning"></i>
-                    <div>
-                      <div class="text-muted small">Status</div>
-                      <div class="fw-bold">
-                        <span class="badge 
-                          {% if modal_status == 'pending' %}bg-warning
-                          {% elif modal_status == 'approved' %}bg-success
-                          {% elif modal_status == 'dispatched' %}bg-info
-                          {% elif modal_status == 'partial' %}bg-warning
-                          {% elif modal_status == 'delivered' %}bg-primary
-                          {% else %}bg-danger{% endif %}">
-                          {{ modal_status.capitalize() }}
-                        </span>
-                        <!-- Add validation badge in modal -->
-                        {% if modal_status == 'pending' %}
-                          <span class="badge {% if requisition.validated %}bg-success{% else %}bg-secondary{% endif %} ms-1">
-                            <i class="fas fa-{% if requisition.validated %}check-circle{% else %}exclamation-circle{% endif %} me-1"></i>
-                            {% if requisition.validated %}Validated{% else %}Not Validated{% endif %}
-                          </span>
-                        {% endif %}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-          </div>
-        </div>
-
-            <!-- Requisition Items -->
-            <div class="col-12">
-              <h6 class="fw-bold mb-3">Requested Items</h6>
-          <div class="table-responsive">
-                {% if modal_status == 'approved' %}
-                  <!-- Simplified table for approved requisitions -->
-                  <table class="table table-sm align-middle">
-                    <thead
-                      <tr>
-                        <th style="width: 20%;">Product</th>
-                        <th style="width: 30%;">Description</th>
-                        <th style="width: 15%;" class="text-center">Current Qty Total</th>
-                        <th style="width: 15%;" class="text-center">Requested Qty</th>
-                        <th style="width: 15%;" class="text-center">Remaining</th>
-                        <th style="width: 5%;" class="text-center">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {% for item in requisition.items %}
-                        {% if item.deductions and item.deductions|length > 0 %}
-                          {% set deduction = item.deductions[0] %}
-                          <tr>
-                            <td class="fw-medium">{{ item.product.name }}</td>
-                            <td class="text-muted">{{ item.product.item_uom_desc or '-' }}</td>
-                            <td class="text-center text-success fw-medium">{{ deduction.total_current_qty }} {{ item.uom }}</td>
-                            <td class="text-center text-danger fw-medium">{{ deduction.requested_qty }} {{ item.uom }}</td>
-                            <td class="text-center text-warning fw-bold">= {{ deduction.remaining_qty }} {{ item.uom }}</td>
-                            <td class="text-center">
-                              <span class="badge bg-success-subtle text-success"><i class="fas fa-check-circle me-1"></i>Success</span>
-                            </td>
-                          </tr>
-                        {% else %}
-                          <tr>
-                            <td class="fw-medium">{{ item.product.name }}</td>
-                            <td class="text-muted">{{ item.product.item_uom_desc or '-' }}</td>
-                            <td class="text-center text-muted">No data</td>
-                            <td class="text-center text-muted">No data</td>
-                            <td class="text-center text-muted">No data</td>
-                            <td class="text-center">
-                              <span class="badge bg-secondary-subtle text-secondary">No data</span>
-                            </td>
-                          </tr>
-                        {% endif %}
-                      {% endfor %}
-                    </tbody>
-                  </table>
+          <div class="min-w-0">
+            <h5 class="modal-title" id="viewRequisitionTitle{{ requisition.id }}">
+              Requisition #{{ requisition.id }}
+              {{ status_chip(requisition.status) }}
+              {% if modal_status == 'pending' %}
+                {% if requisition.validated %}
+                  <span class="req-chip req-chip--validated"><span class="req-chip-dot"></span>Validated</span>
                 {% else %}
-                  <!-- Detailed table for pending and other statuses -->
-                  <table class="table table-sm align-middle table-fixed">
-              <thead
-                <tr>
-                        <th style="width: 20%;">Product</th>
-                        <th style="width: 10%;" class="text-center">Requested</th>
-                        <th style="width: 10%;" class="text-center">UOM</th>
-                        <th style="width: 25%;" class="text-center">Batches</th>
-                        <th style="width: 10%;" class="text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for item in requisition.items %}
-                  {% set available = item.product.quantity %}
-                  {% set requested = item.quantity %}
-                  <tr>
-                          <td class="fw-medium text-truncate" title="{{ item.product.name }}">{{ item.product.name }}</td>
-                          <td class="text-center fw-medium">{{ requested }}</td>
-                          <td class="text-center">{{ item.uom }}</td>
-                          <td class="text-center">
-                            {% if modal_status == 'pending' %}
-                              {% set sorted_batches = item.product.batches|sort(attribute='exp_date') %}
-                              {% if sorted_batches %}
-                                <div class="d-flex flex-column gap-1">
-                                  {% set ns = namespace(remaining=requested) %}
-                                  {% for batch in sorted_batches %}
-                                    {% if batch.quantity > 0 and ns.remaining > 0 %}
-                                      {% set deduct_amount = [batch.quantity, ns.remaining]|min %}
-                                      {% if now is defined %}
-                                        {% set days_until = (batch.exp_date - now.date()).days %}
-                                      {% else %}
-                                        {% set days_until = 0 %}
-                                      {% endif %}
-                                      <div class="d-flex justify-content-between align-items-center p-1 rounded">
-                                        <small class="fw-medium"><i class="fas fa-box-open me-1"></i>{{ batch.quantity }} {{ item.uom }}</small>
-                                        <small class="text-muted">
-                                          {% if days_until <= 0 %}
-                                            <span class="text-danger">Expired</span>
-                                          {% elif days_until <= 30 %}
-                                            <span class="text-danger">{{ days_until }}d</span>
-                                          {% elif days_until <= 60 %}
-                                            <span class="text-warning">{{ days_until }}d</span>
-                                          {% else %}
-                                            <span class="text-success">{{ days_until }}d</span>
-                                          {% endif %}
-                                        </small>
-                                      </div>
-                                      {% set ns.remaining = ns.remaining - deduct_amount %}
-                                    {% endif %}
-                                  {% endfor %}
-                                </div>
-                              {% else %}
-                                <span class="text-muted">No batches</span>
-                              {% endif %}
-                            {% else %}
-                      {% set sorted_batches = item.product.batches|sort(attribute='exp_date') %}
-                      {% if sorted_batches %}
-                        <div class="d-flex flex-column gap-1">
-                          {% for batch in sorted_batches %}
-                            {% if batch.quantity > 0 %}
-                              {% if now is defined %}
-                                {% set days_until = (batch.exp_date - now.date()).days %}
-                              {% else %}
-                                {% set days_until = 0 %}
-                              {% endif %}
-                              <div class="d-flex justify-content-between align-items-center p-1 rounded">
-                                <small class="fw-medium"><i class="fas fa-box-open me-1"></i>{{ batch.quantity }} {{ item.uom }}</small>
-                                <small class="text-muted">
-                                  {% if days_until <= 0 %}
-                                    <span class="text-danger">Expired</span>
-                                  {% elif days_until <= 30 %}
-                                    <span class="text-danger">{{ days_until }}d</span>
-                                  {% elif days_until <= 60 %}
-                                    <span class="text-warning">{{ days_until }}d</span>
-                                  {% else %}
-                                    <span class="text-success">{{ days_until }}d</span>
-                                  {% endif %}
-                                </small>
-                              </div>
-                            {% endif %}
-                          {% endfor %}
-                        </div>
-                      {% else %}
-                        <span class="text-muted">No batches</span>
-                              {% endif %}
-                      {% endif %}
-                    </td>
-                          <td class="text-center">
-                            {% if modal_status == 'approved' %}
-                              <span class="badge bg-success-subtle text-success"><i class="fas fa-check-circle me-1"></i>Success</span>
-                            {% elif available < requested %}
-                              <span class="badge bg-danger-subtle text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Not enough stock</span>
-                            {% else %}
-                              {% set sorted_batches_status = item.product.batches|sort(attribute='exp_date') %}
-                              {% set active_batches = sorted_batches_status|selectattr('quantity', 'gt', 0)|list %}
-                              {% if active_batches and active_batches|length > 0 %}
-                                {% set earliest = active_batches[0] %}
-                                {% if now is defined %}
-                                  {% set days_until = (earliest.exp_date - now.date()).days %}
-                                {% else %}
-                                  {% set days_until = 0 %}
-                                {% endif %}
-                                {% if days_until <= 0 %}
-                                  <span class="badge bg-danger-subtle text-danger"><i class="fas fa-times-circle me-1"></i>Expired</span>
-                                {% elif days_until <= 30 %}
-                                  <span class="badge bg-warning-subtle text-warning"><i class="fas fa-exclamation-circle me-1"></i>Near Expiry</span>
-                                {% else %}
-                                  <span class="badge bg-success-subtle text-success"><i class="fas fa-check-circle me-1"></i>Available</span>
-                                {% endif %}
-                      {% else %}
-                                <span class="badge bg-secondary-subtle text-secondary"><i class="fas fa-minus-circle me-1"></i>Available</span>
-                              {% endif %}
-                      {% endif %}
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                  <span class="req-chip req-chip--muted"><span class="req-chip-dot"></span>Not validated</span>
                 {% endif %}
-              </div>
+              {% endif %}
+            </h5>
+            <div class="req-modal-sub">
+              <span><i class="fas fa-user" aria-hidden="true"></i>{{ requisition.requested_by }}</span>
+              {% if requisition.requisition_type == 'transfer' %}
+                <span><i class="fas fa-arrow-right-arrow-left" aria-hidden="true"></i>{{ requisition.company.name if requisition.company else 'From' }} → {{ requisition.destination_company.name if requisition.destination_company else requisition.branch }}</span>
+              {% else %}
+                <span><i class="fas fa-store" aria-hidden="true"></i>{{ requisition.branch or '—' }}</span>
+              {% endif %}
             </div>
           </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="req-meta-grid">
+            <div class="req-meta">
+              <span class="req-meta-label">Date created</span>
+              <div class="req-meta-value">{{ requisition.date_created.strftime('%b %d, %Y') }}</div>
+            </div>
+            <div class="req-meta">
+              <span class="req-meta-label">Time</span>
+              <div class="req-meta-value">{{ requisition.date_created.strftime('%I:%M %p') }}</div>
+            </div>
+            <div class="req-meta">
+              <span class="req-meta-label">Contact</span>
+              <div class="req-meta-value">{{ requisition.contact_number or 'N/A' }}</div>
+            </div>
+            <div class="req-meta">
+              <span class="req-meta-label">Items</span>
+              <div class="req-meta-value">{{ requisition.items|length }}</div>
+            </div>
+          </div>
+
+          <div class="req-section-title">
+            Requested items
+            <span>{% if modal_status == 'pending' %}FEFO batch allocation preview{% elif modal_status == 'approved' %}Stock deductions{% endif %}</span>
+          </div>
+          <div class="req-items-wrap">
+            {% if modal_status == 'approved' %}
+              <table class="table align-middle req-items-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Description</th>
+                    <th class="text-center">Current total</th>
+                    <th class="text-center">Requested</th>
+                    <th class="text-center">Remaining</th>
+                    <th class="text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in requisition.items %}
+                    {% if item.deductions and item.deductions|length > 0 %}
+                      {% set deduction = item.deductions[0] %}
+                      <tr>
+                        <td class="fw-semibold">{{ item.product.name }}</td>
+                        <td class="text-muted">{{ item.product.item_uom_desc or '-' }}</td>
+                        <td class="text-center">{{ deduction.total_current_qty }} {{ item.uom }}</td>
+                        <td class="text-center req-tone-bad fw-semibold">−{{ deduction.requested_qty }} {{ item.uom }}</td>
+                        <td class="text-center fw-semibold">{{ deduction.remaining_qty }} {{ item.uom }}</td>
+                        <td class="text-center"><span class="req-chip req-chip--approved"><span class="req-chip-dot"></span>Deducted</span></td>
+                      </tr>
+                    {% else %}
+                      <tr>
+                        <td class="fw-semibold">{{ item.product.name }}</td>
+                        <td class="text-muted">{{ item.product.item_uom_desc or '-' }}</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center text-muted">—</td>
+                        <td class="text-center"><span class="req-chip req-chip--muted"><span class="req-chip-dot"></span>No data</span></td>
+                      </tr>
+                    {% endif %}
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% else %}
+              <table class="table align-middle req-items-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th class="text-center">Requested</th>
+                    <th class="text-center">UOM</th>
+                    <th>Batches</th>
+                    <th class="text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in requisition.items %}
+                    {% set available = item.product.quantity %}
+                    {% set requested = item.quantity %}
+                    {% set sorted_batches = item.product.batches|sort(attribute='exp_date') %}
+                    <tr>
+                      <td class="fw-semibold" title="{{ item.product.name }}">{{ item.product.name }}</td>
+                      <td class="text-center fw-semibold">{{ requested }}</td>
+                      <td class="text-center text-muted">{{ item.uom }}</td>
+                      <td style="min-width: 160px;">
+                        {% if sorted_batches %}
+                          {% set ns = namespace(remaining=requested, shown=0) %}
+                          {% for batch in sorted_batches %}
+                            {% if batch.quantity > 0 and (modal_status != 'pending' or ns.remaining > 0) %}
+                              {% set days_until = (batch.exp_date - now.date()).days if now is defined else 0 %}
+                              <div class="req-batch">
+                                <span><i class="fas fa-box-open" aria-hidden="true"></i>{{ batch.quantity }} {{ item.uom }}</span>
+                                {% if days_until <= 0 %}
+                                  <span class="req-tone-bad">Expired</span>
+                                {% elif days_until <= 30 %}
+                                  <span class="req-tone-bad">{{ days_until }}d</span>
+                                {% elif days_until <= 60 %}
+                                  <span class="req-tone-warn">{{ days_until }}d</span>
+                                {% else %}
+                                  <span class="req-tone-ok">{{ days_until }}d</span>
+                                {% endif %}
+                              </div>
+                              {% if modal_status == 'pending' %}
+                                {% set ns.remaining = ns.remaining - [batch.quantity, ns.remaining]|min %}
+                              {% endif %}
+                              {% set ns.shown = ns.shown + 1 %}
+                            {% endif %}
+                          {% endfor %}
+                          {% if ns.shown == 0 %}<span class="text-muted">No batches</span>{% endif %}
+                        {% else %}
+                          <span class="text-muted">No batches</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-center">
+                        {% if available < requested %}
+                          <span class="req-chip req-chip--danger"><span class="req-chip-dot"></span>Not enough stock</span>
+                        {% else %}
+                          {% set active_batches = sorted_batches|selectattr('quantity', 'gt', 0)|list %}
+                          {% if active_batches %}
+                            {% set days_until = (active_batches[0].exp_date - now.date()).days if now is defined else 0 %}
+                            {% if days_until <= 0 %}
+                              <span class="req-chip req-chip--danger"><span class="req-chip-dot"></span>Expired</span>
+                            {% elif days_until <= 30 %}
+                              <span class="req-chip req-chip--pending"><span class="req-chip-dot"></span>Near expiry</span>
+                            {% else %}
+                              <span class="req-chip req-chip--available"><span class="req-chip-dot"></span>Available</span>
+                            {% endif %}
+                          {% else %}
+                            <span class="req-chip req-chip--muted"><span class="req-chip-dot"></span>Available</span>
+                          {% endif %}
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% endif %}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+          {% if modal_can_print %}
+            <a href="{{ url_for('requisitions.print_delivery_form', requisition_id=requisition.id) }}" target="_blank" rel="noopener" class="btn btn-outline-secondary">
+              <i class="fas fa-print" aria-hidden="true"></i> Print
+            </a>
+          {% endif %}
+          {% if modal_status == 'pending' and requisition.validated %}
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="showDeliveryDateModal({{ requisition.id }})">
+              <i class="fas fa-check" aria-hidden="true"></i> Approve
+            </button>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -550,56 +527,58 @@
 {% endfor %}
 
 <!-- Approve / Delivery modal with released qty & optional products -->
-<div class="modal fade" id="deliveryDateModal" tabindex="-1">
+<div class="modal fade req-modal" id="deliveryDateModal" tabindex="-1" aria-labelledby="deliveryDateTitle" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content border-0 shadow">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title">Approve Requisition — Set Released Quantities</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="deliveryDateTitle">Approve requisition <span id="approveReqLabel" class="text-muted fw-normal"></span></h5>
+          <div class="req-modal-sub"><span>Set released quantities and the delivery schedule</span></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <div class="mb-3">
-          <label class="fw-semibold">Requisition Items</label>
-          <div class="text-muted small mb-2">Adjust the <strong>Released</strong> qty if you are shipping less than requested.</div>
-          <div class="ovx" style="border:1px solid var(--bord);border-radius:var(--radius-lg);overflow:hidden">
-            <table class="table table-sm align-middle mb-0" id="approveItemsTable">
-              <thead class="table-light">
-                <tr>
-                  <th style="width:38%">Product</th>
-                  <th style="width:18%" class="text-center">Requested</th>
-                  <th style="width:22%" class="text-center">Released</th>
-                  <th style="width:22%" class="text-center">Warehouse Stock</th>
-                </tr>
-              </thead>
-              <tbody id="approveItemsBody"></tbody>
-            </table>
-          </div>
+        <div class="req-section-title">Requisition items</div>
+        <div class="req-hint">Lower the <strong>Released</strong> quantity if you are shipping less than requested.</div>
+        <div class="req-items-wrap">
+          <table class="table align-middle req-items-table" id="approveItemsTable">
+            <thead>
+              <tr>
+                <th style="width:40%">Product</th>
+                <th style="width:18%" class="text-center">Requested</th>
+                <th style="width:22%" class="text-center">Released</th>
+                <th style="width:20%" class="text-center">Warehouse stock</th>
+              </tr>
+            </thead>
+            <tbody id="approveItemsBody"></tbody>
+          </table>
         </div>
 
         <!-- Optional: Add product not in original request -->
         <div id="appOptSection">
-        <details style="margin-bottom:0.75rem;margin-top:0.5rem">
-          <summary style="cursor:pointer;font-weight:600;color:var(--txt)"><i class="fas fa-plus-circle" style="color:#0d6efd"></i> Add Optional Product to Delivery</summary>
-          <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:end">
-            <div style="flex:1;min-width:180px">
-              <label class="fs-sm text-muted">Scan barcode or search product</label>
-              <input class="form-control form-control-sm" id="appOptProductSearch" placeholder="Scan barcode or type name…" onkeydown="if(event.key==='Enter'){event.preventDefault();lookupApproveOptionalProduct()}">
+          <details class="req-optional">
+            <summary><i class="fas fa-plus" aria-hidden="true"></i>Add optional product to delivery</summary>
+            <div class="req-optional-body">
+              <div style="flex:1;min-width:200px">
+                <label class="form-label" for="appOptProductSearch">Scan barcode or search product</label>
+                <input class="form-control form-control-sm" id="appOptProductSearch" placeholder="Scan barcode or type name…"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();lookupApproveOptionalProduct()}">
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="lookupApproveOptionalProduct()"><i class="fas fa-search"></i> Find</button>
+              <div id="appOptProductResult" style="width:100%"></div>
             </div>
-            <button class="btn btn-sm btn-outline-primary" onclick="lookupApproveOptionalProduct()"><i class="fas fa-search"></i> Find</button>
-          </div>
-          <div id="appOptProductResult" style="margin-top:0.5rem"></div>
-        </details>
+          </details>
         </div>
-        <div id="appOptItemsWrap" style="display:none;margin-top:0.25rem">
-          <label class="fw-semibold fs-sm">Optional Items Added</label>
-          <div class="ovx" style="border:1px solid var(--bord);border-radius:var(--radius-lg);overflow:hidden;margin-top:0.25rem">
-            <table class="table table-sm align-middle mb-0">
-              <thead class="table-light">
+        <div id="appOptItemsWrap" style="display:none;margin-top:1rem">
+          <div class="req-section-title">Optional items added</div>
+          <div class="req-items-wrap">
+            <table class="table align-middle req-items-table">
+              <thead>
                 <tr>
-                  <th style="width:38%">Product</th>
-                  <th style="width:22%" class="text-center">Released</th>
+                  <th style="width:40%">Product</th>
+                  <th style="width:24%" class="text-center">Released</th>
                   <th style="width:20%" class="text-center">UOM</th>
-                  <th style="width:20%"></th>
+                  <th style="width:16%"></th>
                 </tr>
               </thead>
               <tbody id="appOptItemsBody"></tbody>
@@ -607,130 +586,35 @@
           </div>
         </div>
 
-        <hr>
-        <div class="row g-2">
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Date of Delivery</label>
+        <div class="req-delivery-grid">
+          <div>
+            <label class="form-label" for="dateOfDelivery">Date of delivery</label>
             <input type="date" class="form-control" id="dateOfDelivery" required>
           </div>
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Time of Delivery</label>
+          <div>
+            <label class="form-label" for="timeOfDelivery">Time of delivery</label>
             <input type="time" class="form-control" id="timeOfDelivery" required>
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" onclick="submitApproval()"><i class="fas fa-check"></i> Approve Requisition</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="approveSubmitBtn" onclick="submitApproval()"><i class="fas fa-check"></i> Approve requisition</button>
       </div>
     </div>
   </div>
 </div>
 
-  <!-- Pagination -->
-  {% if pagination.pages > 1 %}
-    <nav aria-label="Requisition pages" class="mt-4">
-      <ul class="pagination justify-content-center">
-        <!-- Previous Page -->
-        <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
-          <a class="page-link" href="{{ url_for('requisitions.view_requisitions', page=pagination.prev_num) }}{% if current_filters is defined %}{% for key, value in current_filters.items() %}{% if loop.first %}?{% else %}&{% endif %}{{ key }}={{ value }}{% endfor %}{% endif %}" tabindex="-1">
-            <i class="fas fa-chevron-left"></i>
-          </a>
-        </li>
-
-        <!-- First Page -->
-        {% if pagination.page > 2 %}
-          <li class="page-item">
-            <a class="page-link" href="{{ url_for('requisitions.view_requisitions', page=1) }}{% if current_filters is defined %}{% for key, value in current_filters.items() %}{% if loop.first %}?{% else %}&{% endif %}{{ key }}={{ value }}{% endfor %}{% endif %}">1</a>
-          </li>
-          {% if pagination.page > 3 %}
-            <li class="page-item disabled">
-              <span class="page-link">...</span>
-            </li>
-          {% endif %}
-        {% endif %}
-
-        <!-- Page Numbers -->
-        {% set start = [1, pagination.page - 1]|max %}
-        {% set end = [pagination.pages + 1, pagination.page + 2]|min %}
-        {% for page_num in range(start, end) %}
-          <li class="page-item {{ 'active' if page_num == pagination.page }}">
-            <a class="page-link" href="{{ url_for('requisitions.view_requisitions', page=page_num) }}{% if current_filters is defined %}{% for key, value in current_filters.items() %}{% if loop.first %}?{% else %}&{% endif %}{{ key }}={{ value }}{% endfor %}{% endif %}">{{ page_num }}</a>
-          </li>
-        {% endfor %}
-
-        <!-- Last Page -->
-        {% if pagination.page < pagination.pages - 1 %}
-          {% if pagination.page < pagination.pages - 2 %}
-            <li class="page-item disabled">
-              <span class="page-link">...</span>
-            </li>
-          {% endif %}
-          <li class="page-item">
-            <a class="page-link" href="{{ url_for('requisitions.view_requisitions', page=pagination.pages) }}{% if current_filters is defined %}{% for key, value in current_filters.items() %}{% if loop.first %}?{% else %}&{% endif %}{{ key }}={{ value }}{% endfor %}{% endif %}">{{ pagination.pages }}</a>
-          </li>
-        {% endif %}
-
-        <!-- Next Page -->
-        <li class="page-item {{ 'disabled' if not pagination.has_next }}">
-          <a class="page-link" href="{{ url_for('requisitions.view_requisitions', page=pagination.next_num) }}{% if current_filters is defined %}{% for key, value in current_filters.items() %}{% if loop.first %}?{% else %}&{% endif %}{{ key }}={{ value }}{% endfor %}{% endif %}">
-            <i class="fas fa-chevron-right"></i>
-          </a>
-        </li>
-      </ul>
-    </nav>
-  {% endif %}
-
 <script>
-  // Function to show the full screen spinner
-  function showSpinner() {
-    document.getElementById('spinnerOverlay').style.display = 'flex';
+  function showSpinner() { document.getElementById('spinnerOverlay').style.display = 'flex'; }
+  function hideSpinner() { document.getElementById('spinnerOverlay').style.display = 'none'; }
+
+  function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str == null ? '' : String(str);
+    return d.innerHTML;
   }
-  
-  // Function to hide the full screen spinner
-  function hideSpinner() {
-    document.getElementById('spinnerOverlay').style.display = 'none';
-  }
-  
-  // Function to show spinner on a specific button
-  function showButtonSpinner(button) {
-    const spinner = button.querySelector('.btn-spinner');
-    const icon = button.querySelector('i');
-    const textNodes = Array.from(button.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
-    
-    if (spinner) spinner.style.display = 'inline-block';
-    if (icon) icon.style.display = 'none';
-    
-    // Change text content to indicate processing
-    if (textNodes.length > 0) {
-      textNodes[0].textContent = ' Processing...';
-    }
-    
-    button.disabled = true;
-  }
-  
-  // Function to hide spinner on a specific button
-  function hideButtonSpinner(button) {
-    const spinner = button.querySelector('.btn-spinner');
-    const icon = button.querySelector('i');
-    const textNodes = Array.from(button.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
-    
-    if (spinner) spinner.style.display = 'none';
-    if (icon) icon.style.display = 'inline-block';
-    
-    // Restore original text content
-    if (textNodes.length > 0) {
-      const originalText = button.innerHTML.includes('Approve') ? ' Approve' : 
-                          button.innerHTML.includes('Reject') ? ' Reject' : 
-                          button.innerHTML.includes('Delete') ? ' Delete' : 
-                          button.innerHTML.includes('Print') ? ' Print' : 
-                          ' Process';
-      textNodes[0].textContent = originalText;
-    }
-    
-    button.disabled = false;
-  }
-  
+
   // ── Approve modal: released qty + optional products ──
   let APPROVE_REQ_ID = null;
   let APPROVE_OPT_COUNTER = 0;
@@ -740,78 +624,86 @@
     if (!data) { alert('Requisition data not found'); return; }
     APPROVE_REQ_ID = data.id;
     APPROVE_OPT_COUNTER = 0;
+    document.getElementById('approveReqLabel').textContent = `#${data.id}${data.branch ? ' · ' + data.branch : ''}`;
 
-    // Populate items table
     const tbody = document.getElementById('approveItemsBody');
-    tbody.innerHTML = data.items.map(it => `<tr>
-      <td style="font-weight:600">${escHtml(it.name)}
-        <div class="text-muted fs-sm" style="font-weight:400">${escHtml(it.uom)}</div>
-      </td>
-      <td class="text-center">${it.qty}</td>
-      <td class="text-center">
-        <input type="number" class="form-control form-control-sm" style="width:80px;margin:0 auto;text-align:center;font-weight:600"
-          id="appRel_${it.id}" value="${it.qty}" min="0" max="${it.stock}" step="any">
-      </td>
-      <td class="text-center">${it.stock}</td>
-    </tr>`).join('');
+    tbody.innerHTML = data.items.map(it => {
+      const short = Number(it.stock) < Number(it.qty);
+      return `<tr>
+        <td><div class="fw-semibold">${escHtml(it.name)}</div><div class="text-muted small">${escHtml(it.uom)}</div></td>
+        <td class="text-center">${escHtml(it.qty)}</td>
+        <td class="text-center">
+          <input type="number" class="form-control form-control-sm req-qty-input" id="appRel_${it.id}"
+                 value="${short ? it.stock : it.qty}" min="0" max="${it.stock}" step="any" aria-label="Released quantity for ${escHtml(it.name)}">
+        </td>
+        <td class="text-center ${short ? 'req-tone-bad fw-semibold' : ''}">${escHtml(it.stock)}</td>
+      </tr>`;
+    }).join('');
 
-    // Hide optional product section if requisition is already processed
-    const FINAL_STATUSES = ['approved','Dispatched','Partial','Delivered','rejected'];
-    const isFinalized = FINAL_STATUSES.includes(data.status);
-    document.getElementById('appOptSection').style.display = isFinalized ? 'none' : '';
+    const FINAL_STATUSES = ['approved', 'Dispatched', 'Partial', 'Delivered', 'rejected'];
+    document.getElementById('appOptSection').style.display = FINAL_STATUSES.includes(data.status) ? 'none' : '';
     document.getElementById('appOptItemsWrap').style.display = 'none';
+    document.getElementById('appOptItemsBody').innerHTML = '';
     document.getElementById('appOptProductResult').innerHTML = '';
 
-    // Date/time
     const now = new Date();
-    document.getElementById('dateOfDelivery').value = now.toISOString().split('T')[0];
-    document.getElementById('timeOfDelivery').value = now.toTimeString().substring(0, 5);
+    const pad = n => String(n).padStart(2, '0');
+    document.getElementById('dateOfDelivery').value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    document.getElementById('timeOfDelivery').value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-    const modal = new bootstrap.Modal(document.getElementById('deliveryDateModal'));
-    modal.show();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('deliveryDateModal')).show();
+  }
+
+  function flashResult(html) {
+    const resultDiv = document.getElementById('appOptProductResult');
+    resultDiv.innerHTML = html;
+    setTimeout(() => { resultDiv.innerHTML = ''; }, 2000);
   }
 
   async function lookupApproveOptionalProduct() {
-    const q = document.getElementById('appOptProductSearch').value.trim();
+    const input = document.getElementById('appOptProductSearch');
+    const q = input.value.trim();
     if (!q) return;
     const resultDiv = document.getElementById('appOptProductResult');
 
     try {
-      // Try barcode lookup first
       const barcodeRes = await fetch(`/products/lookup_product/${encodeURIComponent(q)}`).then(r => r.json());
       if (barcodeRes.success) {
         addApproveOptionalRow(barcodeRes.id, barcodeRes.name, barcodeRes.uom);
-        document.getElementById('appOptProductSearch').value = '';
+        input.value = '';
         resultDiv.innerHTML = '';
         return;
       }
 
-      // Fallback: search by name
       const searchRes = await fetch(`/api/search_products?q=${encodeURIComponent(q)}`).then(r => r.json());
       if (!searchRes.success || !searchRes.products.length) {
-        resultDiv.innerHTML = `<span class="badge bg-danger">Product not found</span>`;
-        setTimeout(() => resultDiv.innerHTML = '', 2000);
+        flashResult('<span class="req-chip req-chip--danger"><span class="req-chip-dot"></span>Product not found</span>');
         return;
       }
 
-      // If exactly one match, add it directly
       if (searchRes.products.length === 1) {
-        addApproveOptionalRow(searchRes.products[0].id, searchRes.products[0].name, searchRes.products[0].uom);
-        document.getElementById('appOptProductSearch').value = '';
+        const p = searchRes.products[0];
+        addApproveOptionalRow(p.id, p.name, p.uom);
+        input.value = '';
         resultDiv.innerHTML = '';
         return;
       }
 
-      // Multiple matches: show as selectable list
-      resultDiv.innerHTML = searchRes.products.map(p =>
-        `<div style="padding:0.35rem 0.5rem;cursor:pointer;border:1px solid var(--bord);border-radius:var(--radius);margin-bottom:0.25rem;background:var(--surf);color:var(--txt)"
-              onclick="addApproveOptionalRow(${p.id},'${escHtml(p.name)}','${escHtml(p.uom)}');document.getElementById('appOptProductSearch').value='';this.closest('#appOptProductResult').innerHTML=''">
-          <strong>${escHtml(p.name)}</strong> <span style="color:var(--g500)">(${escHtml(p.uom)})</span>
-        </div>`
-      ).join('');
+      resultDiv.innerHTML = '';
+      searchRes.products.forEach(p => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'req-search-result';
+        btn.innerHTML = `<strong>${escHtml(p.name)}</strong> <span class="text-muted">(${escHtml(p.uom)})</span>`;
+        btn.addEventListener('click', () => {
+          addApproveOptionalRow(p.id, p.name, p.uom);
+          input.value = '';
+          resultDiv.innerHTML = '';
+        });
+        resultDiv.appendChild(btn);
+      });
     } catch (e) {
-      resultDiv.innerHTML = `<span class="badge bg-danger">Search error</span>`;
-      setTimeout(() => resultDiv.innerHTML = '', 2000);
+      flashResult('<span class="req-chip req-chip--danger"><span class="req-chip-dot"></span>Search error</span>');
     }
   }
 
@@ -823,17 +715,20 @@
     const tr = document.createElement('tr');
     tr.dataset.productId = productId;
     tr.innerHTML = `
-      <td style="font-weight:600">${escHtml(productName)}</td>
+      <td class="fw-semibold">${escHtml(productName)}</td>
       <td class="text-center">
-        <input type="number" class="form-control form-control-sm" style="width:80px;margin:0 auto;text-align:center;font-weight:600"
-          id="appOptRel_${idx}" value="0" min="0" step="any">
+        <input type="number" class="form-control form-control-sm req-qty-input" id="appOptRel_${idx}" value="0" min="0" step="any" aria-label="Released quantity for ${escHtml(productName)}">
       </td>
-      <td class="text-center">${escHtml(uom)}</td>
-      <td class="text-center">
-        <button class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()" title="Remove"><i class="fas fa-times"></i></button>
-      </td>
-    `;
+      <td class="text-center text-muted">${escHtml(uom)}</td>
+      <td class="text-end">
+        <button type="button" class="btn btn-sm btn-outline-secondary" title="Remove" aria-label="Remove ${escHtml(productName)}"><i class="fas fa-xmark"></i></button>
+      </td>`;
+    tr.querySelector('button').addEventListener('click', () => {
+      tr.remove();
+      if (!body.children.length) document.getElementById('appOptItemsWrap').style.display = 'none';
+    });
     body.appendChild(tr);
+    tr.querySelector('input').focus();
   }
 
   function submitApproval() {
@@ -843,25 +738,18 @@
     const time = document.getElementById('timeOfDelivery').value;
     if (!date || !time) { alert('Please enter delivery date and time.'); return; }
 
-    // Show loading
-    const btn = document.querySelector('#deliveryDateModal .modal-footer .btn-primary');
+    const btn = document.getElementById('approveSubmitBtn');
     const origHtml = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Approving...';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Approving…';
 
     const formData = new FormData();
     formData.append('status', 'approved');
 
-    // Released quantities for each item
-    document.querySelectorAll('#approveItemsBody tr').forEach(row => {
-      const input = row.querySelector('input[id^="appRel_"]');
-      if (input) {
-        const id = input.id.replace('appRel_', '');
-        formData.append(`released_${id}`, input.value);
-      }
+    document.querySelectorAll('#approveItemsBody input[id^="appRel_"]').forEach(input => {
+      formData.append(`released_${input.id.replace('appRel_', '')}`, input.value);
     });
 
-    // Optional items
     document.querySelectorAll('#appOptItemsBody tr').forEach((row, idx) => {
       const pid = row.dataset.productId;
       const rel = row.querySelector('input[id^="appOptRel_"]');
@@ -871,396 +759,169 @@
       }
     });
 
-    // Date/time
     formData.append('date_of_delivery', date);
     formData.append('time_of_delivery', time);
 
-    fetch(`/requisitions/update_status/${APPROVE_REQ_ID}`, {
-      method: 'POST',
-      body: formData,
-    })
-    .then(r => {
-      // Check if response is a redirect (Flash + redirect pattern)
-      if (r.redirected) {
-        window.location.href = r.url;
-        return;
-      }
-      return r.json();
-    })
-    .then(data => {
-      if (data && !data.success) {
-        alert(data.message || 'Failed to approve');
-        btn.disabled = false;
-        btn.innerHTML = origHtml;
-      }
-    })
-    .catch(() => {
-      // The route may redirect with flash messages — just reload
-      window.location.reload();
-    });
+    fetch(`/requisitions/update_status/${APPROVE_REQ_ID}`, { method: 'POST', body: formData })
+      .then(r => {
+        if (r.redirected) { window.location.href = r.url; return; }
+        return r.json();
+      })
+      .then(data => {
+        if (data && !data.success) {
+          alert(data.message || 'Failed to approve');
+          btn.disabled = false;
+          btn.innerHTML = origHtml;
+        }
+      })
+      .catch(() => window.location.reload());
   }
 
   // Manual validate (Plan B — no scanner needed)
   function manualValidate(requisitionId) {
     if (!confirm(`Mark requisition #${requisitionId} as validated without scanning?`)) return;
+    showSpinner();
     fetch('/scanner/api/update-requisition-status', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ requisition_id: requisitionId, action: 'validate' })
     })
-    .then(r => r.json())
-    .then(data => {
-      if (data.success) {
-        location.reload();
-      } else {
-        alert('Validation failed: ' + (data.message || 'Unknown error'));
-      }
-    })
-    .catch(err => alert('Error: ' + err.message));
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          location.reload();
+        } else {
+          hideSpinner();
+          alert('Validation failed: ' + (data.message || 'Unknown error'));
+        }
+      })
+      .catch(err => { hideSpinner(); alert('Error: ' + err.message); });
   }
-  
-  // Delete requisition function with spinner support
+
   function deleteRequisition(requisitionId, requestedBy) {
-    // Show confirmation dialog
-    if (!confirm(`Are you sure you want to delete requisition #${requisitionId} requested by ${requestedBy}?`)) {
-      return;
-    }
-    
-    // Find the delete button and show spinner
-    const deleteButtons = document.querySelectorAll('button[title="Delete"]');
-    let targetButton = null;
-    
-    deleteButtons.forEach(button => {
-      if (button.getAttribute('onclick').includes(requisitionId)) {
-        targetButton = button;
-      }
-    });
-    
-    if (targetButton) {
-      showButtonSpinner(targetButton);
-    }
-    
-    // Perform the deletion
+    if (!confirm(`Are you sure you want to delete requisition #${requisitionId} requested by ${requestedBy}?`)) return;
+    showSpinner();
     fetch(`/requisitions/delete_requisition/${requisitionId}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-      }
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
     })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        showAlert(data.message, 'success');
-        // Reload the page to reflect changes
-        setTimeout(() => {
-          location.reload();
-        }, 1000);
-      } else {
-        showAlert(data.message || 'Failed to delete requisition', 'danger');
-        if (targetButton) {
-          hideButtonSpinner(targetButton);
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showAlert(data.message, 'success');
+          setTimeout(() => location.reload(), 800);
+        } else {
+          hideSpinner();
+          showAlert(data.message || 'Failed to delete requisition', 'danger');
         }
-      }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      showAlert('An error occurred while deleting the requisition', 'danger');
-      if (targetButton) {
-        hideButtonSpinner(targetButton);
-      }
-    });
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        hideSpinner();
+        showAlert('An error occurred while deleting the requisition', 'danger');
+      });
   }
-  
-  // Override form submission to show spinner
-  document.addEventListener('DOMContentLoaded', function() {
-    // Handle approve/reject form submissions
-    const forms = document.querySelectorAll('form[action*="update_status"]');
-    forms.forEach(form => {
-      form.addEventListener('submit', function() {
-        // Find the submit button and show spinner
-        const submitButton = form.querySelector('button[type="submit"]');
-        if (submitButton) {
-          showButtonSpinner(submitButton);
-        }
-        showSpinner();
-      });
-    });
-    
-    // Handle delete button clicks
-    const deleteButtons = document.querySelectorAll('button[title="Delete"]');
-    deleteButtons.forEach(button => {
-      button.addEventListener('click', function() {
-        showButtonSpinner(button);
-      });
-    });
-    
-    // Handle print button clicks
-    const printButtons = document.querySelectorAll('a[title="Print"]');
-    printButtons.forEach(button => {
-      button.addEventListener('click', function() {
-        showSpinner();
-      });
-    });
+
+  // Confirm + spinner for status forms (reject / dispatch)
+  document.addEventListener('submit', event => {
+    const form = event.target.closest('form[data-req-action]');
+    if (!form) return;
+    if (form.dataset.confirm && !confirm(form.dataset.confirm)) {
+      event.preventDefault();
+      return;
+    }
+    form.querySelectorAll('button[type="submit"]').forEach(b => { b.disabled = true; });
+    showSpinner();
   });
 
-  function escHtml(str) {
-    const d = document.createElement('div');
-    d.textContent = str || '';
-    return d.innerHTML;
-  }
+  // Hide the overlay if the user navigates back to a cached page
+  window.addEventListener('pageshow', hideSpinner);
 </script>
 
-<style>
-/* ── CSS Variables for dark-theme-aware text colors ── */
-:root {
-  --txt: #111;
-  --bord: #ddd;
-  --surf: #fff;
-  --bg: #f8f9fa;
-  --g300: #b0b8c5;
-  --g500: #6b7280;
-  --g800: #1f2937;
-  --radius: 6px;
-  --radius-lg: 8px;
-}
+<script>
+// Overflow action menu (same behaviour as the products page)
+(() => {
+  let openMenu = null;
 
-[data-bs-theme="dark"] {
-  --txt: #F9FAFB;
-  --bord: #1F2937;
-  --surf: #111827;
-  --bg: #030712;
-  --g300: #d1d5db;
-  --g500: #9CA3AF;
-  --g800: #374151;
-}
-
-[data-bs-theme="dark"] #deliveryDateModal .modal-body label,
-[data-bs-theme="dark"] #deliveryDateModal .modal-body td,
-[data-bs-theme="dark"] #deliveryDateModal .modal-body th,
-[data-bs-theme="dark"] #deliveryDateModal .modal-body .fw-semibold,
-[data-bs-theme="dark"] #deliveryDateModal .modal-body .form-label {
-  color: var(--txt) !important;
-}
-
-[data-bs-theme="dark"] #deliveryDateModal .modal-body .text-muted {
-  color: var(--g500) !important;
-}
-
-[data-bs-theme="dark"] #deliveryDateModal .table-light {
-  background: var(--surf) !important;
-  color: var(--txt) !important;
-}
-
-[data-bs-theme="dark"] #deliveryDateModal .table-light th {
-  color: var(--txt) !important;
-}
-
-[data-bs-theme="dark"] #deliveryDateModal .form-control {
-  background: var(--surf) !important;
-  border-color: var(--bord) !important;
-  color: var(--txt) !important;
-}
-
-[data-bs-theme="dark"] #deliveryDateModal details summary {
-  color: var(--txt) !important;
-}
-
-/* Modal Styles */
-.modal {
-  /* Above header (1100) and backdrop */
-  z-index: 1205 !important;
-}
-
-.modal-backdrop {
-  /* Below modal content, above header */
-  z-index: 1200 !important;
-}
-
-.modal-dialog {
-  margin: 1.75rem auto;
-}
-
-.modal-content {
-  max-height: calc(100vh - 3.5rem);
-}
-
-.modal-body {
-  overflow-y: auto;
-  padding: 1.5rem;
-}
-
-.modal-header {
-  border-bottom: 1px solid rgba(0,0,0,0.1);
-}
-
-/* Pagination Styles */
-.pagination {
-  margin: 1rem 0 0;
-}
-
-.page-link {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: var(--text-primary) !important;
-  background-color: var(--card-bg);
-  border: 1px solid var(--border);
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.page-link:hover {
-  color: var(--text-primary) !important;
-  background-color: var(--light-bg);
-  border-color: var(--border);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px var(--shadow-clr);
-}
-
-.page-item.active .page-link {
-  background-color: var(--accent) !important;
-  border-color: var(--accent) !important;
-  color: #fff !important;
-  font-weight: 600;
-}
-
-.page-item.disabled .page-link {
-  color: var(--text-muted) !important;
-  background-color: var(--card-bg);
-  border-color: var(--border);
-  cursor: not-allowed;
-}
-
-.page-link:focus {
-  box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
-  color: var(--text-primary) !important;
-}
-
-/* Circular Button Styles */
-.btn-circle {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.btn-circle:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-.btn-circle:active {
-  transform: translateY(0);
-}
-
-/* Button Colors */
-.btn-circle.btn-success {
-  background: linear-gradient(135deg, #28a745, #20c997);
-  color: white;
-}
-
-.btn-circle.btn-danger {
-  background: linear-gradient(135deg, #dc3545, #e83e8c);
-  color: white;
-}
-
-.btn-circle.btn-primary {
-  background: linear-gradient(135deg, #007bff, #0056b3);
-  color: white;
-}
-
-.btn-circle.btn-secondary {
-  background: linear-gradient(135deg, var(--text-muted), rgba(255,255,255,0.2));
-  color: white;
-}
-
-.btn-circle.btn-danger {
-  background: linear-gradient(135deg, #dc3545, #c82333);
-  color: white;
-}
-
-.btn-circle.btn-danger:hover {
-  background: linear-gradient(135deg, #c82333, #a71e2a);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(220, 53, 69, 0.3);
-}
-
-/* Card Improvements */
-.requisition-card {
-  transition: all 0.3s ease;
-  border-radius: 12px;
-}
-
-.requisition-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
-}
-
-.card-body {
-  border-radius: 12px;
-}
-
-/* Badge Improvements */
-.badge {
-  font-size: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  font-weight: 500;
-}
-
-/* Empty State */
-.empty-state {
-  background: linear-gradient(135deg, var(--light-bg), rgba(99, 102, 241, 0.02));
-  border-radius: 16px;
-  border: 2px dashed var(--border);
-}
-
-.empty-state i {
-  color: var(--text-muted);
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .btn-circle {
-    width: 36px;
-    height: 36px;
+  function closeMenu(restoreFocus = false) {
+    if (!openMenu) return;
+    const { button, menu, parent, nextSibling } = openMenu;
+    menu.hidden = true;
+    menu.removeAttribute('style');
+    parent.insertBefore(menu, nextSibling && nextSibling.parentNode === parent ? nextSibling : null);
+    button.setAttribute('aria-expanded', 'false');
+    openMenu = null;
+    if (restoreFocus) button.focus();
   }
-  
-  .card-body {
-    padding: 0.75rem;
+
+  function showMenu(button) {
+    const cell = button.closest('.req-actions-cell');
+    const menu = cell && cell.querySelector('.product-actions-menu');
+    if (!menu) return;
+
+    const parent = menu.parentNode;
+    const nextSibling = menu.nextSibling;
+    menu.hidden = false;
+    document.body.appendChild(menu);
+    menu.style.position = 'fixed';
+    menu.style.visibility = 'hidden';
+
+    const buttonRect = button.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const left = Math.max(8, Math.min(buttonRect.right - menuRect.width, window.innerWidth - menuRect.width - 8));
+    const below = buttonRect.bottom + 6;
+    const top = below + menuRect.height <= window.innerHeight - 8
+      ? below
+      : Math.max(8, buttonRect.top - menuRect.height - 6);
+
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+    menu.style.visibility = 'visible';
+    button.setAttribute('aria-expanded', 'true');
+    openMenu = { button, menu, parent, nextSibling };
+    menu.querySelector('.product-action-item:not(:disabled)')?.focus();
   }
-  
-  .fw-semibold {
-    font-size: 0.9rem !important;
-  }
-}
 
-/* Delete Modal Styles */
-#deleteConfirmationModal .modal-header {
-  background: linear-gradient(135deg, #dc3545, #c82333) !important;
-}
+  document.addEventListener('click', event => {
+    const toggle = event.target.closest('.requisitions-page .product-actions-toggle');
+    if (toggle) {
+      event.preventDefault();
+      if (openMenu?.button === toggle) {
+        closeMenu();
+      } else {
+        closeMenu();
+        showMenu(toggle);
+      }
+      return;
+    }
 
-#deleteConfirmationModal .alert-warning {
-  background-color: #fff3cd;
-  border-color: #ffeaa7;
-  color: #856404;
-}
+    if (openMenu?.menu.contains(event.target)) {
+      const item = event.target.closest('.product-action-item');
+      // Let form submits run before the menu is moved back into the row
+      if (item) setTimeout(() => closeMenu(), 0);
+      return;
+    }
+    closeMenu();
+  });
 
-#deleteConfirmationModal .form-control:focus {
-  border-color: #dc3545;
-  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
-}
+  document.addEventListener('keydown', event => {
+    if (!openMenu) return;
+    const items = [...openMenu.menu.querySelectorAll('.product-action-item:not(:disabled)')];
+    const current = items.indexOf(document.activeElement);
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeMenu(true);
+    } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) && items.length) {
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0
+        : event.key === 'End' ? items.length - 1
+          : (current + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      items[next].focus();
+    }
+  });
 
-#deleteConfirmationModal .btn-danger:disabled {
-  background-color: var(--text-muted);
-  border-color: var(--text-muted);
-  opacity: 0.65;
-}
-</style>
-</div>
+  window.addEventListener('resize', () => closeMenu());
+  document.addEventListener('scroll', () => closeMenu(), true);
+})();
+</script>
 {% endblock %}

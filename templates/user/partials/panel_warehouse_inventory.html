@@ -1,0 +1,53 @@
+<!-- ──────────────────────────────────────────────────
+     PANEL: WAREHOUSE INVENTORY
+────────────────────────────────────────────────── -->
+<div class="panel" id="panel-inventory">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Warehouse Inventory</div>
+      <div class="ph-sub">Current stock levels and reorder suggestions</div>
+    </div>
+    <button class="btn-p" onclick="showPanel('requisition')"><i class="fas fa-plus"></i> New Request</button>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-chip"><div class="sc-lbl">Total Items</div><div class="sc-val" id="statTotal">—</div></div>
+    <div class="stat-chip"><div class="sc-lbl">In Stock</div><div class="sc-val text-green" id="statIn" style="color: var(--green);">—</div></div>
+    <div class="stat-chip"><div class="sc-lbl">Low Stock</div><div class="sc-val text-warn" id="statLow" style="color: var(--amber);">—</div></div>
+    <div class="stat-chip"><div class="sc-lbl">Out of Stock</div><div class="sc-val text-bad" id="statOut" style="color: var(--red);">—</div></div>
+  </div>
+
+  <div class="fbar">
+    <div class="fsearch"><i class="fas fa-search fsi"></i><input class="finput" id="invSearch" placeholder="Search products…" oninput="filterInv()"></div>
+    <select class="fselect" id="invFilter" onchange="filterInv()">
+      <option value="all">All Status</option>
+      <option value="in">In Stock</option>
+      <option value="low">Low Stock</option>
+      <option value="out">Out of Stock</option>
+      <option value="reorder">Needs Reorder</option>
+    </select>
+    <select class="fselect" id="invSort" onchange="filterInv()">
+      <option value="name">Sort: Name</option>
+      <option value="stock-asc">Stock: Low → High</option>
+      <option value="stock-desc">Stock: High → Low</option>
+      <option value="pct-asc">Level %: Low → High</option>
+      <option value="pct-desc">Level %: High → Low</option>
+    </select>
+  </div>
+
+  <div class="cs">
+    <div class="ovx">
+      <table class="inv-t mobile-cards">
+        <thead><tr>
+          <th style="width:25%">Product</th>
+          <th style="width:10%">UOM</th>
+          <th style="width:25%">Stock Level Bar</th>
+          <th style="width:10%" class="tc">Qty</th>
+          <th style="width:15%" class="tc">Reorder Sugg.</th>
+          <th style="width:15%" class="tc">Status</th>
+        </tr></thead>
+        <tbody id="invBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div><!-- /panel-inventory -->

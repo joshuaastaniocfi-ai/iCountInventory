@@ -1,0 +1,252 @@
+<!-- ──────────────────────────────────────────────────
+     PANEL: REQUISITION (multi-step wizard)
+────────────────────────────────────────────────── -->
+<div class="panel" id="panel-requisition">
+  <!-- Mobile Sticky Header with Back Button -->
+  <div class="req-sticky-header">
+    <button type="button" class="req-hdr-btn" onclick="handleReqBack()" title="Back">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <div class="req-hdr-center">
+      <div class="req-hdr-title">New Requisition</div>
+      <div class="req-hdr-subtitle" id="reqHeaderSubtitle">Step 1 of 3 · Choose Station</div>
+    </div>
+    <button type="button" class="req-hdr-btn req-hdr-close" onclick="cancelRequisition()" title="Close Requisition">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <div class="ph ph-desktop">
+    <div>
+      <div class="ph-title">New Requisition</div>
+      <div class="ph-sub">Request items from your warehouse inventory</div>
+    </div>
+    <button type="button" class="btn-ghost" onclick="cancelRequisition()"><i class="fas fa-times"></i> Cancel</button>
+  </div>
+
+  <form id="reqForm" method="POST" action="{{ url_for('requisitions.submit_requisition') }}" onsubmit="return handleSubmit(event)">
+  <div class="wizard-wrap">
+    <!-- Horizontal Steps Timeline -->
+    <div class="wizard-steps-timeline">
+      <div class="steps-track"></div>
+      <button type="button" class="wstep act" id="ws0" onclick="goStep(0)">
+        <div class="wstep-circle">1</div>
+        <div class="wstep-label">Station</div>
+      </button>
+      <button type="button" class="wstep" id="ws1" onclick="goStep(1)">
+        <div class="wstep-circle">2</div>
+        <div class="wstep-label">Items</div>
+      </button>
+      <button type="button" class="wstep" id="ws2" onclick="goStep(2)">
+        <div class="wstep-circle">3</div>
+        <div class="wstep-label">Review</div>
+      </button>
+    </div>
+
+    <!-- ── STEP 0: CHOOSE STATION ── -->
+    <div class="wizard-pane act" id="wp0">
+      <div class="wizard-body">
+        <div style="text-align:center;margin-bottom:1.25rem">
+          <div style="font-weight:700;font-size:1.15rem;color:var(--text-primary);letter-spacing:-.02em">Select Preparation Station</div>
+          <div class="text-muted" style="margin-top:0.25rem;font-size:0.8rem">Choose the station you are ordering supplies for</div>
+        </div>
+        <div class="station-grid" id="stationGrid">
+          <button type="button" class="uom-card station-card st-sandwich" data-station="Sandwich" onclick="pickStation(this)">
+            <div class="st-icon-wrap"><i class="fas fa-burger"></i></div>
+            <span class="st-name">Sandwich</span>
+            <span class="st-check"><i class="fas fa-check"></i></span>
+          </button>
+          <button type="button" class="uom-card station-card st-counter" data-station="Counter" onclick="pickStation(this)">
+            <div class="st-icon-wrap"><i class="fas fa-cash-register"></i></div>
+            <span class="st-name">Counter</span>
+            <span class="st-check"><i class="fas fa-check"></i></span>
+          </button>
+          <button type="button" class="uom-card station-card st-soda" data-station="Soda" onclick="pickStation(this)">
+            <div class="st-icon-wrap"><i class="fas fa-glass-water"></i></div>
+            <span class="st-name">Soda</span>
+            <span class="st-check"><i class="fas fa-check"></i></span>
+          </button>
+          <button type="button" class="uom-card station-card st-maincourse" data-station="Maincourse" onclick="pickStation(this)">
+            <div class="st-icon-wrap"><i class="fas fa-plate-wheat"></i></div>
+            <span class="st-name">Maincourse</span>
+            <span class="st-check"><i class="fas fa-check"></i></span>
+          </button>
+          <button type="button" class="uom-card station-card st-warehouse" data-station="Warehouse" onclick="pickStation(this)">
+            <div class="st-icon-wrap"><i class="fas fa-warehouse"></i></div>
+            <span class="st-name">Warehouse</span>
+            <span class="st-check"><i class="fas fa-check"></i></span>
+          </button>
+          <button type="button" class="uom-card station-card st-coffee" data-station="Coffee Bar" onclick="pickStation(this)">
+            <div class="st-icon-wrap"><i class="fas fa-mug-hot"></i></div>
+            <span class="st-name">Coffee Bar</span>
+            <span class="st-check"><i class="fas fa-check"></i></span>
+          </button>
+        </div>
+      </div>
+      <div class="wizard-nav">
+        <button type="button" class="btn-p" id="toItemsBtn" onclick="nextStep(0)" disabled>Next <i class="fas fa-arrow-right"></i></button>
+      </div>
+    </div>
+
+    <!-- ── STEP 1: REQUEST ITEMS (filtered by station) ── -->
+    <div class="wizard-pane" id="wp1">
+      <div class="wizard-body req-items-wizard-body">
+        <!-- Station & Order Summary Toolbar -->
+        <div class="req-toolbar">
+          <div class="req-toolbar-top">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <span class="pill pill-blue" id="stationPill" style="font-size:0.78rem;font-weight:700"></span>
+              <span class="text-muted fs-sm" id="stationProductCount"></span>
+            </div>
+            <div id="reqOrderSummaryPill" class="req-order-summary-pill" style="display:none">
+              <i class="fas fa-shopping-bag"></i> <span id="reqOrderSummaryCount">0</span> selected
+            </div>
+          </div>
+
+          <!-- Search Input with Clear Button -->
+          <div class="req-search-wrapper">
+            <i class="fas fa-search req-search-icon"></i>
+            <input type="text" class="finput req-search-input" id="reqSearch" placeholder="Search items in this station…" oninput="handleReqSearch(this.value)" autocomplete="off">
+            <button type="button" class="req-search-clear" id="reqSearchClear" onclick="clearReqSearch()" style="display:none" title="Clear search">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+
+          <!-- Quick Filter Tabs -->
+          <div class="req-filter-tabs">
+            <button type="button" class="req-tab-btn act" id="reqTabAll" onclick="setReqTab('all')">
+              All <span class="tab-badge" id="tabCountAll">0</span>
+            </button>
+            <button type="button" class="req-tab-btn" id="reqTabOrdered" onclick="setReqTab('ordered')">
+              Ordered <span class="tab-badge" id="tabCountOrdered">0</span>
+            </button>
+            <button type="button" class="req-tab-btn" id="reqTabLow" onclick="setReqTab('low')">
+              Low Stock <span class="tab-badge" id="tabCountLow">0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Lazy Loaded Products List (No fixed height) -->
+        <div class="req-products-container" id="reqProductsContainer">
+          <div class="req-products-list" id="reqProductsList"></div>
+          <div id="reqLazySentinel" class="req-lazy-sentinel">
+            <div class="req-lazy-spinner" id="reqLazySpinner">
+              <i class="fas fa-spinner fa-spin"></i> Loading products…
+            </div>
+            <div class="req-lazy-end" id="reqLazyEnd" style="display:none">
+              <i class="fas fa-check-circle"></i> All products loaded
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="wizard-nav">
+        <button type="button" class="btn-ghost" onclick="prevStep(1)"><i class="fas fa-arrow-left"></i> Back</button>
+        <button type="button" class="btn-p" onclick="nextStep(1)">Review <i class="fas fa-arrow-right"></i></button>
+      </div>
+    </div>
+
+    <!-- ── STEP 2: REVIEW & SUBMIT ── -->
+    <div class="wizard-pane" id="wp2">
+      <div class="wizard-body">
+        <!-- Requisition Input Controls -->
+        <div class="req-grid">
+          <div>
+            <label class="flabel">Contact Number <span class="req">*</span></label>
+            <div class="igrp">
+              <span class="igrp-txt">+63</span>
+              <input id="contactInput" class="finput" name="contact_number" placeholder="9XX XXX XXXX" maxlength="10" required
+                oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10);syncRevContact(this.value)">
+            </div>
+            <div class="fhint">Philippine mobile number — 10 digits</div>
+          </div>
+          <div>
+            <label class="flabel">Expected Delivery Date <span class="req">*</span></label>
+            <input type="date" class="finput" name="expected_delivery_date" id="reqDeliveryDate" required oninput="syncRevDate(this.value)" onchange="syncRevDate(this.value)">
+          </div>
+          <div>
+            <label class="flabel">Urgency Level</label>
+            <div class="uom-grid" id="urgencyCards">
+              <div class="uom-card sel" data-val="normal" onclick="pickUrgency(this)">Normal</div>
+              <div class="uom-card" data-val="urgent" onclick="pickUrgency(this)">Urgent</div>
+              <div class="uom-card" data-val="critical" onclick="pickUrgency(this)">Critical</div>
+            </div>
+            <input type="hidden" name="urgency" id="urgencyVal" value="normal">
+          </div>
+          <div class="col-span-2">
+            <label class="flabel">Notes / Remarks (optional)</label>
+            <textarea class="finput" name="notes" placeholder="Any special instructions or notes…" oninput="syncRevNotes(this.value)"></textarea>
+          </div>
+        </div>
+
+        <!-- ── Unified Requisition Review Summary Card ── -->
+        <div class="req-review-summary-card">
+          <div class="rev-summary-header">
+            <div class="rev-user-profile">
+              <div class="rev-avatar" id="rev-avatar">U</div>
+              <div class="rev-user-meta">
+                <div class="rev-card-tag">Requester</div>
+                <div class="rev-user-name" id="rev-name">—</div>
+                <div class="rev-user-branch" id="rev-branch">—</div>
+              </div>
+            </div>
+            <div id="revStationWrap">
+              <span class="station-rev-pill" id="rev-station">Station</span>
+            </div>
+          </div>
+
+          <div class="rev-summary-grid">
+            <div class="rev-grid-cell">
+              <div class="rev-cell-lbl"><i class="far fa-calendar-alt"></i> Delivery Date</div>
+              <div class="rev-cell-val" id="rev-deldate">—</div>
+            </div>
+            <div class="rev-grid-cell">
+              <div class="rev-cell-lbl"><i class="fas fa-bolt"></i> Priority</div>
+              <div class="rev-cell-val" id="rev-urgency"><span class="pill pill-ok">Normal</span></div>
+            </div>
+            <div class="rev-grid-cell">
+              <div class="rev-cell-lbl"><i class="fas fa-phone-alt"></i> Contact</div>
+              <div class="rev-cell-val" id="rev-contact">—</div>
+            </div>
+            <div class="rev-grid-cell">
+              <div class="rev-cell-lbl"><i class="fas fa-box"></i> Items Summary</div>
+              <div class="rev-cell-val" id="rev-items-summary">0 items</div>
+            </div>
+          </div>
+
+          <div class="rev-notes-preview">
+            <div class="rev-cell-lbl"><i class="far fa-comment-dots"></i> Special Instructions</div>
+            <div class="rev-notes-text text-muted" id="rev-notes" style="font-style:italic">No special instructions provided</div>
+          </div>
+        </div>
+
+        <!-- ── Requested Items Breakdown Card ── -->
+        <div class="req-review-items-card">
+          <div class="rev-items-hdr">
+            <div class="rev-items-title"><i class="fas fa-clipboard-list"></i> Order Items</div>
+            <div class="rev-items-badge" id="revItemsCountBadge">0 items</div>
+          </div>
+          <div class="ovx cs" style="margin-bottom: 0;">
+            <table class="rev-table mobile-cards">
+              <thead>
+                <tr>
+                  <th style="width:50%">Product</th>
+                  <th style="width:25%;text-align:right">Order Qty</th>
+                  <th style="width:25%" class="tc">UOM</th>
+                </tr>
+              </thead>
+              <tbody id="revBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="wizard-nav">
+        <button type="button" class="btn-ghost" onclick="prevStep(2)"><i class="fas fa-arrow-left"></i> Back</button>
+        <button type="submit" class="btn-ok" id="submitBtn"><i class="fas fa-paper-plane"></i> Submit Request</button>
+      </div>
+    </div>
+  </div><!-- /wizard-wrap -->
+
+  <input type="hidden" name="items_json" id="items_json">
+  <input type="hidden" name="station" id="stationInput">
+  </form>
+</div><!-- /panel-requisition -->

@@ -1,0 +1,180 @@
+<!-- ──────────────────────────────────────────────────
+     PANEL: RECEIVING / DELIVERIES (Store Portal)
+────────────────────────────────────────────────── -->
+<div class="panel panel-receiving {% if initial_panel == 'receiving' %}act{% endif %}" id="panel-receiving">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Receiving</div>
+      <div class="ph-sub">Verify incoming deliveries &amp; confirm physical quantities received</div>
+    </div>
+    <div class="ph-actions" style="display:flex;gap:0.55rem;align-items:center;flex-wrap:wrap">
+      <button class="btn-ghost" onclick="loadReceivingList()" title="Refresh shipments">
+        <i class="fas fa-rotate" id="recvRefreshIcon"></i> Refresh
+      </button>
+      <a href="{{ url_for('receiving.deliveries_page') }}" class="btn-production-hdr" title="Full Deliveries Hub">
+        <i class="fas fa-truck-ramp-box"></i>
+        <span>Deliveries Hub</span>
+      </a>
+      <button class="btn-p" onclick="showPanel('requisition')">
+        <i class="fas fa-plus"></i> New Requisition
+      </button>
+    </div>
+  </div>
+
+  <!-- Metric Stat Row (Identical structure to Store Inventory) -->
+  <div class="stat-row" style="margin-bottom:0.75rem">
+    <div class="stat-chip act" id="chipRecvPending" onclick="quickFilterRecvStatus('pending')" style="cursor:pointer" title="View ready to receive">
+      <div class="sc-lbl">Ready to Receive</div>
+      <div class="sc-val" style="color:var(--amber)" id="recvStatPending">—</div>
+    </div>
+    <div class="stat-chip" id="chipRecvDelivered" onclick="quickFilterRecvStatus('delivered')" style="cursor:pointer" title="View completed deliveries">
+      <div class="sc-lbl">Delivered</div>
+      <div class="sc-val" style="color:var(--green)" id="recvStatDelivered">—</div>
+    </div>
+    <div class="stat-chip" id="chipRecvDiscrepancy" onclick="quickFilterRecvStatus('discrepancy')" style="cursor:pointer" title="View pending discrepancies">
+      <div class="sc-lbl">Discrepancies</div>
+      <div class="sc-val" style="color:var(--red)" id="recvStatDiscrepancy">—</div>
+    </div>
+    <div class="stat-chip" id="chipRecvAll" onclick="quickFilterRecvStatus('all')" style="cursor:pointer" title="View all shipments">
+      <div class="sc-lbl">Total Shipments</div>
+      <div class="sc-val" id="recvStatTotal">—</div>
+    </div>
+  </div>
+
+  <!-- Filter & Search Bar (Identical to Store Inventory) -->
+  <div class="fbar" id="recvFilters" style="margin-bottom:1rem">
+    <div class="fsearch" style="flex:1;min-width:180px">
+      <i class="fas fa-search fsi"></i>
+      <input class="finput" id="recvSearch" placeholder="Search reference code, branch, or items…" oninput="filterRecvList(this.value)">
+    </div>
+    <select class="fselect" id="recvStatusFilter" onchange="syncFilterFromSelect(this.value)">
+      <option value="pending" selected>Ready to Receive</option>
+      <option value="delivered">Delivered</option>
+      <option value="discrepancy">Discrepancy</option>
+      <option value="partial">Partial</option>
+      <option value="all">All Shipments</option>
+    </select>
+  </div>
+
+  <!-- Main Shipments Table (Identical structure to Store Inventory Table) -->
+  <div id="recvListWrap">
+    <div class="ovx" style="border:1px solid var(--border-strong);border-radius:var(--radius-lg);">
+      <table class="it mobile-cards" style="margin:0">
+        <thead>
+          <tr>
+            <th style="width:26%">Shipment / Ref</th>
+            <th style="width:14%" class="te">Date</th>
+            <th style="width:30%">Products Summary</th>
+            <th style="width:14%" class="te">Items</th>
+            <th style="width:16%" class="te">Status / Action</th>
+          </tr>
+        </thead>
+        <tbody id="recvTableBody">
+          <tr>
+            <td colspan="5" class="text-center py-4 text-muted">
+              <div class="spinner-border spinner-border-sm me-2"></div> Loading shipments…
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Confirm receiving detail (Clean Space Grotesk Verification View) -->
+  <div id="recvDetailWrap" style="display:none;">
+    <div class="ph" style="margin-bottom:1rem">
+      <div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <button class="btn-ghost" onclick="closeRecvDetail()" style="padding:0.4rem 0.75rem">
+            <i class="fas fa-arrow-left me-1"></i> Back
+          </button>
+          <span class="ph-title" id="recvDetailTitle">REQ-XXXX</span>
+          <span id="recvDetailStatus"></span>
+        </div>
+        <div class="ph-sub mt-1" id="recvDetailMeta">Verify incoming physical items against warehouse release quantities</div>
+      </div>
+      <div class="ph-actions">
+        <button type="button" class="btn-p" onclick="matchAllPortalRecv()" style="font-size:0.82rem">
+          <i class="fas fa-check-double me-1"></i> Match All Released
+        </button>
+      </div>
+    </div>
+
+    <!-- Requisition info chip -->
+    <div class="p-2 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);font-size:0.82rem">
+      <div>
+        <span class="text-muted">Requested By:</span> <strong id="recvDetailRequester">—</strong> &middot;
+        <span class="text-muted">Date:</span> <span id="recvDetailDate">—</span>
+      </div>
+      <div class="text-muted small">
+        Enter the actual physical count received for each item below
+      </div>
+    </div>
+
+    <!-- Items verification table -->
+    <div class="ovx" style="border:1px solid var(--border-strong);border-radius:var(--radius-lg);overflow:hidden">
+      <table class="it mobile-cards" style="margin:0">
+        <thead>
+          <tr>
+            <th style="width:34%">Product Details</th>
+            <th style="width:14%" class="te">Requested</th>
+            <th style="width:16%" class="te">Released (WH)</th>
+            <th style="width:22%" class="te">Actual Received</th>
+            <th style="width:14%" class="te">Status</th>
+          </tr>
+        </thead>
+        <tbody id="recvDetailBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Optional unexpected items -->
+    <div id="recvOptSection" style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem">
+      <details style="margin-bottom:0.75rem">
+        <summary style="cursor:pointer;font-weight:600;color:var(--text-primary)">
+          <i class="fas fa-plus-circle text-primary me-1"></i> Add Unexpected Product (not in original manifest)
+        </summary>
+        <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:end">
+          <div style="flex:1;min-width:180px">
+            <label class="fs-sm text-muted">Scan barcode or search product</label>
+            <input class="finput" id="optProductSearch" placeholder="Scan barcode or type name…" style="width:100%" onkeydown="if(event.key==='Enter'){event.preventDefault();lookupOptionalProduct()}">
+          </div>
+          <div style="display:flex;gap:0.35rem">
+            <button class="btn-p btn-sm" onclick="lookupOptionalProduct()"><i class="fas fa-search me-1"></i> Find</button>
+          </div>
+        </div>
+        <div id="optProductResult" style="margin-top:0.5rem"></div>
+      </details>
+      <div id="optItemsWrap" style="display:none;margin-top:0.5rem">
+        <div class="ovx" style="border:1px solid var(--border-strong);border-radius:var(--radius-lg);overflow:hidden">
+          <table class="it mobile-cards" style="margin:0">
+            <thead>
+              <tr>
+                <th style="width:36%">Optional Product</th>
+                <th style="width:16%" class="te">Released</th>
+                <th style="width:24%" class="te">Received</th>
+                <th style="width:24%" class="te"></th>
+              </tr>
+            </thead>
+            <tbody id="optItemsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Discrepancy Notice Warning -->
+    <div id="portalDiscrepancyWarning" class="alert alert-warning mt-3 py-2 px-3 small border-0" style="display:none;background:var(--tone-amber-subtle);border-left:3px solid var(--amber) !important;color:var(--text-primary);">
+      <div class="d-flex align-items-start gap-2">
+        <i class="fas fa-triangle-exclamation text-warning mt-1"></i>
+        <div>
+          <strong>Discrepancy Detected:</strong> Actual received count differs from the warehouse release. Submitting will flag this shipment for <strong>Company-Admin Discrepancy Quarantine</strong>.
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:1.25rem;padding-bottom:1rem">
+      <button class="btn-ok" style="width:100%;padding:0.75rem;font-size:0.95rem;justify-content:center" onclick="submitReceiving()" id="btnSubmitPortalRecv">
+        <i class="fas fa-check-double me-1"></i> Confirm &amp; Save Receiving
+      </button>
+    </div>
+  </div>
+</div><!-- /panel-receiving -->

@@ -337,6 +337,11 @@ def login():
             flash('Please verify your email address before logging in. Check your email for the verification link.', 'warning')
             return redirect(url_for('auth.login'))
 
+        # Check banned status
+        if getattr(user, 'is_banned', False):
+            flash('Your account has been banned. You cannot access the system. Please contact your administrator.', 'danger')
+            return redirect(url_for('auth.login'))
+
         # All checks passed, attempt login
         try:
             login_user(user)

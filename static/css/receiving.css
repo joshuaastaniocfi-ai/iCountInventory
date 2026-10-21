@@ -1,0 +1,831 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   iCount Receiving & Deliveries UI/UX System
+   Aesthetic: Supabase/Vercel Monochrome, Space Grotesk, Crisp Borders, Fluid Feedback
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.receiving-page {
+  --recv-row: var(--card-bg, #ffffff);
+  --recv-row-alt: var(--surface, #fafafa);
+  --recv-row-hover: var(--surface-hover, #f4f4f5);
+  --recv-border: var(--border, #e4e4e7);
+  --recv-border-strong: var(--border-strong, #d4d4d8);
+  --recv-border-subtle: var(--border-subtle, #f0f0f1);
+  --recv-text: var(--text-primary, #18181b);
+  --recv-muted: var(--text-muted, #71717a);
+  --recv-secondary: var(--text-secondary, #52525b);
+  
+  /* Semantic accents */
+  --recv-green: #15803d;
+  --recv-green-bg: rgba(22, 163, 74, 0.08);
+  --recv-green-border: rgba(22, 163, 74, 0.25);
+  --recv-amber: #b45309;
+  --recv-amber-bg: rgba(217, 119, 6, 0.08);
+  --recv-amber-border: rgba(217, 119, 6, 0.25);
+  --recv-red: #b91c1c;
+  --recv-red-bg: rgba(220, 38, 38, 0.08);
+  --recv-red-border: rgba(220, 38, 38, 0.25);
+  --recv-blue: #1d4ed8;
+  --recv-blue-bg: rgba(37, 99, 235, 0.08);
+  --recv-blue-border: rgba(37, 99, 235, 0.25);
+
+  color: var(--recv-text);
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+html.dark-mode .receiving-page {
+  --recv-row: #101012;
+  --recv-row-alt: #141416;
+  --recv-row-hover: #1c1c1f;
+  --recv-border: #27272a;
+  --recv-border-strong: #3f3f46;
+  --recv-border-subtle: #1f1f22;
+  --recv-text: #f4f4f5;
+  --recv-muted: #71717a;
+  --recv-secondary: #a1a1aa;
+
+  --recv-green: #4ade80;
+  --recv-green-bg: rgba(74, 222, 128, 0.12);
+  --recv-green-border: rgba(74, 222, 128, 0.3);
+  --recv-amber: #fbbf24;
+  --recv-amber-bg: rgba(251, 191, 36, 0.12);
+  --recv-amber-border: rgba(251, 191, 36, 0.3);
+  --recv-red: #f87171;
+  --recv-red-bg: rgba(248, 113, 113, 0.12);
+  --recv-red-border: rgba(248, 113, 113, 0.3);
+  --recv-blue: #60a5fa;
+  --recv-blue-bg: rgba(96, 165, 250, 0.12);
+  --recv-blue-border: rgba(96, 165, 250, 0.3);
+}
+
+/* ── Header ─────────────────────────────────────────── */
+.receiving-page .recv-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  margin-bottom: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--recv-border);
+  background: var(--card-bg, #ffffff);
+}
+
+.receiving-page .recv-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.receiving-page .recv-page-icon {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--recv-border-strong);
+  background: var(--surface, #fafafa);
+  color: var(--recv-text);
+  font-size: 1.15rem;
+}
+
+.receiving-page .recv-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+  color: var(--recv-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.receiving-page .recv-eyebrow span + span {
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--recv-border-strong);
+}
+
+.receiving-page .recv-title {
+  margin: 0;
+  color: var(--recv-text);
+  font-size: clamp(1.25rem, 2vw, 1.6rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+}
+
+.receiving-page .recv-subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--recv-muted);
+  font-size: 0.82rem;
+}
+
+.receiving-page .recv-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── KPI Metric Cards ────────────────────────────────── */
+.receiving-page .recv-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 991px) {
+  .receiving-page .recv-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 575px) {
+  .receiving-page .recv-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.receiving-page .metric-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--recv-border);
+  background: var(--card-bg, #ffffff);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.receiving-page .metric-card:hover {
+  border-color: var(--recv-border-strong);
+  background: var(--surface, #fafafa);
+  transform: translateY(-1px);
+}
+
+.receiving-page .metric-card.active {
+  border-color: var(--recv-text);
+  box-shadow: inset 0 0 0 1px var(--recv-text);
+}
+
+.receiving-page .metric-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--recv-muted);
+}
+
+.receiving-page .metric-value {
+  margin: 0.4rem 0 0.2rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  color: var(--recv-text);
+  line-height: 1;
+}
+
+.receiving-page .metric-sub {
+  font-size: 0.75rem;
+  color: var(--recv-muted);
+}
+
+.receiving-page .metric-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.receiving-page .metric-pill.pill-amber {
+  background: var(--recv-amber-bg);
+  color: var(--recv-amber);
+  border-color: var(--recv-amber-border);
+}
+
+.receiving-page .metric-pill.pill-green {
+  background: var(--recv-green-bg);
+  color: var(--recv-green);
+  border-color: var(--recv-green-border);
+}
+
+.receiving-page .metric-pill.pill-red {
+  background: var(--recv-red-bg);
+  color: var(--recv-red);
+  border-color: var(--recv-red-border);
+}
+
+/* ── Filter & Navigation Strip ───────────────────────── */
+.receiving-page .recv-filter-strip {
+  border: 1px solid var(--recv-border);
+  background: var(--card-bg, #ffffff);
+  margin-bottom: 1.25rem;
+}
+
+.receiving-page .recv-tabs-bar {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--recv-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.receiving-page .recv-tabs-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.receiving-page .recv-tab-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.2rem;
+  border: none;
+  background: transparent;
+  color: var(--recv-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.receiving-page .recv-tab-btn:hover {
+  color: var(--recv-text);
+  background: var(--surface, #fafafa);
+}
+
+.receiving-page .recv-tab-btn.active {
+  color: var(--recv-text);
+  background: var(--surface, #fafafa);
+}
+
+.receiving-page .recv-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--recv-text);
+}
+
+.receiving-page .recv-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: var(--surface-hover, #f4f4f5);
+  color: var(--recv-secondary);
+  border: 1px solid var(--recv-border-strong);
+}
+
+.receiving-page .recv-tab-btn.active .recv-tab-badge {
+  background: var(--recv-text);
+  color: var(--card-bg, #ffffff);
+  border-color: var(--recv-text);
+}
+
+.receiving-page .recv-tab-btn.tab-inbound.active .recv-tab-badge,
+.receiving-page .recv-tab-btn.tab-inbound:hover .recv-tab-badge {
+  background: var(--recv-amber);
+  color: #fff;
+  border-color: var(--recv-amber);
+}
+
+.receiving-page .recv-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+}
+
+.receiving-page .recv-search-wrap {
+  position: relative;
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.receiving-page .recv-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--recv-muted);
+  font-size: 0.8rem;
+  pointer-events: none;
+}
+
+.receiving-page .recv-search-input {
+  width: 100%;
+  padding: 0.45rem 0.75rem 0.45rem 2.1rem;
+  border: 1px solid var(--recv-border);
+  background: var(--surface, #fafafa);
+  color: var(--recv-text);
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.receiving-page .recv-search-input:focus {
+  border-color: var(--recv-text);
+  background: var(--card-bg, #ffffff);
+}
+
+.receiving-page .recv-date-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.receiving-page .recv-date-input {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--recv-border);
+  background: var(--surface, #fafafa);
+  color: var(--recv-text);
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.receiving-page .recv-date-input:focus {
+  border-color: var(--recv-text);
+  background: var(--card-bg, #ffffff);
+}
+
+/* ── Deliveries Data Table (Desktop) ─────────────────── */
+.receiving-page .recv-table-card {
+  border: 1px solid var(--recv-border);
+  background: var(--card-bg, #ffffff);
+}
+
+.receiving-page .recv-table {
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+}
+
+.receiving-page .recv-table th {
+  padding: 0.75rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--recv-muted);
+  background: var(--surface, #fafafa);
+  border-bottom: 1px solid var(--recv-border);
+  white-space: nowrap;
+}
+
+.receiving-page .recv-table td {
+  padding: 0.85rem 1rem;
+  font-size: 0.83rem;
+  border-bottom: 1px solid var(--recv-border-subtle);
+  vertical-align: middle;
+  background: var(--card-bg, #ffffff);
+}
+
+.receiving-page .recv-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+.receiving-page .recv-table tbody tr:hover td {
+  background: var(--surface-hover, #f4f4f5);
+}
+
+.receiving-page .ref-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--recv-text);
+  text-decoration: none;
+  padding: 0.15rem 0.45rem;
+  background: var(--surface, #fafafa);
+  border: 1px solid var(--recv-border);
+  transition: all 0.15s ease;
+}
+
+.receiving-page .ref-code:hover {
+  background: var(--recv-text);
+  color: var(--card-bg, #ffffff);
+  border-color: var(--recv-text);
+}
+
+.receiving-page .branch-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--recv-secondary);
+}
+
+.receiving-page .status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  border: 1px solid transparent;
+}
+
+.receiving-page .status-badge.status-delivered {
+  background: var(--recv-green-bg);
+  color: var(--recv-green);
+  border-color: var(--recv-green-border);
+}
+
+.receiving-page .status-badge.status-inbound,
+.receiving-page .status-badge.status-approved,
+.receiving-page .status-badge.status-dispatched {
+  background: var(--recv-amber-bg);
+  color: var(--recv-amber);
+  border-color: var(--recv-amber-border);
+}
+
+.receiving-page .status-badge.status-discrepancy {
+  background: var(--recv-red-bg);
+  color: var(--recv-red);
+  border-color: var(--recv-red-border);
+}
+
+.receiving-page .status-badge.status-partial {
+  background: var(--recv-blue-bg);
+  color: var(--recv-blue);
+  border-color: var(--recv-blue-border);
+}
+
+/* ── Buttons ─────────────────────────────────────────── */
+.receiving-page .btn-recv-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.85rem;
+  background: var(--recv-text);
+  color: var(--card-bg, #ffffff);
+  border: 1px solid var(--recv-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.receiving-page .btn-recv-primary:hover {
+  background: var(--accent-hover, #3f3f46);
+  border-color: var(--accent-hover, #3f3f46);
+  color: #fff;
+}
+
+.receiving-page .btn-recv-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.75rem;
+  background: var(--surface, #fafafa);
+  color: var(--recv-text);
+  border: 1px solid var(--recv-border);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.receiving-page .btn-recv-secondary:hover {
+  background: var(--surface-hover, #f4f4f5);
+  border-color: var(--recv-border-strong);
+  color: var(--recv-text);
+}
+
+.receiving-page .btn-recv-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.55rem;
+  background: transparent;
+  color: var(--recv-secondary);
+  border: none;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+
+.receiving-page .btn-recv-ghost:hover {
+  color: var(--recv-text);
+}
+
+/* ── Mobile Cards ────────────────────────────────────── */
+.receiving-page .recv-mobile-card {
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--recv-border);
+  background: var(--card-bg, #ffffff);
+  margin-bottom: 0.75rem;
+  transition: border-color 0.15s ease;
+}
+
+.receiving-page .recv-mobile-card:hover {
+  border-color: var(--recv-border-strong);
+}
+
+.receiving-page .mobile-stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  margin: 0.75rem 0;
+  background: var(--surface, #fafafa);
+  border: 1px solid var(--recv-border-subtle);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+/* ── Modal Receiving Flow ────────────────────────────── */
+.recv-modal-dialog {
+  max-width: 920px;
+}
+
+.recv-modal-content {
+  border: 1px solid var(--recv-border);
+  background: var(--card-bg, #ffffff);
+  color: var(--recv-text);
+  border-radius: 0 !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.recv-modal-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--recv-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.recv-modal-body {
+  padding: 1.5rem;
+  max-height: calc(85vh - 140px);
+  overflow-y: auto;
+}
+
+.recv-modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--recv-border);
+  background: var(--surface, #fafafa);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* Quick Match Banner */
+.quick-match-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.15rem;
+  margin-bottom: 1.25rem;
+  border: 1px dashed var(--recv-border-strong);
+  background: var(--surface, #fafafa);
+}
+
+.quick-match-text {
+  font-size: 0.82rem;
+  color: var(--recv-secondary);
+}
+
+.btn-quick-match {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--recv-text);
+  background: var(--recv-text);
+  color: var(--card-bg, #ffffff);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-quick-match:hover {
+  background: var(--accent-hover, #3f3f46);
+  border-color: var(--accent-hover, #3f3f46);
+}
+
+/* Receiving Items Table */
+.recv-item-row {
+  border-bottom: 1px solid var(--recv-border);
+  padding: 0.85rem 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) 80px 100px 140px 110px;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .recv-item-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 1rem 0;
+  }
+}
+
+.recv-item-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--recv-text);
+  line-height: 1.2;
+}
+
+.recv-item-uom {
+  font-size: 0.72rem;
+  color: var(--recv-muted);
+  margin-top: 0.15rem;
+}
+
+.recv-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--recv-border);
+  background: var(--surface, #fafafa);
+}
+
+.recv-step-btn {
+  width: 28px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--recv-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.recv-step-btn:hover {
+  background: var(--surface-hover, #f4f4f5);
+}
+
+.recv-qty-input {
+  width: 64px;
+  height: 32px;
+  border: none;
+  border-left: 1px solid var(--recv-border);
+  border-right: 1px solid var(--recv-border);
+  background: var(--card-bg, #ffffff);
+  color: var(--recv-text);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+}
+
+.recv-variance-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.recv-variance-badge.exact {
+  background: var(--recv-green-bg);
+  color: var(--recv-green);
+  border-color: var(--recv-green-border);
+}
+
+.recv-variance-badge.short {
+  background: var(--recv-red-bg);
+  color: var(--recv-red);
+  border-color: var(--recv-red-border);
+}
+
+.recv-variance-badge.over {
+  background: var(--recv-amber-bg);
+  color: var(--recv-amber);
+  border-color: var(--recv-amber-border);
+}
+
+/* ── Discrepancy Categorical Resolution Cards (Admin) ── */
+.resolution-group-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.35rem;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--recv-border);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.resolution-card {
+  position: relative;
+  border: 1px solid var(--recv-border);
+  background: var(--card-bg, #ffffff);
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.resolution-card:hover {
+  border-color: var(--recv-border-strong);
+  background: var(--surface, #fafafa);
+}
+
+.resolution-card.active {
+  border-color: var(--recv-text);
+  background: var(--surface, #fafafa);
+  box-shadow: inset 0 0 0 1px var(--recv-text);
+}
+
+.resolution-card .form-check-input {
+  border-radius: 0;
+  margin-top: 0.25rem;
+}
+
+.resolution-card .form-check-input:checked {
+  background-color: var(--recv-text);
+  border-color: var(--recv-text);
+}
+
+/* ── Empty State ─────────────────────────────────────── */
+.receiving-page .recv-empty-state {
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+}
+
+.receiving-page .recv-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 1rem;
+  border: 1px solid var(--recv-border-strong);
+  background: var(--surface, #fafafa);
+  color: var(--recv-muted);
+  font-size: 1.5rem;
+}
+
+.receiving-page .recv-empty-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--recv-text);
+}
+
+.receiving-page .recv-empty-desc {
+  margin: 0 auto;
+  max-width: 420px;
+  font-size: 0.82rem;
+  color: var(--recv-muted);
+}
+
+/* ── Print Receipt Styles ────────────────────────────── */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printableDeliverySlip,
+  #printableDeliverySlip * {
+    visibility: visible;
+  }
+  #printableDeliverySlip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    background: #fff;
+    color: #000;
+  }
+}

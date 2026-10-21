@@ -1,0 +1,18 @@
+<!-- ═══════ SIDEBAR ═══════ -->
+<nav class="sidebar" id="sidebar">
+  <ul style="list-style:none;padding:0;margin:0">
+    <li><span class="sb-section">Main</span></li>
+    <li class="sb-item"><button class="sb-link" id="navRequisition" onclick="showPanel('requisition')"><span class="ico"><i class="fas fa-file-alt"></i></span>New Requisition</button></li>
+    <li class="sb-item"><button class="sb-link {% if not initial_panel or initial_panel == 'storeinv' %}act{% endif %}" id="navStoreinv" onclick="showPanel('storeinv')"><span class="ico"><i class="fas fa-clipboard-check"></i></span>Store Inventory</button></li>
+    <li class="sb-item"><a href="{{ url_for('store.production') }}" class="sb-link" id="navProduction"><span class="ico" style="color:var(--tone-green)"><i class="fas fa-kitchen-set"></i></span><span>Production</span><span class="prod-badge-pill" style="margin-left:auto">NEW</span></a></li>
+    <li class="sb-item"><button class="sb-link" id="navInventory" onclick="showPanel('inventory')"><span class="ico"><i class="fas fa-boxes"></i></span>Warehouse Stock</button></li>
+    <li class="sb-item"><button class="sb-link" id="navInvcount" onclick="showPanel('invcount')"><span class="ico"><i class="fas fa-clipboard-check"></i></span>Inventory Count</button></li>
+    <li class="sb-item"><button class="sb-link {% if initial_panel == 'receiving' %}act{% endif %}" id="navReceiving" onclick="showPanel('receiving')"><span class="ico"><i class="fas fa-truck-loading"></i></span>Receiving{% if pending_receiving_count is defined and pending_receiving_count > 0 %}<span class="sb-badge">{{ pending_receiving_count }}</span>{% endif %}</button></li>
+    <li><span class="sb-section">Account</span></li>
+    <li class="sb-item"><a href="{{ url_for('main.dashboard') }}" class="sb-link"><span class="ico"><i class="fas fa-th-large"></i></span>Dashboard</a></li>
+    <li class="sb-item"><button class="sb-link" id="navHistory" onclick="showPanel('history')"><span class="ico"><i class="fas fa-history"></i></span>My Requests<span class="sb-badge" id="histBadge">0</span></button></li>
+  </ul>
+  <div class="sb-footer">
+    <a href="{{ url_for('auth.logout') }}" class="sb-logout"><i class="fas fa-sign-out-alt"></i>Sign Out</a>
+  </div>
+</nav>

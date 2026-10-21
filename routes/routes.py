@@ -606,12 +606,12 @@ def api_confirm_receiving(req_id):
 
 
 # ─────────────────────────────────────────────────
-#  HTML PAGES (keep existing for reference / future use)
+#  HTML PAGES
 # ─────────────────────────────────────────────────
 @receiving_bp.route('/')
 @login_required
 def list_receiving():
-    return render_template('receiving/list.html')
+    return redirect(url_for('receiving.deliveries_page'))
 
 
 @receiving_bp.route('/<int:req_id>')
@@ -620,38 +620,65 @@ def receiving_detail(req_id):
     req = Requisition.query.get_or_404(req_id)
     if not _company_guard(req):
         flash('Access denied.', 'danger')
-        return redirect(url_for('receiving.list_receiving'))
+        return redirect(url_for('receiving.deliveries_page'))
 
-    ref = f"REQ-{req.date_created.year}-{req.id:04d}"
+    ref = f"REQ-{req.date_created.year}-{req.id:04d}" if req.date_created else f"REQ-{req.id:04d}"
 
     items = []
+    total_requested = 0
+    total_released = 0
+    total_received = 0
+    total_variance = 0
+    has_variance = False
+
     for item in req.items:
-        if getattr(item, 'is_optional', False):
-            continue
         product = item.product
         existing = ReceivingRecord.query.filter_by(
             requisition_item_id=item.id,
             requisition_id=req.id
         ).first()
-        warehouse_released = existing.released_qty if existing else item.quantity
+        warehouse_released = existing.released_qty if (existing and existing.released_qty is not None) else (item.released_quantity if item.released_quantity is not None else item.quantity)
+        received = existing.received_qty if existing else 0.0
+        variance = existing.variance_qty if existing else 0.0
+        vtype = existing.variance_type if existing else 'exact'
+        if vtype != 'exact':
+            has_variance = True
+
+        total_requested += (item.quantity or 0)
+        total_released += (warehouse_released or 0)
+        total_received += received
+        total_variance += variance
 
         items.append({
             'item_id': item.id,
             'product_id': product.id if product else None,
             'product_name': product.name if product else 'Unknown',
             'uom': item.uom,
+            'is_optional': getattr(item, 'is_optional', False),
+            'requested_qty': item.quantity,
             'warehouse_released': warehouse_released,
             'warehouse_stock': product.quantity if product else 0,
             'received_qty': existing.received_qty if existing else None,
-            'variance_qty': existing.variance_qty if existing else None,
-            'variance_type': existing.variance_type if existing else None,
+            'variance_qty': variance,
+            'variance_type': vtype,
+            'notes': existing.notes if existing else '',
         })
+
+    can_receive = (req.status.lower() in ['approved', 'dispatched', 'partial']) and req.status not in ['Discrepancy - Pending Approval', 'Delivered', 'delivered']
+    can_resolve = (current_user.role in ['Company-Admin', 'SYS-Admin']) and (req.status == 'Discrepancy - Pending Approval')
 
     return render_template(
         'receiving/detail.html',
         req=req,
         ref=ref,
         items=items,
+        total_requested=total_requested,
+        total_released=total_released,
+        total_received=total_received,
+        total_variance=total_variance,
+        has_variance=has_variance or bool(req.has_variance),
+        can_receive=can_receive,
+        can_resolve=can_resolve,
     )
 
 
@@ -676,26 +703,72 @@ def api_deliveries():
 
     if current_user.role == 'SYS-Admin' and current_user.company_id is None:
         base = Requisition.query
+        metrics_base = Requisition.query
     else:
-        base = Requisition.query.filter_by(company_id=current_user.company_id)
+        condition = (
+            (Requisition.company_id == current_user.company_id) |
+            (Requisition.destination_company_id == current_user.company_id)
+        )
+        base = Requisition.query.filter(condition)
+        metrics_base = Requisition.query.filter(condition)
 
-    base = base.filter(Requisition.status.in_(['Delivered', 'Partial', 'Discrepancy - Pending Approval']))
+    # Compute global metric counts for receiving tab badges & KPIs
+    all_inbound_count = metrics_base.filter(Requisition.status.in_(['approved', 'Approved', 'Dispatched', 'dispatched'])).count()
+    all_delivered_count = metrics_base.filter(Requisition.status.in_(['Delivered', 'delivered'])).count()
+    all_discrepancy_count = metrics_base.filter(Requisition.status.in_(['Discrepancy - Pending Approval', 'Variance - Pending Approval'])).count()
+    all_total_count = metrics_base.filter(Requisition.status.in_([
+        'approved', 'Approved', 'Dispatched', 'dispatched',
+        'Delivered', 'delivered', 'Partial', 'partial',
+        'Discrepancy - Pending Approval', 'Variance - Pending Approval'
+    ])).count()
+
+    valid_statuses = [
+        'approved', 'Approved', 'Dispatched', 'dispatched',
+        'Delivered', 'delivered', 'Partial', 'partial',
+        'Discrepancy - Pending Approval', 'Variance - Pending Approval'
+    ]
+    base = base.filter(Requisition.status.in_(valid_statuses))
 
     if status_filter != 'all':
-        base = base.filter(Requisition.status == status_filter)
+        if status_filter in ('inbound', 'pending'):
+            base = base.filter(Requisition.status.in_(['approved', 'Approved', 'Dispatched', 'dispatched']))
+        elif status_filter in ('delivered', 'Delivered'):
+            base = base.filter(Requisition.status.in_(['Delivered', 'delivered']))
+        elif status_filter in ('partial', 'Partial'):
+            base = base.filter(Requisition.status.in_(['Partial', 'partial']))
+        elif status_filter in ('discrepancy', 'Discrepancy - Pending Approval'):
+            base = base.filter(Requisition.status.in_(['Discrepancy - Pending Approval', 'Variance - Pending Approval']))
+        elif status_filter == 'variance':
+            base = base.filter(
+                (Requisition.status.in_(['Discrepancy - Pending Approval', 'Variance - Pending Approval'])) |
+                (Requisition.has_variance == True)
+            )
+        else:
+            base = base.filter(Requisition.status == status_filter)
 
     if search:
+        search_pattern = f'%{search}%'
         base = base.filter(
             or_(
-                Requisition.branch.ilike(f'%{search}%'),
-                Requisition.requested_by.ilike(f'%{search}%')
+                Requisition.branch.ilike(search_pattern),
+                Requisition.requested_by.ilike(search_pattern),
+                Requisition.id.ilike(search_pattern),
+                Requisition.items.any(RequisitionItem.product.has(Product.name.ilike(search_pattern)))
             )
         )
 
     if date_from:
-        base = base.filter(Requisition.date_of_delivery >= datetime.fromisoformat(date_from))
+        try:
+            d_from = datetime.fromisoformat(date_from)
+            base = base.filter(or_(Requisition.date_of_delivery >= d_from, Requisition.date_created >= d_from))
+        except Exception:
+            pass
     if date_to:
-        base = base.filter(Requisition.date_of_delivery <= datetime.fromisoformat(date_to) + timedelta(days=1))
+        try:
+            d_to = datetime.fromisoformat(date_to) + timedelta(days=1)
+            base = base.filter(or_(Requisition.date_of_delivery <= d_to, Requisition.date_created <= d_to))
+        except Exception:
+            pass
 
     requisitions = base.order_by(Requisition.id.desc()).all()
 
@@ -721,7 +794,7 @@ def api_deliveries():
             if vtype != 'exact':
                 has_variance = True
             total_requested += (item.quantity or 0)
-            total_released += released
+            total_released += (released or 0)
             total_received += received
             total_variance += variance
 
@@ -749,14 +822,24 @@ def api_deliveries():
 
         ref = f"REQ-{req.date_created.year}-{req.id:04d}" if req.date_created else f"REQ-{req.id}"
         has_pending = (req.status == 'Discrepancy - Pending Approval')
+        is_inbound = req.status.lower() in ['approved', 'dispatched']
+        can_receive = (req.status.lower() in ['approved', 'dispatched', 'partial']) and req.status not in ['Discrepancy - Pending Approval', 'Delivered', 'delivered']
+
+        date_display = req.date_of_delivery.strftime('%b %d, %Y %I:%M %p') if req.date_of_delivery else (
+            req.date_created.strftime('%b %d, %Y') if req.date_created else '—'
+        )
+
         rows.append({
             'id': req.id,
             'ref': ref,
-            'branch': req.branch,
+            'branch': req.branch or 'Main Branch',
             'requested_by': req.requested_by,
             'status': req.status,
+            'is_inbound': is_inbound,
+            'can_receive': can_receive,
             'date_created': req.date_created.strftime('%Y-%m-%d %I:%M %p') if req.date_created else '',
             'date_of_delivery': req.date_of_delivery.strftime('%Y-%m-%d %I:%M %p') if req.date_of_delivery else '',
+            'date_display': date_display,
             'items': items,
             'total_requested': total_requested,
             'total_released': total_released,
@@ -775,7 +858,16 @@ def api_deliveries():
             'variance_resolved_by': req.variance_resolver.full_name if req.variance_resolver else None,
         })
 
-    return jsonify({'success': True, 'rows': rows})
+    return jsonify({
+        'success': True,
+        'rows': rows,
+        'counts': {
+            'inbound': all_inbound_count,
+            'delivered': all_delivered_count,
+            'discrepancy': all_discrepancy_count,
+            'total': all_total_count
+        }
+    })
 
 
 # ─────────────────────────────────────────────────

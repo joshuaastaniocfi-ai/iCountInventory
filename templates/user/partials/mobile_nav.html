@@ -1,0 +1,96 @@
+<!-- Mobile Bottom Bar -->
+<nav class="bottom-bar" id="mobileBottomBar">
+  <!-- Store -->
+  <button type="button" class="bottom-bar-item {% if not initial_panel or initial_panel == 'storeinv' %}active{% endif %}" id="bb-storeinv" onclick="showPanel('storeinv')" title="Store Inventory">
+    <div class="bb-icon-wrap"><i class="fas fa-store"></i></div>
+    <span>Store</span>
+  </button>
+
+  <!-- Production (Star Feature!) -->
+  <a href="{{ url_for('store.production') }}" class="bottom-bar-item bb-prod" id="bb-production" title="Store Production">
+    <div class="bb-icon-wrap">
+      <i class="fas fa-kitchen-set"></i>
+      <span class="bb-badge-dot"></span>
+    </div>
+    <span>Production</span>
+  </a>
+
+  <!-- Elevated Center FAB: Request -->
+  <button type="button" class="bottom-bar-center" id="bb-requisition" onclick="spinPlus(this);showPanel('requisition')" title="New Requisition">
+    <div class="bb-plus">
+      <i class="fas fa-plus"></i>
+    </div>
+    <span class="bb-plus-lbl">Request</span>
+  </button>
+
+  <!-- Receiving -->
+  <button type="button" class="bottom-bar-item {% if initial_panel == 'receiving' %}active{% endif %}" id="bb-receiving" onclick="showPanel('receiving')" title="Receiving Deliveries">
+    <div class="bb-icon-wrap">
+      <i class="fas fa-truck-ramp-box"></i>
+      {% if pending_receiving_count is defined and pending_receiving_count > 0 %}
+        <span class="bb-badge-count">{{ pending_receiving_count }}</span>
+      {% endif %}
+    </div>
+    <span>Receive</span>
+  </button>
+
+  <!-- More Options -->
+  <button type="button" class="bottom-bar-item" id="bb-more" onclick="toggleMoreSheet()" title="More Navigation Options">
+    <div class="bb-icon-wrap"><i class="fas fa-bars-staggered"></i></div>
+    <span>More</span>
+  </button>
+</nav>
+
+<!-- Mobile More Bottom Sheet Modal -->
+<div class="more-sheet-backdrop" id="moreSheetBackdrop" onclick="closeMoreSheet()"></div>
+<div class="more-sheet" id="moreSheet">
+  <div class="more-sheet-handle-bar"><div class="more-sheet-handle"></div></div>
+  <div class="more-sheet-header">
+    <div class="more-sheet-title"><i class="fas fa-cubes text-primary me-2"></i>Store Operations</div>
+    <button type="button" class="more-sheet-close" onclick="closeMoreSheet()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="more-grid">
+    <button type="button" class="more-card" onclick="selectFromMore('inventory')">
+      <div class="more-card-icon icon-blue"><i class="fas fa-boxes-stacked"></i></div>
+      <div class="more-card-info">
+        <div class="more-card-title">Warehouse Stock</div>
+        <div class="more-card-desc">Check central warehouse stock levels</div>
+      </div>
+      <i class="fas fa-chevron-right more-card-arr"></i>
+    </button>
+    <button type="button" class="more-card" onclick="selectFromMore('invcount')">
+      <div class="more-card-icon icon-amber"><i class="fas fa-clipboard-check"></i></div>
+      <div class="more-card-info">
+        <div class="more-card-title">Physical Count</div>
+        <div class="more-card-desc">Nightly physical count & log</div>
+      </div>
+      <i class="fas fa-chevron-right more-card-arr"></i>
+    </button>
+    <button type="button" class="more-card" onclick="selectFromMore('history')">
+      <div class="more-card-icon icon-purple"><i class="fas fa-clock-rotate-left"></i></div>
+      <div class="more-card-info">
+        <div class="more-card-title">My Requests</div>
+        <div class="more-card-desc">Track status & history of requisitions</div>
+      </div>
+      <span class="bb-badge-count" id="moreHistBadge" style="position:static;margin-left:auto;margin-right:8px">0</span>
+      <i class="fas fa-chevron-right more-card-arr"></i>
+    </button>
+    <a href="{{ url_for('store.production') }}" class="more-card">
+      <div class="more-card-icon icon-emerald"><i class="fas fa-kitchen-set"></i></div>
+      <div class="more-card-info">
+        <div class="more-card-title">Store Production</div>
+        <div class="more-card-desc">Produce 21 recipe dishes & auto-deduct</div>
+      </div>
+      <span class="prod-badge-pill" style="margin-left:auto;margin-right:8px">NEW</span>
+      <i class="fas fa-chevron-right more-card-arr"></i>
+    </a>
+    <a href="{{ url_for('main.dashboard') }}" class="more-card">
+      <div class="more-card-icon icon-slate"><i class="fas fa-th-large"></i></div>
+      <div class="more-card-info">
+        <div class="more-card-title">Dashboard</div>
+        <div class="more-card-desc">Main account overview</div>
+      </div>
+      <i class="fas fa-chevron-right more-card-arr"></i>
+    </a>
+  </div>
+</div>

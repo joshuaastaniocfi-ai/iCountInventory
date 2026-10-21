@@ -1,0 +1,30 @@
+<!-- ═══════ SUCCESS MODAL ═══════ -->
+<div class="moverlay" id="successModal">
+  <div class="mbox">
+    <div class="mico">✅</div>
+    <div class="mttl" id="successTitle">Submitted!</div>
+    <div class="mmsg" id="successMsg">Action completed successfully.</div>
+    <div class="macts">
+      <button class="btn-ghost" style="width:100%" onclick="closeModal('successModal')">Awesome</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ ITEM DETAIL MODAL ═══════ -->
+<div class="moverlay" id="histModal">
+  <div class="mbox" style="max-width:520px;text-align:left;padding: 1.5rem;">
+    <div class="d-flex justify-between align-center mb-3">
+      <div class="mttl m-0" id="histModalTitle">Request Detail</div>
+      <button class="btn-ghost btn-sm" style="padding: 0.35rem 0.6rem;" onclick="closeModal('histModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="histModalBody"></div>
+  </div>
+</div>
+
+<!-- ═══════ LOADING OVERLAY ═══════ -->
+<div class="lovl" id="loadingOvl" style="display:none">
+  <div class="lbox"><div class="ldots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><div class="llbl">Processing</div></div>
+</div>
+
+<!-- ═══════ TOAST STACK ═══════ -->
+<div class="toast-stack" id="toastStack"></div>

@@ -10,11 +10,11 @@
   "Supplies-Store Office": 303, "Supplies-Utility": 304
 } %}
 
-<div class="container-fluid py-3">
+<div class="container-fluid py-3 products-page">
   <!-- Header & Actions -->
   <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-3 gap-2">
     <div class="d-flex align-items-center gap-3">
-      <div class="d-flex align-items-center justify-content-center rounded-3 shadow-sm" style="width:42px;height:42px;background:linear-gradient(135deg,var(--accent),#818cf8);color:#fff">
+      <div class="d-flex align-items-center justify-content-center rounded-3 shadow-sm products-page-icon" style="width:42px;height:42px;background:linear-gradient(135deg,var(--accent),#818cf8);color:#fff">
         <i class="fas fa-cubes"></i>
       </div>
       <div>
@@ -41,26 +41,29 @@
 
   <!-- Filters (collapsible) -->
   <div class="collapse show" id="filterCollapse">
-    <div class="card border-0 shadow-sm mb-3" style="border-radius:10px;background:var(--card-bg)">
-      <div class="card-body py-2 px-3">
-        <form method="get" action="{{ url_for('products.view_products') }}" class="row g-2 align-items-end">
-          <div class="col-md-4">
+    <div class="card border-0 shadow-sm mb-3 products-filter-card">
+      <div class="card-body">
+        <form method="get" action="{{ url_for('products.view_products') }}" class="row g-2 align-items-center products-filter-form {{ 'has-company-filter' if current_user.role == 'SYS-Admin' and current_user.company_id is none and companies }}">
+          <div class="col-md-4 products-filter-search">
             <div class="input-group input-group-sm">
               <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
-              <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by name or barcode..." value="{{ request.args.get('q', '') }}">
+              <label class="visually-hidden" for="productSearch">Search products</label>
+              <input id="productSearch" type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by name or barcode..." value="{{ request.args.get('q', '') }}">
             </div>
           </div>
           <div class="col-md-2">
-            <select name="account_type" class="form-select form-select-sm">
-              <option value="">All Account</option>
+            <label class="visually-hidden" for="productAccountFilter">Filter by account</label>
+            <select id="productAccountFilter" name="account_type" class="form-select form-select-sm">
+              <option value="">All Accounts</option>
               {% for title in account_titles %}
                 <option value="{{ title }}" {{ 'selected' if request.args.get('account_type') == title }}>{{ title }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="col-md-2">
-            <select name="status" class="form-select form-select-sm">
-              <option value="">All Status</option>
+            <label class="visually-hidden" for="productStatusFilter">Filter by stock status</label>
+            <select id="productStatusFilter" name="status" class="form-select form-select-sm">
+              <option value="">All Statuses</option>
               <option value="OK" {{ 'selected' if request.args.get('status') == 'OK' }}>In Stock</option>
               <option value="Low Stock" {{ 'selected' if request.args.get('status') == 'Low Stock' }}>Low Stock</option>
               <option value="No Stock" {{ 'selected' if request.args.get('status') == 'No Stock' }}>Out of Stock</option>
@@ -70,7 +73,8 @@
           </div>
           {% if current_user.role == 'SYS-Admin' and current_user.company_id is none and companies %}
           <div class="col-md-2">
-            <select name="company_id" class="form-select form-select-sm" onchange="this.form.submit()">
+            <label class="visually-hidden" for="productCompanyFilter">Filter by company</label>
+            <select id="productCompanyFilter" name="company_id" class="form-select form-select-sm" onchange="this.form.submit()">
               <option value="">All Companies</option>
               {% for company in companies %}
                 <option value="{{ company.id }}" {{ 'selected' if request.args.get('company_id') == company.id|string }}>{{ company.name }}</option>
@@ -78,17 +82,17 @@
             </select>
           </div>
           {% endif %}
-          <div class="col-md-auto d-flex gap-1">
-            <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter"></i></button>
-            <a href="{{ url_for('products.view_products') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-rotate-left"></i></a>
-            <a href="{{ url_for('products.export_inventory_xlsx') }}" class="btn btn-success btn-sm" title="Export to Excel" onclick="exportInventoryExcel(); return false;"><i class="fas fa-file-excel"></i></a>
+          <div class="col-md-auto d-flex gap-1 products-filter-actions">
+            <button type="submit" class="btn btn-primary btn-sm" aria-label="Apply filters" title="Apply filters"><i class="fas fa-filter"></i></button>
+            <a href="{{ url_for('products.view_products') }}" class="btn btn-outline-secondary btn-sm" aria-label="Reset filters" title="Reset filters"><i class="fas fa-rotate-left"></i></a>
+            <a href="{{ url_for('products.export_inventory_xlsx') }}" class="btn btn-outline-secondary btn-sm" aria-label="Export products" title="Export to Excel" onclick="exportInventoryExcel(); return false;"><i class="fas fa-file-excel"></i></a>
           </div>
         </form>
       </div>
     </div>
   </div>
-  <div class="card border-0 shadow-sm" style="border-radius:12px;overflow:hidden">
-    <div class="table-responsive">
+  <div class="card border-0 shadow-sm products-table-card" style="border-radius:0;overflow:hidden">
+    <div class="table-responsive" id="productsTableScroll" role="region" tabindex="0" aria-label="Products table. Scroll horizontally to view all columns.">
       <table class="table align-middle mb-0" id="productTable" style="border-collapse:separate;border-spacing:0">
         <thead>
             <tr style="background:var(--card-bg);border-bottom:2px solid var(--border)">
@@ -112,8 +116,7 @@
 
             <tr class="product-row" data-product-id="{{ product.id }}" style="border-bottom:1px solid var(--border);transition:background 0.15s">
               <td>
-                <div class="d-flex align-items-center gap-2 px-1">
-                  <div style="width:6px;height:6px;border-radius:50%;background:{% if qty == 0 %}var(--bs-danger){% elif is_low %}var(--bs-warning){% else %}var(--bs-success){% endif %};flex-shrink:0"></div>
+                <div class="d-flex align-items-center px-1">
                   <div class="product-info">
                     <h6 class="mb-0" style="font-size:0.9rem">{{ product.name }}</h6>
                   </div>
@@ -222,45 +225,21 @@
                   {% endif %}
                 {% endif %}
               </td>
-              <td class="text-end" style="white-space:nowrap">
-                <div class="d-flex gap-1 justify-content-end">
-                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#viewProductModal{{ product.id }}" title="View Details">
-                  <i class="fas fa-eye"></i>
+              <td class="text-end product-actions-cell" style="white-space:nowrap">
+                <button type="button" class="btn btn-sm btn-outline-secondary product-actions-toggle" aria-label="Actions for {{ product.name|e }}" aria-haspopup="menu" aria-expanded="false">
+                  <i class="fas fa-ellipsis" aria-hidden="true"></i>
                 </button>
-                <a href="{{ url_for('products.product_history', product_id=product.id) }}"
-                   class="btn btn-sm btn-outline-secondary"
-                   title="View Transaction History">
-                  <i class="fas fa-clock-rotate-left"></i>
-                </a>
-                {% if current_user.role != 'Purchaser' %}
-
-                {% endif %}
-                <button class="btn btn-sm btn-outline-success"
-                        onclick="addBatch({{ product.id }})"
-                        title="Add Stock">
-                  <i class="fas fa-circle-plus"></i>
-                </button>
-                <button class="btn btn-sm {{ 'btn-warning' if product.is_favorite else 'btn-outline-warning' }}"
-                        onclick="toggleFavorite({{ product.id }})"
-                        id="favoriteBtn{{ product.id }}"
-                        data-toggle-url="{{ url_for('products.toggle_product_favorite', product_id=0) }}"
-                        title="{{ 'Remove from favorites' if product.is_favorite else 'Add to favorites' }}">
-                  <i class="{{ 'fas' if product.is_favorite else 'far' }} fa-star"></i>
-                </button>
-                {% if current_user.role in ['SYS-Admin', 'Company-Admin', 'WH-Admin', 'User'] %}
-                <a href="{{ url_for('spoilage.spoilage_records') }}?search={{ product.name|urlencode }}"
-                   class="btn btn-sm btn-outline-danger"
-                   title="Declare / View Spoilage for this product">
-                  <i class="fas fa-trash-can"></i>
-                </a>
-                {% endif %}
-                {% if current_user.role == 'SYS-Admin' or current_user.role == 'Company-Admin' %}
-                <button class="btn btn-sm btn-outline-danger" 
-                        onclick="deleteProduct({{ product.id }}, '{{ product.name|e }}')"
-                        title="Delete Product">
-                  <i class="fas fa-trash"></i>
-                </button>
-                {% endif %}
+                <div class="product-actions-menu" role="menu" hidden>
+                  <button type="button" class="product-action-item" role="menuitem" data-bs-toggle="modal" data-bs-target="#viewProductModal{{ product.id }}"><i class="fas fa-eye" aria-hidden="true"></i>View details</button>
+                  <a class="product-action-item" role="menuitem" href="{{ url_for('products.product_history', product_id=product.id) }}" data-product-history-url="{{ url_for('products.product_history', product_id=product.id) }}"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i>View transactions</a>
+                  <button type="button" class="product-action-item" role="menuitem" onclick="addBatch({{ product.id }})"><i class="fas fa-circle-plus" aria-hidden="true"></i>Add stock</button>
+                  <button type="button" class="product-action-item" role="menuitem" onclick="toggleFavorite({{ product.id }})" id="favoriteBtn{{ product.id }}" data-toggle-url="{{ url_for('products.toggle_product_favorite', product_id=0) }}" title="{{ 'Remove from favorites' if product.is_favorite else 'Add to favorites' }}"><i class="{{ 'fas' if product.is_favorite else 'far' }} fa-star" aria-hidden="true"></i>{{ 'Remove from favorites' if product.is_favorite else 'Add to favorites' }}</button>
+                  {% if current_user.role in ['SYS-Admin', 'Company-Admin', 'WH-Admin', 'User'] %}
+                  <a class="product-action-item" role="menuitem" href="{{ url_for('spoilage.spoilage_records') }}?search={{ product.name|urlencode }}"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i>View spoilage</a>
+                  {% endif %}
+                  {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+                  <button type="button" class="product-action-item is-destructive" role="menuitem" onclick="deleteProduct({{ product.id }}, '{{ product.name|e }}')"><i class="fas fa-trash" aria-hidden="true"></i>Delete product</button>
+                  {% endif %}
                 </div>
               </td>
             </tr>
@@ -333,25 +312,25 @@
 
   <!-- Product Details Modal -->
   {% for product in products %}
-    <div class="modal fade" id="viewProductModal{{ product.id }}" tabindex="-1">
-      <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-header">
+    <div class="modal fade product-view-modal" id="viewProductModal{{ product.id }}" tabindex="-1" aria-labelledby="productViewTitle{{ product.id }}" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable product-view-dialog">
+        <div class="modal-content border-0 shadow product-view-content">
+          <div class="modal-header product-view-header">
             <div>
-              <h5 class="modal-title fw-bold mb-1">{{ product.name }}</h5>
+              <h5 class="modal-title fw-bold mb-1" id="productViewTitle{{ product.id }}">{{ product.name }}</h5>
               <small class="text-muted">
                 <i class="fas fa-barcode me-1"></i>{{ product.barcode }}
               </small>
             </div>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close product details"></button>
           </div>
-          <div class="modal-body p-4">
-            <div class="row g-4">
+          <div class="modal-body p-4 product-view-body">
+            <div class="row g-4 product-view-layout">
               <!-- Product Overview -->
               <div class="col-12">
                 <div class="row g-3">
                   <div class="col-sm-6 col-lg-3">
-                    <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
+                    <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded product-overview-card">
                       <i class="fas fa-warehouse fa-lg text-info"></i>
                       <div>
                         <div class="text-muted small">Warehouse Stock</div>
@@ -363,7 +342,7 @@
                     </div>
                   </div>
                   <div class="col-sm-6 col-lg-3">
-                    <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
+                    <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded product-overview-card">
                       <i class="fas fa-store fa-lg text-success"></i>
                       <div>
                         <div class="text-muted small">Store Stock</div>
@@ -375,7 +354,7 @@
                     </div>
                   </div>
                   <div class="col-sm-6 col-lg-3">
-                    <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
+                    <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded product-overview-card">
                       <i class="fas fa-cube fa-lg {% if product.quantity == 0 %}text-danger{% elif product.is_low_stock %}text-warning{% else %}text-success{% endif %}"></i>
                       <div>
                         <div class="text-muted small">Total Stock</div>
@@ -386,7 +365,7 @@
                     </div>
                   </div>
                   <div class="col-sm-6 col-lg-3">
-                    <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded">
+                    <div class="d-flex align-items-center gap-3 p-3 bg-subtle rounded product-overview-card">
                       <i class="fas fa-tag fa-lg text-info"></i>
                       <div>
                         <div class="text-muted small">Account</div>
@@ -399,9 +378,9 @@
               </div>
 
               <!-- Product Details -->
-              <div class="col-md-6">
-                <h6 class="fw-bold mb-3">Product Details</h6>
-                <table class="table table-sm">
+              <div class="col-lg-8 product-view-details">
+                <h6 class="fw-bold mb-3">Product details</h6>
+                <table class="table table-sm product-details-table">
                   <tr>
                     <td class="text-muted">Description</td>
                     <td class="fw-semibold">{{ product.item_uom_desc or '-' }}</td>
@@ -430,9 +409,9 @@
     </div>
 
               <!-- Barcode -->
-              <div class="col-md-6">
+              <div class="col-lg-4 product-view-barcode">
                 <h6 class="fw-bold mb-3">Barcode</h6>
-                <div class="text-center p-3 bg-subtle rounded">
+                <div class="text-center p-3 bg-subtle rounded product-barcode-panel">
                   {% if product.barcode %}
                     <img src="{{ url_for('static', filename='product_barcodes/company_' + product.company_id|string + '/' + product.barcode + '.png') }}"
                          alt="barcode" class="img-fluid" style="max-height: 60px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
@@ -443,11 +422,15 @@
 </div>
 
               <!-- Product Batches -->
-              <div class="col-12">
+              <div class="col-12 product-view-batches">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                  <h6 class="fw-bold mb-0">Product Batches</h6>
                   <div>
+                    <h6 class="fw-bold mb-1">Product batches</h6>
+                    <small class="text-muted">Warehouse quantities, expiry dates, and batch actions</small>
+                  </div>
+                  <div class="product-batch-actions">
                     <a href="{{ url_for('products.product_history', product_id=product.id) }}"
+                       data-product-history-url="{{ url_for('products.product_history', product_id=product.id) }}"
                        class="btn btn-sm btn-outline-info me-2">
                       <i class="fas fa-clock-rotate-left me-1"></i>View History
                     </a>
@@ -460,7 +443,7 @@
                 </div>
 
 
-                <div class="table-responsive">
+                <div class="table-responsive product-batches-scroll">
                   <table class="table table-sm align-middle batch-table">
                     <thead>
                       <tr>
@@ -587,190 +570,89 @@
   {% endfor %}
 
   <!-- Add Product Modal -->
-  <div class="modal fade" id="addProductModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content border-0 shadow">
-        <div class="modal-header text-white rounded-top" style="background: linear-gradient(135deg, var(--accent), var(--accent-hover));">
-          <h5 class="modal-title fw-bold mb-0">
-            <i class="fas fa-circle-plus me-2"></i>Add New Product
-          </h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+  <div class="modal fade add-product-modal" id="addProductModal" tabindex="-1" aria-labelledby="addProductTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <div class="add-product-kicker">INVENTORY <span>/</span> NEW ITEM</div>
+            <h5 class="modal-title" id="addProductTitle">Add new product</h5>
+            <p class="add-product-subtitle">Set up the product and its starting stock in one place.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close add product dialog"></button>
         </div>
-        <div class="modal-body p-4">
+        <div class="modal-body">
           <form method="POST" action="{{ url_for('products.add_product') }}" id="addProductForm">
-            <div class="row g-4">
-              <!-- Product Information Section -->
-              <div class="col-12">
-                <h6 class="fw-bold text-primary mb-3">
-                  <i class="fas fa-cube me-2"></i>Product Information
-                </h6>
-                <div class="row g-3">
-                  <div class="col-md-6">
-                    <label class="form-label fw-semibold">
-                      <i class="fas fa-tag me-1"></i>Item Name
-                    </label>
-                    <input type="text"
-                           class="form-control form-control-lg"
-                           name="name"
-                           required
-                           placeholder="Enter product name">
-                    <div class="form-text">Enter the name of the product</div>
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label fw-semibold">
-                      <i class="fas fa-layer-group me-1"></i>Account Title
-                    </label>
-                    <select class="form-select form-select-lg" name="account_title" required>
-                      <option value="" disabled selected>Select account title</option>
-                      {% for title in account_titles %}
-                        <option value="{{ title }}">{{ title }}</option>
-                      {% endfor %}
+            <div class="add-product-grid">
+              <section class="add-product-section add-product-details">
+                <div class="add-product-section-heading"><span>01</span><div><h6>Product details</h6><p>Name it, categorize it, and define how it’s measured.</p></div></div>
+                <div class="add-product-field">
+                  <label for="newProductName">Item name <span class="required-mark">*</span></label>
+                  <input id="newProductName" class="form-control" type="text" name="name" required placeholder="e.g. 16 oz Paper Cup">
+                </div>
+                <div class="add-product-field">
+                  <label for="newProductAccount">Account title <span class="required-mark">*</span></label>
+                  <select id="newProductAccount" class="form-select" name="account_title" required>
+                    <option value="" disabled selected>Select account title</option>
+                    {% for title in account_titles %}<option value="{{ title }}">{{ title }}</option>{% endfor %}
+                  </select>
+                </div>
+                <div class="add-product-field">
+                  <label for="newProductDescription">Item / UOM description</label>
+                  <input id="newProductDescription" class="form-control" type="text" name="item_uom_desc" placeholder="e.g. 1 box = 20 packs">
+                </div>
+                <div class="add-product-subgrid">
+                  <div class="add-product-field">
+                    <label for="newProductUom">Unit of measure <span class="required-mark">*</span></label>
+                    <select id="newProductUom" class="form-select" name="uom" required>
+                      <option value="" disabled selected>Select unit</option>
+                      {% for uom in ["gram/s", "kilogram/s", "pack/s", "liter/s", "piece/s", "gallon/s", "tray", "dozen/s", "ream/s", "roll/s", "sack/s", "jug/s", "can/s", "bottle/s", "bundle/s", "box", "mL"] %}<option value="{{ uom }}">{{ uom }}</option>{% endfor %}
                     </select>
-                    <div class="form-text">Choose the account category for this product</div>
+                  </div>
+                  <div class="add-product-field">
+                    <label for="newProductConversion">UOM conversion</label>
+                    <input id="newProductConversion" class="form-control" type="text" name="uom_conversion" placeholder="e.g. 1 pack = 500 g">
                   </div>
                 </div>
-              </div>
+              </section>
 
-              <!-- Description & UOM Section -->
-              <div class="col-12 mt-4">
-                <h6 class="fw-bold text-primary mb-3">
-                  <i class="fas fa-scale-balanced me-2"></i>Unit of Measure & Description
-                </h6>
-                <div class="row g-3">
-                  <div class="col-12">
-                    <label class="form-label fw-semibold">
-                      <i class="fas fa-align-left me-1"></i>Item / UOM Description
-                    </label>
-                    <input type="text"
-                           class="form-control form-control-lg"
-                           name="item_uom_desc"
-                           placeholder="e.g. Plain rice (11 orders/1kg)">
-                    <div class="form-text">Provide a detailed description of the product and its units</div>
+              <section class="add-product-section add-product-stock">
+                <div class="add-product-section-heading"><span>02</span><div><h6>Opening stock</h6><p>Set the initial quantity and alert levels.</p></div></div>
+                <div class="add-product-field">
+                  <label for="newProductQuantity">Initial stock quantity <span class="required-mark">*</span></label>
+                  <div class="add-product-quantity"><input id="newProductQuantity" class="form-control" type="number" name="quantity" min="0.01" step="0.01" required placeholder="0.00"><span data-product-uom-preview>unit</span></div>
+                  <small>Enter the available opening quantity.</small>
+                </div>
+                <div class="add-product-subgrid">
+                  <div class="add-product-field">
+                    <label for="newProductThreshold">Low stock threshold <span class="required-mark">*</span></label>
+                    <div class="add-product-suffix"><input id="newProductThreshold" class="form-control" type="number" name="low_stock_threshold" value="10" min="1" max="100" required><span>%</span></div>
                   </div>
-                  <div class="col-md-6">
-                    <label class="form-label fw-semibold">
-                      <i class="fas fa-arrows-rotate me-1"></i>UOM Conversion
-                    </label>
-                    <input type="text"
-                           class="form-control form-control-lg"
-                           name="uom_conversion"
-                           placeholder="e.g. 1 pack = 5000 grams">
-                    <div class="form-text">Define conversion rates if applicable</div>
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label fw-semibold">
-                      <i class="fas fa-ruler me-1"></i>UOM
-                    </label>
-                    <select class="form-select form-select-lg" name="uom" required>
-                      <option value="" disabled selected>Select UOM</option>
-                      {% for uom in [
-                        "gram/s", "kilogram/s", "pack/s", "liter/s", "piece/s", "gallon/s",
-                        "tray", "dozen/s", "ream/s", "roll/s", "sack/s", "jug/s", "can/s",
-                        "bottle/s", "bundle/s", "box", "mL"
-                      ] %}
-                        <option value="{{ uom }}">{{ uom }}</option>
-                      {% endfor %}
-                    </select>
-                    <div class="form-text">Select the unit of measure for this product</div>
+                  <div class="add-product-field">
+                    <label for="newProductReorder">Reorder level</label>
+                    <input id="newProductReorder" class="form-control" type="number" name="reorder_level" value="0" min="0" step="1">
                   </div>
                 </div>
-              </div>
-
-              <!-- Optional Product Details Section -->
-              <div class="col-12 mt-4">
-                  <h6 class="fw-bold text-primary mb-3">
-                      <i class="fas fa-circle-info me-2"></i>Additional Information (Optional)
-                  </h6>
-                  <div class="row g-3">
-                      <div class="col-md-6">
-                          <label class="form-label fw-semibold">
-                              <i class="fas fa-truck me-1"></i>Supplier Name
-                          </label>
-                          <input type="text"
-                                 class="form-control form-control-lg"
-                                 name="supplier_name"
-                                 placeholder="Enter supplier name">
-                          <div class="form-text">Optional: Name of the product supplier</div>
-                      </div>
-                      <div class="col-md-6">
-                          <label class="form-label fw-semibold">
-                              <i class="fas fa-location-dot me-1"></i>Purchase Order Place
-                          </label>
-                          <input type="text"
-                                 class="form-control form-control-lg"
-                                 name="purchase_order_place"
-                                 placeholder="Enter purchase order place">
-                          <div class="form-text">Optional: Location where the purchase order was placed</div>
-                      </div>
-                  </div>
-              </div>
-
-              <!-- Stock & Threshold Section -->
-              <div class="col-12 mt-4">
-                <h6 class="fw-bold text-primary mb-3">
-                  <i class="fas fa-cubes me-2"></i>Stock & Threshold
-                </h6>
-                <div class="row g-3">
-                  <div class="col-md-4">
-                    <label class="form-label fw-semibold">
-                      <i class="fas fa-boxes me-1"></i>Initial Stock Quantity
-                    </label>
-                    <input type="number"
-                           class="form-control form-control-lg"
-                           name="quantity"
-                           min="0.01"
-                           step="0.01"
-                           required
-                           placeholder="0.00">
-                    <div class="form-text">Starting stock quantity</div>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label fw-semibold">
-                      <i class="fas fa-triangle-exclamation me-1"></i>Low Stock Threshold (%)
-                    </label>
-                    <input type="number"
-                           class="form-control form-control-lg"
-                           name="low_stock_threshold"
-                           value="10"
-                           min="1"
-                           max="100"
-                           required>
-                    <div class="form-text">Percentage of initial stock to trigger low stock alert</div>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label fw-semibold">
-                      <i class="fas fa-arrow-up-wide-short me-1"></i>Reorder Level
-                    </label>
-                    <input type="number"
-                           class="form-control form-control-lg"
-                           name="reorder_level"
-                           value="0"
-                           min="0"
-                           step="1">
-                    <div class="form-text">Minimum stock level that triggers reorder alert (0 = disabled)</div>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label fw-semibold">
-                  <i class="fas fa-calendar-days me-1"></i>Expiry Date
-                    </label>
-                    <input type="date"
-                           class="form-control form-control-lg"
-                           name="exp_date"
-                           id="expDate">
-                    <div class="form-text">Select the expiry date for initial stock</div>
-                  </div>
+                <div class="add-product-field">
+                  <label for="expDate">Expiry date</label>
+                  <input id="expDate" class="form-control" type="date" name="exp_date">
+                  <small>Required for COS items.</small>
                 </div>
-              </div>
+              </section>
+
+              <section class="add-product-section add-product-supplier">
+                <div class="add-product-section-heading"><span>03</span><div><h6>Supplier details <span>Optional</span></h6><p>Keep purchasing information with the product record.</p></div></div>
+                <div class="add-product-subgrid">
+                  <div class="add-product-field"><label for="newProductSupplier">Supplier name</label><input id="newProductSupplier" class="form-control" type="text" name="supplier_name" placeholder="Supplier or vendor"></div>
+                  <div class="add-product-field"><label for="newProductPoPlace">Purchase order place</label><input id="newProductPoPlace" class="form-control" type="text" name="purchase_order_place" placeholder="Where it was purchased"></div>
+                </div>
+              </section>
             </div>
           </form>
         </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-            <i class="fas fa-xmark me-1"></i>Cancel
-          </button>
-          <button type="submit" form="addProductForm" class="btn btn-primary" id="saveProductBtn">
-            <i class="fas fa-save me-1"></i>Save Product
-          </button>
+        <div class="modal-footer">
+          <span class="add-product-required-note"><span class="required-mark">*</span> Required fields</span>
+          <div><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" form="addProductForm" class="btn btn-light" id="saveProductBtn"><i class="fas fa-plus me-2" aria-hidden="true"></i>Create product</button></div>
         </div>
       </div>
     </div>
@@ -1714,6 +1596,14 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', function() {
   const addProductForm = document.getElementById('addProductForm');
   const saveProductBtn = document.getElementById('saveProductBtn');
+  const productUom = document.getElementById('newProductUom');
+  const uomPreview = document.querySelector('[data-product-uom-preview]');
+
+  if (productUom && uomPreview) {
+    const updateUomPreview = () => { uomPreview.textContent = productUom.value || 'unit'; };
+    productUom.addEventListener('change', updateUomPreview);
+    updateUomPreview();
+  }
 
   if (addProductForm) {
     addProductForm.addEventListener('submit', function(e) {
@@ -1827,7 +1717,7 @@ function toggleFavorite(productId) {
 
   // Show loading state
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Updating favorite…';
 
   // Generate the URL using the base URL from a data attribute
   const baseUrl = btn.getAttribute('data-toggle-url');
@@ -1844,13 +1734,11 @@ function toggleFavorite(productId) {
     if (data.success) {
       // Update button appearance and icon
       if (data.is_favorite) {
-        btn.className = 'btn btn-sm btn-warning';
         btn.title = 'Remove from favorites';
-        btn.innerHTML = '<i class="fas fa-star"></i>';
+        btn.innerHTML = '<i class="fas fa-star" aria-hidden="true"></i> Remove from favorites';
       } else {
-        btn.className = 'btn btn-sm btn-outline-warning';
         btn.title = 'Add to favorites';
-        btn.innerHTML = '<i class="far fa-star"></i>';
+        btn.innerHTML = '<i class="far fa-star" aria-hidden="true"></i> Add to favorites';
       }
 
       // Show success notification
@@ -1872,6 +1760,120 @@ function toggleFavorite(productId) {
     btn.disabled = false;
   });
 }
+</script>
+
+<script>
+(() => {
+  let openMenu = null;
+
+  function closeMenu(restoreFocus = false) {
+    if (!openMenu) return;
+    const { button, menu, parent, nextSibling } = openMenu;
+    menu.hidden = true;
+    menu.removeAttribute('style');
+    parent.insertBefore(menu, nextSibling && nextSibling.parentNode === parent ? nextSibling : null);
+    button.setAttribute('aria-expanded', 'false');
+    openMenu = null;
+    if (restoreFocus) button.focus();
+  }
+
+  function showMenu(button) {
+    const cell = button.closest('.product-actions-cell');
+    const menu = cell && cell.querySelector('.product-actions-menu');
+    if (!menu) return;
+
+    const parent = menu.parentNode;
+    const nextSibling = menu.nextSibling;
+    menu.hidden = false;
+    document.body.appendChild(menu);
+    menu.style.position = 'fixed';
+    menu.style.visibility = 'hidden';
+
+    const buttonRect = button.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const left = Math.max(8, Math.min(buttonRect.right - menuRect.width, window.innerWidth - menuRect.width - 8));
+    const below = buttonRect.bottom + 6;
+    const top = below + menuRect.height <= window.innerHeight - 8
+      ? below
+      : Math.max(8, buttonRect.top - menuRect.height - 6);
+
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+    menu.style.visibility = 'visible';
+    button.setAttribute('aria-expanded', 'true');
+    openMenu = { button, menu, parent, nextSibling };
+    menu.querySelector('.product-action-item')?.focus();
+  }
+
+  document.addEventListener('click', event => {
+    const toggle = event.target.closest('.product-actions-toggle');
+    if (toggle) {
+      event.preventDefault();
+      if (openMenu?.button === toggle) {
+        closeMenu();
+      } else {
+        closeMenu();
+        showMenu(toggle);
+      }
+      return;
+    }
+
+    if (openMenu?.menu.contains(event.target)) {
+      if (event.target.closest('.product-action-item')) closeMenu();
+      return;
+    }
+    closeMenu();
+  });
+
+  document.addEventListener('keydown', event => {
+    if (!openMenu) return;
+    const items = [...openMenu.menu.querySelectorAll('.product-action-item:not(:disabled)')];
+    const current = items.indexOf(document.activeElement);
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeMenu(true);
+    } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) && items.length) {
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0
+        : event.key === 'End' ? items.length - 1
+          : (current + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      items[next].focus();
+    }
+  });
+
+  window.addEventListener('resize', () => closeMenu());
+  document.addEventListener('scroll', () => closeMenu(), true);
+})();
+</script>
+
+<script>
+(() => {
+  function setupPinnedActions() {
+    const scroller = document.getElementById('productsTableScroll');
+    const table = document.getElementById('productTable');
+    if (!scroller || !table) return;
+
+    const actionCells = table.querySelectorAll('thead th:last-child, tbody td:last-child');
+    const syncActions = () => {
+      const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+      const offset = Math.max(0, maxScroll - scroller.scrollLeft);
+      actionCells.forEach(cell => {
+        cell.style.transform = `translateX(${-offset}px)`;
+      });
+    };
+
+    scroller.addEventListener('scroll', syncActions, { passive: true });
+    window.addEventListener('resize', syncActions);
+    if ('ResizeObserver' in window) new ResizeObserver(syncActions).observe(scroller);
+    requestAnimationFrame(syncActions);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupPinnedActions, { once: true });
+  } else {
+    setupPinnedActions();
+  }
+})();
 </script>
 
 <style>
@@ -2129,6 +2131,97 @@ function toggleFavorite(productId) {
   position: relative;
 }
 
+/* Add Product: identity and opening-stock workspace */
+#addProductModal.add-product-modal .modal-dialog { max-width: 1080px; }
+#addProductModal.add-product-modal .modal-content {
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-shadow: 0 24px 80px rgba(0,0,0,.45);
+}
+#addProductModal.add-product-modal .modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1.3rem 1.5rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--card-bg);
+}
+#addProductModal .add-product-kicker {
+  margin-bottom: .45rem;
+  color: var(--text-muted);
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+#addProductModal .add-product-kicker span { padding: 0 .25rem; color: var(--text-primary); }
+#addProductModal .modal-title { color: var(--text-primary); font-size: 1.35rem; font-weight: 650; letter-spacing: -.035em; }
+#addProductModal .add-product-subtitle { margin: .3rem 0 0; color: var(--text-muted); font-size: .84rem; }
+#addProductModal.add-product-modal .modal-body { padding: 1.25rem 1.5rem 1.5rem; }
+#addProductModal .add-product-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: 1rem; }
+#addProductModal .add-product-section { min-width: 0; padding: 1.15rem; border: 1px solid var(--border); background: var(--card-bg); }
+#addProductModal .add-product-stock { background: var(--surface); }
+#addProductModal .add-product-supplier { grid-column: 1 / -1; }
+#addProductModal .add-product-section-heading { display: flex; align-items: flex-start; gap: .75rem; margin-bottom: 1.2rem; }
+#addProductModal .add-product-section-heading > span {
+  display: grid; flex: 0 0 28px; height: 28px; place-items: center;
+  border: 1px solid var(--border-strong); color: var(--text-primary);
+  font-size: .68rem; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+#addProductModal .add-product-section-heading h6 { margin: 0; color: var(--text-primary); font-size: .94rem; font-weight: 650; }
+#addProductModal .add-product-section-heading h6 span { margin-left: .35rem; color: var(--text-muted); font-size: .67rem; font-weight: 500; }
+#addProductModal .add-product-section-heading p { margin: .25rem 0 0; color: var(--text-muted); font-size: .75rem; line-height: 1.45; }
+#addProductModal .add-product-field { min-width: 0; margin-bottom: .9rem; }
+#addProductModal .add-product-field:last-child { margin-bottom: 0; }
+#addProductModal .add-product-field label { display: block; margin-bottom: .38rem; color: var(--text-primary); font-size: .77rem; font-weight: 600; }
+#addProductModal .required-mark { color: var(--text-primary); }
+#addProductModal .add-product-field small { display: block; margin-top: .35rem; color: var(--text-muted); font-size: .7rem; }
+#addProductModal .add-product-subgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+#addProductModal .add-product-field .form-control,
+#addProductModal .add-product-field .form-select {
+  min-height: 42px; border: 1px solid var(--border-strong); border-radius: 0;
+  background-color: var(--card-bg); color: var(--text-primary); font-size: .82rem;
+}
+#addProductModal .add-product-field .form-control::placeholder { color: var(--text-muted); opacity: .8; }
+#addProductModal .add-product-field .form-control:focus,
+#addProductModal .add-product-field .form-select:focus {
+  border-color: var(--text-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--text-primary) 16%, transparent);
+}
+#addProductModal .add-product-stock .form-control,
+#addProductModal .add-product-stock .form-select { background-color: var(--card-bg); }
+#addProductModal .add-product-quantity,
+#addProductModal .add-product-suffix { display: flex; align-items: stretch; }
+#addProductModal .add-product-quantity .form-control { min-width: 0; font-size: 1.05rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+#addProductModal .add-product-quantity > span,
+#addProductModal .add-product-suffix > span {
+  display: grid; flex: 0 0 auto; min-width: 52px; place-items: center; padding: 0 .65rem;
+  border: 1px solid var(--border-strong); border-left: 0; color: var(--text-muted); font-size: .76rem;
+}
+#addProductModal .add-product-suffix .form-control { min-width: 0; }
+#addProductModal.add-product-modal .modal-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: .85rem 1.5rem; border-top: 1px solid var(--border); background: var(--card-bg);
+}
+#addProductModal .add-product-required-note { color: var(--text-muted); font-size: .72rem; }
+#addProductModal .modal-footer > div { display: flex; gap: .55rem; }
+#addProductModal .modal-footer .btn { min-height: 40px; border-radius: 0; font-size: .8rem; font-weight: 600; }
+#addProductModal .modal-footer .btn-light { border: 1px solid #f2f2f2; background: #f2f2f2; color: #111; }
+#addProductModal .modal-footer .btn-light:hover { background: #fff; border-color: #fff; }
+#addProductModal .modal-footer .btn-outline-secondary { border-color: var(--border-strong); color: var(--text-primary); }
+#addProductModal .modal-footer .btn-outline-secondary:hover { background: var(--surface-hover); }
+
+@media (max-width: 767.98px) {
+  #addProductModal.add-product-modal .modal-dialog { width: 100%; max-width: none; min-height: 100%; margin: 0; }
+  #addProductModal.add-product-modal .modal-content { min-height: 100dvh; }
+  #addProductModal.add-product-modal .modal-header { padding: 1rem; }
+  #addProductModal.add-product-modal .modal-body { padding: .85rem; }
+  #addProductModal .add-product-grid { grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+  #addProductModal .add-product-supplier { grid-column: auto; }
+  #addProductModal .add-product-section { padding: .9rem; }
+  #addProductModal.add-product-modal .modal-footer { padding: .75rem 1rem; }
+}
+
 #addProductModal input[type="date"]::-webkit-calendar-picker-indicator {
   background: transparent;
   bottom: 0;
@@ -2186,5 +2279,152 @@ function deleteProduct(productId, productName) {
     document.body.appendChild(form);
     form.submit();
 }
+</script>
+<script>
+(() => {
+  const historyUrlTemplate = {{ url_for('products.product_history', product_id=0)|tojson }};
+  let historyRequestInProgress = false;
+
+  async function openProductHistory(url) {
+    if (historyRequestInProgress) return;
+    historyRequestInProgress = true;
+    try {
+      const response = await fetch(`${url}${url.includes('?') ? '&' : '?'}modal=1`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      if (!response.ok) throw new Error('Could not load transaction history.');
+
+      const fragment = document.createElement('template');
+      fragment.innerHTML = await response.text();
+      const historyModal = fragment.content.querySelector('.product-history-modal');
+      const deletionModal = fragment.content.querySelector('.product-history-delete-modal');
+      if (!historyModal) throw new Error('The transaction history dialog could not be displayed.');
+
+      document.body.append(historyModal);
+      if (deletionModal) document.body.append(deletionModal);
+
+      historyModal.addEventListener('hidden.bs.modal', () => {
+        bootstrap.Modal.getInstance(historyModal)?.dispose();
+        historyModal.remove();
+        if (deletionModal) {
+          bootstrap.Modal.getInstance(deletionModal)?.dispose();
+          deletionModal.remove();
+        }
+      }, { once: true });
+      bootstrap.Modal.getOrCreateInstance(historyModal).show();
+
+      const rows = historyModal.querySelector('[data-history-rows]');
+      const sentinel = historyModal.querySelector('[data-history-sentinel]');
+      if (rows && sentinel && rows.dataset.hasMore === 'true' && 'IntersectionObserver' in window) {
+        let loading = false;
+        const observer = new IntersectionObserver(async entries => {
+          if (!entries.some(entry => entry.isIntersecting) || loading || rows.dataset.hasMore !== 'true') return;
+          loading = true;
+          sentinel.textContent = 'Loading older transactions…';
+          try {
+            const page = Number(rows.dataset.nextPage || 2);
+            const rowsUrl = new URL(url, window.location.href);
+            rowsUrl.searchParams.set('modal', '1');
+            rowsUrl.searchParams.set('rows', '1');
+            rowsUrl.searchParams.set('page', String(page));
+            const rowsResponse = await fetch(rowsUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!rowsResponse.ok) throw new Error('Could not load more transactions.');
+            const rowFragment = document.createElement('template');
+            rowFragment.innerHTML = await rowsResponse.text();
+            if (!historyModal.isConnected) return;
+
+            const loaded = rowFragment.content.querySelectorAll('tr').length;
+            rows.append(rowFragment.content);
+            const loadedCount = historyModal.querySelectorAll('[data-history-rows] tr').length;
+            const count = historyModal.querySelector('[data-history-count]');
+            const total = Number(rowsResponse.headers.get('X-History-Total') || count?.dataset.total || 0);
+            if (count) count.textContent = `${loadedCount} of ${total} records`;
+            rows.dataset.nextPage = rowsResponse.headers.get('X-History-Next-Page') || String(page + 1);
+            rows.dataset.hasMore = rowsResponse.headers.get('X-History-Has-More') || 'false';
+            if (rows.dataset.hasMore === 'true') {
+              sentinel.textContent = 'Scroll for older transactions';
+            } else {
+              sentinel.textContent = `You’re all caught up · ${total} transactions`;
+              observer.disconnect();
+            }
+            if (!loaded && rows.dataset.hasMore === 'true') observer.disconnect();
+          } catch (error) {
+            sentinel.textContent = 'Could not load more. Click to retry.';
+            sentinel.tabIndex = 0;
+            sentinel.setAttribute('role', 'button');
+          } finally {
+            loading = false;
+          }
+        }, { root: historyModal.querySelector('.product-history-body'), rootMargin: '280px 0px' });
+        observer.observe(sentinel);
+        historyModal.addEventListener('hidden.bs.modal', () => observer.disconnect(), { once: true });
+        sentinel.addEventListener('click', () => observer.observe(sentinel));
+        sentinel.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); observer.observe(sentinel); }
+        });
+      }
+    } catch (error) {
+      showNotification(error.message || 'Could not load transaction history.', 'error');
+    } finally {
+      historyRequestInProgress = false;
+    }
+  }
+
+  document.addEventListener('click', event => {
+    const link = event.target.closest('[data-product-history-url]');
+    if (!link) return;
+    event.preventDefault();
+    openProductHistory(link.dataset.productHistoryUrl);
+  });
+
+  const requestedHistoryId = new URLSearchParams(window.location.search).get('history_id');
+  if (requestedHistoryId && /^\d+$/.test(requestedHistoryId)) {
+    openProductHistory(historyUrlTemplate.replace(/0(?=([?#]|$))/, requestedHistoryId));
+  }
+
+  {% if current_user.role in ('WH-Admin', 'SYS-Admin') %}
+  window.requestDelete = (historyId, transactionCode, payee, netChange, productName, productId) => {
+    const info = document.getElementById(`delTrxnInfo${productId}`);
+    const reason = document.getElementById(`delReason${productId}`);
+    const modal = document.getElementById(`deletionModal${productId}`);
+    if (!info || !reason || !modal) return;
+
+    info.replaceChildren();
+    const details = document.createElement('div');
+    details.textContent = `${transactionCode} · ${payee} · ${netChange} · ${productName}`;
+    info.append(details);
+    reason.value = '';
+    modal.dataset.historyId = historyId;
+    bootstrap.Modal.getOrCreateInstance(modal).show();
+  };
+
+  window.submitDeletionRequest = async productId => {
+    const modal = document.getElementById(`deletionModal${productId}`);
+    const reason = document.getElementById(`delReason${productId}`);
+    const button = document.getElementById(`submitDelBtn${productId}`);
+    const historyId = modal?.dataset.historyId;
+    if (!reason?.value.trim()) {
+      reason?.focus();
+      showNotification('Please provide a reason for deletion.', 'error');
+      return;
+    }
+    button.disabled = true;
+    try {
+      const response = await fetch(`/products/request_deletion/${historyId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ reason: reason.value.trim() })
+      });
+      const data = await response.json();
+      showNotification(data.message || (data.success ? 'Request submitted.' : 'Request failed.'), data.success ? 'success' : 'error');
+      if (data.success) bootstrap.Modal.getInstance(modal)?.hide();
+    } catch (error) {
+      showNotification('Could not submit the deletion request. Please try again.', 'error');
+    } finally {
+      button.disabled = false;
+    }
+  };
+  {% endif %}
+})();
 </script>
 {% endblock %}

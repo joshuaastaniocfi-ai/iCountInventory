@@ -1,0 +1,58 @@
+<div class="modal fade product-history-modal" id="productHistoryModal{{ product.id }}" tabindex="-1" aria-labelledby="productHistoryTitle{{ product.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable product-history-dialog">
+    <div class="modal-content product-history-content">
+      <div class="modal-header product-history-header">
+        <div class="min-w-0">
+          <h5 class="modal-title fw-bold" id="productHistoryTitle{{ product.id }}">{{ product.name }}</h5>
+          <div class="product-history-barcode"><i class="fas fa-barcode" aria-hidden="true"></i>{{ product.barcode }}</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close transaction history"></button>
+      </div>
+      <div class="modal-body product-history-body">
+        <div class="product-history-summary" aria-label="Product summary">
+          <div><span>Current stock</span><strong>{{ product.quantity|decimal_format(2) }} {{ product.uom }}</strong></div>
+          <div><span>Account</span><strong>{{ product.account_title }}</strong></div>
+          <div><span>Purchase order place</span><strong>{{ product.purchase_order_place or 'N/A' }}</strong></div>
+          <div><span>Description</span><strong>{{ product.item_uom_desc or 'N/A' }}</strong></div>
+        </div>
+        <section class="product-history-log" aria-labelledby="productHistoryLogTitle{{ product.id }}">
+          <div class="product-history-log-heading">
+            <div><h2 id="productHistoryLogTitle{{ product.id }}">Transaction log</h2><p>Stock movements for this product, newest first.</p></div>
+            <span class="product-history-count" data-history-count data-total="{{ history_count }}">{{ history_records|length }} of {{ history_count }} records</span>
+          </div>
+          <div class="table-responsive product-history-table-wrap" role="region" tabindex="0" aria-label="Transaction history table. Scroll horizontally to view all columns.">
+            <table class="table align-middle mb-0 product-history-table {{ 'has-history-actions' if current_user.role in ('WH-Admin', 'SYS-Admin') }}">
+              <thead><tr>
+                <th>Transaction date</th><th>Type</th><th>Payee / counter-party</th>
+                <th class="text-end">Quantity in</th><th class="text-end">Quantity out</th><th class="text-end">Net change</th>
+                {% if current_user.role in ('WH-Admin', 'SYS-Admin') %}<th class="text-center">Action</th>{% endif %}
+              </tr></thead>
+              <tbody data-history-rows data-next-page="2" data-has-more="{{ 'true' if history_has_more else 'false' }}">
+                {% if history_records %}
+                  {% include 'shared/product_history_rows.html' %}
+                {% else %}
+                  <tr><td colspan="{{ 7 if current_user.role in ('WH-Admin', 'SYS-Admin') else 6 }}" class="product-history-empty"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i><strong>No transaction history yet</strong><span>Stock movements for this product will appear here.</span></td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+          {% if history_has_more %}<div class="product-history-load-trigger" data-history-sentinel role="status" aria-live="polite">Scroll for older transactions</div>{% endif %}
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if current_user.role in ('WH-Admin', 'SYS-Admin') %}
+<div class="modal fade product-history-delete-modal" id="deletionModal{{ product.id }}" tabindex="-1" aria-labelledby="deletionTitle{{ product.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h6 class="modal-title fw-bold" id="deletionTitle{{ product.id }}">Request transaction deletion</h6><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close deletion request"></button></div>
+    <div class="modal-body">
+      <div class="alert alert-warning small mb-3"><i class="fas fa-info-circle me-1"></i>This request will be sent to the <strong>Company-Admin</strong> for approval. The transaction will only be deleted after approval.</div>
+      <div class="mb-3"><label class="form-label fw-semibold small">Transaction</label><div id="delTrxnInfo{{ product.id }}" class="p-2 border small"></div></div>
+      <div class="mb-3"><label for="delReason{{ product.id }}" class="form-label fw-semibold small">Reason for deletion <span class="text-danger">*</span></label><textarea class="form-control" id="delReason{{ product.id }}" rows="3" placeholder="Explain why this transaction needs to be deleted..." required></textarea></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-danger" id="submitDelBtn{{ product.id }}" onclick="submitDeletionRequest({{ product.id }})"><i class="fas fa-paper-plane me-1"></i>Submit request</button></div>
+  </div></div>
+</div>
+{% endif %}

@@ -1,9 +1,372 @@
 {% extends 'layouts/base-sidebar.html' %}
-{% block title %}Receiving Detail - iCount{% endblock %}
+{% block title %}Receiving Detail: {{ ref }} - iCount{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="/static/css/receiving.css?v=20261021">
+{% endblock %}
+
 {% block content %}
-<div class="container py-4">
-  <h4 class="fw-bold mb-4">Receiving Detail: {{ ref }}</h4>
-  <p class="text-muted">Use the Receiving panel in the Requisition Form to confirm deliveries.</p>
-  <a href="{{ url_for('requisitions.requisition_form') }}" class="btn btn-primary">Go to Requisition Form</a>
-</div>
+<div class="receiving-page container-fluid px-3 px-md-4 py-3">
+
+  <!-- ── Header ─────────────────────────────────────────── -->
+  <div class="recv-header">
+    <div class="recv-title-wrap">
+      <div class="recv-page-icon">
+        <i class="fas fa-boxes-packing"></i>
+      </div>
+      <div>
+        <div class="recv-eyebrow">
+          <a href="{{ url_for('receiving.deliveries_page') }}" class="text-decoration-none text-muted">
+            <i class="fas fa-arrow-left me-1"></i> Receiving Hub
+          </a>
+          <span>Shipment Detail</span>
+        </div>
+        <h1 class="recv-title">{{ ref }}</h1>
+        <p class="recv-subtitle">
+          {{ req.branch or 'Main Branch' }} &middot; Requested by <strong>{{ req.requested_by }}</strong> &middot; {{ req.date_created.strftime('%b %d, %Y') if req.date_created else '' }}
+        </p>
+      </div>
+    </div>
+    <div class="recv-header-actions">
+      <a href="{{ url_for('receiving.deliveries_page') }}" class="btn-recv-secondary">
+        <i class="fas fa-arrow-left me-1"></i> All Deliveries
+      </a>
+      <button type="button" class="btn-recv-secondary" onclick="window.print()">
+        <i class="fas fa-print me-1"></i> Print Receipt
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Status Banner ───────────────────────────────────── -->
+  <div class="card border-0 mb-4" style="background:var(--surface,#fafafa);border:1px solid var(--recv-border) !important;">
+    <div class="card-body p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div>
+          <span class="small text-muted d-block" style="font-size:0.7rem;text-transform:uppercase;font-weight:600">Current Status</span>
+          <span class="status-badge {% if req.status == 'Delivered' %}status-delivered{% elif req.status == 'Discrepancy - Pending Approval' %}status-discrepancy{% else %}status-inbound{% endif %} fs-6 mt-1">
+            {% if req.status == 'Delivered' %}
+              <i class="fas fa-check-circle me-1"></i> Delivered
+            {% elif req.status == 'Discrepancy - Pending Approval' %}
+              <i class="fas fa-triangle-exclamation me-1"></i> Discrepancy (Quarantined)
+            {% else %}
+              <i class="fas fa-truck-fast me-1"></i> {{ req.status }}
+            {% endif %}
+          </span>
+        </div>
+        <div class="border-start ps-3">
+          <span class="small text-muted d-block" style="font-size:0.7rem;text-transform:uppercase;font-weight:600">Destination Branch</span>
+          <strong style="font-size:0.95rem">{{ req.branch or 'Main Branch' }}</strong>
+        </div>
+        <div class="border-start ps-3 d-none d-sm-block">
+          <span class="small text-muted d-block" style="font-size:0.7rem;text-transform:uppercase;font-weight:600">Delivery Timestamp</span>
+          <span style="font-size:0.95rem">{{ req.date_of_delivery.strftime('%b %d, %Y %I:%M %p') if req.date_of_delivery else 'Awaiting Intake' }}</span>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center gap-3">
+        <div class="text-end">
+          <span class="small text-muted d-block" style="font-size:0.7rem;text-transform:uppercase;font-weight:600">Total Items</span>
+          <strong style="font-size:1.1rem">{{ items|length }} SKU(s)</strong>
+        </div>
+        <div class="text-end border-start ps-3">
+          <span class="small text-muted d-block" style="font-size:0.7rem;text-transform:uppercase;font-weight:600">Total Released</span>
+          <strong class="text-primary" style="font-size:1.1rem">{{ total_released }}</strong>
+        </div>
+        <div class="text-end border-start ps-3">
+          <span class="small text-muted d-block" style="font-size:0.7rem;text-transform:uppercase;font-weight:600">Total Received</span>
+          <strong style="font-size:1.1rem">{{ total_received }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if req.status == 'Discrepancy - Pending Approval' %}
+  <div class="alert alert-warning py-3 px-4 mb-4 border-0" style="background:var(--recv-amber-bg);border-left:4px solid var(--recv-amber) !important;color:var(--recv-text);">
+    <div class="d-flex align-items-start gap-3">
+      <i class="fas fa-shield-halved fa-2x text-warning mt-1"></i>
+      <div>
+        <h5 class="fw-bold mb-1">Discrepancy Declared &mdash; Quarantined Awaiting Admin Approval</h5>
+        <p class="mb-0 small">The physical items received at the store branch do not match the quantities declared by the warehouse dispatch. This discrepancy has been frozen until Company-Admin review and declaration.</p>
+        {% if req.variance_summary %}
+          <div class="mt-2 small"><strong>Database Variance Record:</strong> {{ req.variance_summary }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% elif req.variance_resolution %}
+  <div class="alert alert-secondary py-3 px-4 mb-4 border-0" style="background:var(--surface,#fafafa);border:1px solid var(--recv-border);">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <div class="d-flex align-items-center gap-2">
+        <strong class="text-uppercase small"><i class="fas fa-check-double text-success me-1"></i> Discrepancy Resolved: {{ req.variance_resolution|replace('_', ' ')|upper }}</strong>
+      </div>
+      <span class="small text-muted">{{ req.variance_resolved_at.strftime('%b %d, %Y %I:%M %p') if req.variance_resolved_at else '' }}</span>
+    </div>
+    {% if req.variance_admin_notes %}
+      <div class="small text-muted"><strong>Admin Resolution Notes:</strong> {{ req.variance_admin_notes }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- ── Receiving Inspection Station ───────────────────── -->
+  {% if can_receive %}
+  <div class="card border-0 mb-4" style="border:1px solid var(--recv-border) !important;background:var(--card-bg,#fff);">
+    <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center" style="background:var(--surface,#fafafa);border-bottom:1px solid var(--recv-border);">
+      <div>
+        <h5 class="fw-bold mb-0"><i class="fas fa-box-open text-warning me-2"></i> Physical Intake &amp; Count Verification</h5>
+        <small class="text-muted">Count physical items arriving from truck and verify against warehouse release values</small>
+      </div>
+      <button type="button" class="btn-quick-match" onclick="matchAllPageQuantities()">
+        <i class="fas fa-bolt me-1"></i> Match All Released
+      </button>
+    </div>
+
+    <div class="card-body p-4">
+      <form id="standaloneRecvForm" onsubmit="event.preventDefault(); submitStandaloneReceiving();">
+        <div class="d-none d-md-grid text-uppercase small text-muted fw-bold pb-2 border-bottom mb-2" style="grid-template-columns: minmax(0, 2fr) 90px 110px 150px 120px; gap: 0.75rem; font-size: 0.72rem;">
+          <div>Product Name &amp; Description</div>
+          <div class="text-center">Requested</div>
+          <div class="text-center">Released (WH)</div>
+          <div class="text-center">Actual Received</div>
+          <div class="text-end">Variance Status</div>
+        </div>
+
+        <div id="pageItemsContainer">
+          {% for it in items %}
+          <div class="recv-item-row" id="pageRow_{{ it.item_id }}" style="grid-template-columns: minmax(0, 2fr) 90px 110px 150px 120px;">
+            <div>
+              <div class="recv-item-name">{{ it.product_name }}</div>
+              <div class="recv-item-uom">{{ it.uom }} {% if it.is_optional %}<span class="badge bg-primary ms-1" style="font-size:0.6rem">Optional</span>{% endif %}</div>
+            </div>
+            <div class="text-center text-muted fw-semibold">
+              {{ it.requested_qty if it.requested_qty is not none else '—' }}
+            </div>
+            <div class="text-center fw-bold text-primary" id="pageRel_{{ it.item_id }}">
+              {{ it.warehouse_released }}
+            </div>
+            <div class="d-flex justify-content-center">
+              <div class="recv-stepper">
+                <button type="button" class="recv-step-btn" onclick="stepPageQty({{ it.item_id }}, -1)">-</button>
+                <input type="number" step="any" min="0" class="recv-qty-input" id="pageRecvInput_{{ it.item_id }}" value="{{ it.received_qty if it.received_qty is not none else it.warehouse_released }}" oninput="calcPageVariance({{ it.item_id }})" onfocus="this.select()">
+                <button type="button" class="recv-step-btn" onclick="stepPageQty({{ it.item_id }}, 1)">+</button>
+              </div>
+            </div>
+            <div class="text-end" id="pageVariance_{{ it.item_id }}">
+              <span class="recv-variance-badge exact"><i class="fas fa-check"></i> Exact</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Discrepancy warning banner -->
+        <div id="pageDiscrepancyWarning" class="alert alert-warning mt-3 py-2 px-3 small border-0" style="display:none;background:var(--recv-amber-bg);border-left:3px solid var(--recv-amber) !important;color:var(--recv-text);">
+          <div class="d-flex align-items-start gap-2">
+            <i class="fas fa-triangle-exclamation text-warning mt-1"></i>
+            <div>
+              <strong>Discrepancy Detected:</strong> One or more items differ from released quantities. Confirming will flag this requisition for Company-Admin discrepancy resolution.
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-top">
+          <label class="small fw-semibold text-muted mb-1">Receiving Remarks / Storage Notes</label>
+          <textarea class="form-control" id="pageReceivingNotes" rows="2" placeholder="e.g. Received intact at store dock. Verified by store staff." style="background:var(--surface,#fafafa);border-color:var(--recv-border);color:var(--recv-text);font-size:0.83rem"></textarea>
+        </div>
+
+        <div class="mt-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <a href="{{ url_for('receiving.deliveries_page') }}" class="btn-recv-secondary">
+            <i class="fas fa-times me-1"></i> Cancel
+          </a>
+          <button type="submit" class="btn-recv-primary" id="btnConfirmPageReceiving" style="padding:0.6rem 1.5rem;font-size:0.9rem">
+            <i class="fas fa-check-double me-1"></i> Confirm &amp; Complete Receiving
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- Read-only Verified Items Table -->
+  <div class="recv-table-card mb-4">
+    <div class="table-responsive">
+      <table class="recv-table">
+        <thead>
+          <tr>
+            <th>Product Name &amp; Description</th>
+            <th class="text-end">Requested</th>
+            <th class="text-end">Released (WH)</th>
+            <th class="text-end">Actual Received</th>
+            <th class="text-end">Variance</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in items %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ it.product_name }}</div>
+              <div class="small text-muted">{{ it.uom }} {% if it.is_optional %}<span class="badge bg-primary ms-1" style="font-size:0.6rem">Optional</span>{% endif %}</div>
+            </td>
+            <td class="text-end text-muted">{{ it.requested_qty if it.requested_qty is not none else '—' }}</td>
+            <td class="text-end fw-bold text-primary">{{ it.warehouse_released }}</td>
+            <td class="text-end fw-bold">{{ it.received_qty if it.received_qty is not none else '—' }}</td>
+            <td class="text-end">
+              {% if it.variance_qty and it.variance_qty > 0 %}
+                <span class="recv-variance-badge over">+{{ it.variance_qty }} Over</span>
+              {% elif it.variance_qty and it.variance_qty < 0 %}
+                <span class="recv-variance-badge short">{{ it.variance_qty }} Short</span>
+              {% elif it.received_qty is not none %}
+                <span class="recv-variance-badge exact"><i class="fas fa-check"></i> Exact</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge {% if it.variance_type == 'exact' %}bg-success{% elif it.variance_type == 'over' %}bg-warning text-dark{% elif it.variance_type == 'short' %}bg-danger{% else %}bg-secondary{% endif %}">
+                {{ it.variance_type or 'exact' }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="fw-bold" style="background:var(--surface,#fafafa)">
+            <td>TOTAL VOLUME</td>
+            <td class="text-end text-muted">{{ total_requested }}</td>
+            <td class="text-end text-primary">{{ total_released }}</td>
+            <td class="text-end">{{ total_received }}</td>
+            <td class="text-end">
+              {% if total_variance > 0 %}
+                <span class="recv-variance-badge over">+{{ total_variance }} Over</span>
+              {% elif total_variance < 0 %}
+                <span class="recv-variance-badge short">{{ total_variance }} Short</span>
+              {% else %}
+                <span class="recv-variance-badge exact"><i class="fas fa-check"></i> Exact</span>
+              {% endif %}
+            </td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div><!-- /receiving-page -->
+
+<script>
+const REQ_ID = {{ req.id }};
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Initialize calculations if can_receive
+  {% if can_receive %}
+  {% for it in items %}
+  calcPageVariance({{ it.item_id }});
+  {% endfor %}
+  {% endif %}
+});
+
+function stepPageQty(itemId, delta) {
+  const input = document.getElementById(`pageRecvInput_${itemId}`);
+  if (!input) return;
+  let val = parseFloat(input.value) || 0;
+  val = Math.max(0, val + delta);
+  input.value = val;
+  calcPageVariance(itemId);
+}
+
+function calcPageVariance(itemId) {
+  const relEl = document.getElementById(`pageRel_${itemId}`);
+  const input = document.getElementById(`pageRecvInput_${itemId}`);
+  const varEl = document.getElementById(`pageVariance_${itemId}`);
+  if (!relEl || !input || !varEl) return;
+
+  const rel = parseFloat(relEl.textContent) || 0;
+  const recv = parseFloat(input.value) || 0;
+  const diff = recv - rel;
+
+  if (diff === 0) {
+    varEl.innerHTML = `<span class="recv-variance-badge exact"><i class="fas fa-check"></i> Exact</span>`;
+  } else if (diff < 0) {
+    varEl.innerHTML = `<span class="recv-variance-badge short">${diff} Short</span>`;
+  } else {
+    varEl.innerHTML = `<span class="recv-variance-badge over">+${diff} Over</span>`;
+  }
+
+  checkPageVariances();
+}
+
+function matchAllPageQuantities() {
+  document.querySelectorAll('[id^="pageRow_"]').forEach(row => {
+    const id = row.id.replace('pageRow_', '');
+    const relEl = document.getElementById(`pageRel_${id}`);
+    const input = document.getElementById(`pageRecvInput_${id}`);
+    if (relEl && input) {
+      input.value = relEl.textContent.trim();
+      calcPageVariance(id);
+    }
+  });
+}
+
+function checkPageVariances() {
+  let hasAny = false;
+  document.querySelectorAll('[id^="pageRow_"]').forEach(row => {
+    const id = row.id.replace('pageRow_', '');
+    const relEl = document.getElementById(`pageRel_${id}`);
+    const input = document.getElementById(`pageRecvInput_${id}`);
+    if (relEl && input) {
+      const rel = parseFloat(relEl.textContent) || 0;
+      const recv = parseFloat(input.value) || 0;
+      if (rel !== recv) hasAny = true;
+    }
+  });
+
+  const warningEl = document.getElementById('pageDiscrepancyWarning');
+  if (warningEl) warningEl.style.display = hasAny ? 'block' : 'none';
+}
+
+function submitStandaloneReceiving() {
+  const btn = document.getElementById('btnConfirmPageReceiving');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Confirming…';
+
+  const formData = new FormData();
+  document.querySelectorAll('[id^="pageRow_"]').forEach(row => {
+    const id = row.id.replace('pageRow_', '');
+    const relEl = document.getElementById(`pageRel_${id}`);
+    const input = document.getElementById(`pageRecvInput_${id}`);
+    if (relEl) formData.append(`released_${id}`, relEl.textContent.trim());
+    if (input) formData.append(`actual_${id}`, input.value.trim());
+  });
+
+  const notes = document.getElementById('pageReceivingNotes').value.trim();
+  if (notes) formData.append('notes', notes);
+
+  fetch(`/receiving/api/confirm/${REQ_ID}`, {
+    method: 'POST',
+    body: formData,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-double me-1"></i> Confirm &amp; Complete Receiving';
+
+    if (data.success) {
+      if (data.has_discrepancy) {
+        alert('Discrepancy Declared: The requisition has been quarantined for Company-Admin approval.');
+      } else {
+        alert('Items received successfully! Store inventory has been credited.');
+      }
+      window.location.reload();
+    } else {
+      alert(data.message || 'Failed to confirm receiving');
+    }
+  })
+  .catch(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-double me-1"></i> Confirm &amp; Complete Receiving';
+    alert('Network error connecting to receiving server');
+  });
+}
+</script>
 {% endblock %}

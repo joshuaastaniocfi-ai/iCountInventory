@@ -1,6 +1,6 @@
 # Standard library imports
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 # Third-party imports
@@ -17,16 +17,26 @@ from helpers import user_redirect_to_requisition, admin_required, sys_admin_requ
 requisitions = Blueprint('requisitions', __name__, url_prefix='/requisitions')
 
 
-@requisitions.route('/requisition_form', methods=['GET'])
+@requisitions.route('/store_inventory', methods=['GET'], endpoint='store_inventory')
+@requisitions.route('/portal', methods=['GET'], endpoint='portal')
+@requisitions.route('/store_portal', methods=['GET'], endpoint='store_portal')
+@requisitions.route('/requisition_form', methods=['GET'], endpoint='requisition_form')
 @login_required
-def requisition_form():
-    # Only allow User role to access requisition form
+def store_inventory():
+    # Only allow User role to access store inventory / requisition form
     if current_user.role not in ['User']:
         flash('Access denied. Only regular users can submit requisitions.', 'error')
         return redirect(url_for('main.dashboard'))
     
     # Check for flash messages from login
     login_success = request.args.get('login_success', 'false')
+    
+    # Determine initial active panel:
+    # If the user navigates directly to /requisitions/requisition_form, default to 'requisition' wizard
+    # Otherwise, default to 'storeinv' or whatever ?panel= is requested
+    panel = request.args.get('panel', '').strip()
+    if not panel and request.path.endswith('/requisition_form'):
+        panel = 'requisition'
     
     # Filter products by company for the user
     products = Product.query.filter_by(company_id=current_user.company_id).all()
@@ -56,8 +66,20 @@ def requisition_form():
             'status': req.status.lower() if req.status else 'pending'
         })
     
+    # Calculate pending inbound shipments for receiving badge
+    pending_receiving_count = Requisition.query.filter(
+        (Requisition.company_id == current_user.company_id) |
+        (Requisition.destination_company_id == current_user.company_id),
+        Requisition.status.in_(['approved', 'Approved', 'Dispatched', 'dispatched', 'Partial', 'partial'])
+    ).count()
+
     return render_template('user/requisition_form.html', products=products, now=now, 
-                         login_success=login_success, history_data=history_data)
+                         login_success=login_success, history_data=history_data,
+                         initial_panel=panel, pending_receiving_count=pending_receiving_count)
+
+# Backwards compatibility alias for function reference
+portal = store_inventory
+requisition_form = store_inventory
 
 
 @requisitions.route('/submit_requisition', methods=['POST'])
@@ -192,6 +214,7 @@ def view_requisitions():
     page = request.args.get('page', 1, type=int)
     status = request.args.get('status', '').strip()
     search = request.args.get('q', '').strip()
+    date_str = request.args.get('date', '').strip()
     per_page = current_app.config.get('REQUISITIONS_PER_PAGE', 10)
     
     # Base query - modified to allow SYS-Admin and WH-Admin to see all requisitions
@@ -213,10 +236,6 @@ def view_requisitions():
             )
         )
     
-    # Apply status filter if provided
-    if status:
-        query = query.filter_by(status=status)
-    
     # Apply search filter if provided
     if search:
         like = f"%{search}%"
@@ -224,6 +243,31 @@ def view_requisitions():
             Requisition.requested_by.ilike(like),
             Requisition.branch.ilike(like)  # This now contains franchise name
         ))
+
+    # Apply date filter (single day, based on date created)
+    if date_str:
+        try:
+            day_start = datetime.strptime(date_str, '%Y-%m-%d')
+            query = query.filter(
+                Requisition.date_created >= day_start,
+                Requisition.date_created < day_start + timedelta(days=1)
+            )
+        except ValueError:
+            date_str = ''
+
+    # Status totals across all pages (before the status filter) for the summary cards
+    status_counts = {}
+    for st, cnt in (query.with_entities(Requisition.status, db.func.count(Requisition.id))
+                    .group_by(Requisition.status).all()):
+        key = (st or '').lower()
+        if key == 'declined':
+            key = 'rejected'
+        status_counts[key] = status_counts.get(key, 0) + cnt
+    total_count = sum(status_counts.values())
+
+    # Apply status filter if provided
+    if status:
+        query = query.filter_by(status=status)
     
     # Order by date created (newest first)
     query = query.order_by(Requisition.date_created.desc())
@@ -246,6 +290,8 @@ def view_requisitions():
         current_filters['status'] = status
     if search:
         current_filters['q'] = search
+    if date_str:
+        current_filters['date'] = date_str
 
     # Build serialized items data for approve modal
     requisitions_data = []
@@ -277,7 +323,9 @@ def view_requisitions():
         search=search,
         now=ph_time,
         current_filters=current_filters,
-        requisitions_json=requisitions_json
+        requisitions_json=requisitions_json,
+        status_counts=status_counts,
+        total_count=total_count
     )
 
 

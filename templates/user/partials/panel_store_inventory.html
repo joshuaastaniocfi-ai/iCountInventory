@@ -1,0 +1,46 @@
+<!-- ──────────────────────────────────────────────────
+     PANEL: LATEST INVENTORY
+────────────────────────────────────────────────── -->
+<div class="panel panel-storeinv {% if not initial_panel or initial_panel == 'storeinv' %}act{% endif %}" id="panel-storeinv">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Store Inventory</div>
+      <div class="ph-sub">Current store stock levels</div>
+    </div>
+    <div class="ph-actions" style="display:flex;gap:0.55rem;align-items:center;flex-wrap:wrap">
+      <a href="{{ url_for('store.production') }}" class="btn-production-hdr" id="btnStoreProduction">
+        <i class="fas fa-kitchen-set"></i>
+        <span>Store Production</span>
+        <span class="prod-badge-pill">21 Recipes</span>
+      </a>
+      <button class="btn-p" onclick="showPanel('inventory')"><i class="fas fa-warehouse"></i> View Full Inventory</button>
+    </div>
+  </div>
+
+  <div class="stat-row" style="margin-bottom:0.75rem">
+    <div class="stat-chip"><div class="sc-lbl">Total Items</div><div class="sc-val" id="siStatTotal">—</div></div>
+    <div class="stat-chip"><div class="sc-lbl">In Stock</div><div class="sc-val" style="color:var(--green)" id="siStatInStock">—</div></div>
+    <div class="stat-chip"><div class="sc-lbl">Low Stock</div><div class="sc-val" style="color:var(--amber)" id="siStatLow">—</div></div>
+    <div class="stat-chip"><div class="sc-lbl">Out of Stock</div><div class="sc-val" style="color:var(--red)" id="siStatOut">—</div></div>
+  </div>
+
+  <div class="fsearch" style="flex:1;min-width:180px;margin-bottom:1rem">
+    <i class="fas fa-search fsi"></i>
+    <input class="finput" id="storeInvSearch" placeholder="Search products…" oninput="filterStoreInv(this.value)">
+  </div>
+
+  <div class="ovx" style="border:1px solid var(--border-strong);border-radius:var(--radius-lg);">
+    <table class="it mobile-cards" style="margin:0">
+      <thead>
+        <tr>
+          <th style="width:36%">Product</th>
+          <th style="width:12%" class="te">UOM</th>
+          <th style="width:16%" class="te">Store Stock</th>
+          <th style="width:16%" class="te">Min. Level</th>
+          <th style="width:20%" class="te">Status</th>
+        </tr>
+      </thead>
+      <tbody id="storeInvBody"><!-- filled by JS --></tbody>
+    </table>
+  </div>
+</div><!-- /panel-storeinv -->

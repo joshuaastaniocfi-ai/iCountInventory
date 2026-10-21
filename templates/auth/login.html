@@ -7,15 +7,10 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/auth.css') }}" rel="stylesheet">
 </head>
-<body class="auth-page auth-split-page">
-
-    <div class="bg-mesh"></div>
-    <div class="bg-glow glow-1"></div>
-    <div class="bg-glow glow-2"></div>
-    <div class="bg-glow glow-3"></div>
+<body class="auth-page auth-system auth-split-page">
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -41,35 +36,35 @@
                 <a class="brand-logo" href="{{ url_for('auth.login') }}">
                     <span class="brand-icon"><i class="fas fa-cube"></i></span>
                     <span class="brand-name">iCount</span>
-                    <span class="brand-tag">Inventory Management System</span>
+                    <span class="brand-tag">Inventory operations</span>
                 </a>
 
                 <div class="brand-hero">
-                    <span class="brand-pill"><i class="fas fa-layer-group"></i> Smart Inventory Platform</span>
-                    <h2>Every item counted.<br><span class="gradient-text">Every decision confident.</span></h2>
-                    <p>One secure workspace to track stock, manage requisitions, and keep your business audit-ready.</p>
+                    <span class="brand-pill"><i class="fas fa-arrow-trend-up"></i> Inventory, in sync.</span>
+                    <h2>Know what’s in stock.<br><span class="gradient-text">Move with confidence.</span></h2>
+                    <p>One secure workspace for accurate counts, clear requisitions, and audit-ready operations.</p>
                 </div>
 
                 <ul class="brand-features">
                     <li>
                         <span class="feature-icon"><i class="fas fa-chart-line"></i></span>
                         <div>
-                            <strong>Real-time stock visibility</strong>
+                            <strong>See stock clearly</strong>
                             <small>Live counts across every warehouse, batch, and location.</small>
                         </div>
                     </li>
                     <li>
                         <span class="feature-icon"><i class="fas fa-user-shield"></i></span>
                         <div>
-                            <strong>Role-based secure access</strong>
-                            <small>Every user sees exactly the data their role allows.</small>
+                            <strong>Work with confidence</strong>
+                            <small>Role-based access keeps every workspace focused and secure.</small>
                         </div>
                     </li>
                     <li>
                         <span class="feature-icon"><i class="fas fa-clipboard-check"></i></span>
                         <div>
-                            <strong>Audit-ready reporting</strong>
-                            <small>Clean, accurate reports that stand up to any review.</small>
+                            <strong>Stay audit-ready</strong>
+                            <small>Accurate records make every review easier to answer.</small>
                         </div>
                     </li>
                 </ul>
@@ -85,11 +80,9 @@
         <main class="auth-form-panel">
             <div class="auth-card login-card">
                 <div class="auth-card-header">
-                    <div class="brand-icon">
-                        <i class="fas fa-cube"></i>
-                    </div>
-                    <h1>Welcome back</h1>
-                    <p>Sign in to your account to continue</p>
+                    <div class="form-kicker">iCount / secure access</div>
+                    <h1>Welcome back<span class="title-dot">.</span></h1>
+                    <p>Sign in to continue to your workspace.</p>
                 </div>
 
                 <form action="{{ url_for('auth.login') }}" method="post" class="auth-form" autocomplete="off" id="loginForm">
@@ -127,7 +120,7 @@
 
                     <button type="submit" class="btn btn-auth" id="loginBtn">
                         <span class="btn-spinner"><i class="fas fa-circle-notch fa-spin"></i></span>
-                        <span class="btn-label">Sign In</span>
+                        <span class="btn-label">Continue</span>
                         <i class="fas fa-arrow-right btn-arrow"></i>
                     </button>
                 </form>

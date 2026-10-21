@@ -1,0 +1,25 @@
+{% for record in history_records %}
+<tr>
+  <td><strong>{{ record.trxn_date.strftime('%m/%d/%Y') }}</strong><small>{{ record.trxn_date.strftime('%I:%M %p') }}</small></td>
+  <td><span class="badge {% if record.trxn_code == 'TRANS IN' %}bg-success{% else %}bg-danger{% endif %}">{{ record.trxn_code }}</span></td>
+  <td>
+    <strong>{{ record.payee }}</strong>
+    <small>
+      {% if record.reference_type == 'batch' %}Batch #{{ record.reference_id }}
+      {% elif record.reference_type == 'requisition' %}Req #{{ record.reference_id }}
+      {% elif record.reference_type == 'spoilage' %}Spoilage #{{ record.reference_id }}
+      {% endif %}
+    </small>
+  </td>
+  <td class="text-end">{% if record.quantity_in > 0 %}<span class="fw-semibold text-success">{{ record.quantity_in|decimal_format(2) }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+  <td class="text-end">{% if record.quantity_out > 0 %}<span class="fw-semibold text-danger">{{ record.quantity_out|decimal_format(2) }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+  <td class="text-end"><span class="fw-bold {% if record.net_change >= 0 %}text-success{% else %}text-danger{% endif %}">{% if record.net_change >= 0 %}+{% endif %}{{ record.net_change|decimal_format(2) }}</span></td>
+  {% if current_user.role in ('WH-Admin', 'SYS-Admin') %}
+  <td class="text-center">
+    <button class="btn btn-sm btn-outline-danger" onclick="requestDelete({{ record.id }}, {{ record.trxn_code|tojson }}, {{ record.payee|tojson }}, {{ record.net_change }}, {{ product.name|tojson }}, {{ product.id }})" title="Request deletion of this transaction" aria-label="Request deletion of transaction with {{ record.payee }}">
+      <i class="fas fa-trash-alt" aria-hidden="true"></i>
+    </button>
+  </td>
+  {% endif %}
+</tr>
+{% endfor %}

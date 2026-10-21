@@ -1,0 +1,19 @@
+<!-- ═══════ TOPBAR ═══════ -->
+<header class="topbar">
+  <div class="tl">
+    <a href="{{ url_for('main.dashboard') }}" class="brand">
+      <div class="brand-icon"><i class="fas fa-cube"></i></div>iCount
+    </a>
+    <div class="tdiv"></div>
+    <span class="page-lbl" id="pageLabel">Store Inventory</span>
+  </div>
+  <div class="tr2">
+    <div class="uchip">
+      <div class="av" id="userInitials">UN</div>
+      <span id="userFullName">{{ current_user.full_name }}</span>
+      <span class="rbadge">{{ current_user.role }}</span>
+    </div>
+    <button class="bti" onclick="toggleTheme()" id="themeToggle" title="Theme"><i class="fas fa-sun"></i></button>
+    <a href="{{ url_for('auth.logout') }}" class="bti bti-danger" title="Sign out"><i class="fas fa-sign-out-alt"></i></a>
+  </div>
+</header>
