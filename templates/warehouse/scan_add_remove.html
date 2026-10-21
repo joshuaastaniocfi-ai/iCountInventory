@@ -68,74 +68,81 @@
     .page-header h4 i { margin-right: 0.4rem; color: var(--wh-primary); }
     .page-header small { color: var(--wh-text-muted); font-size: 0.8rem; }
 
-    /* ===== MODE TOGGLE ===== */
-    .mode-toggle { display: flex; gap: 0.4rem; margin-top: 0.75rem; }
-    .mode-toggle .btn { flex: 1; font-size: 0.75rem; padding: 0.5rem 0.3rem; border-radius: 0.6rem; border: 1.5px solid var(--wh-border); background: transparent; color: var(--wh-text-muted); transition: all 0.2s; font-weight: 600; line-height: 1.3; }
-    .mode-toggle .btn i { display: block; font-size: 1rem; margin-bottom: 0.15rem; }
-    .mode-toggle .btn.active { background: var(--wh-primary); color: #fff; border-color: var(--wh-primary); box-shadow: 0 2px 8px rgba(99,102,241,0.3); }
-    .mode-toggle .btn:not(.active):active { background: var(--wh-primary-light); color: #fff; border-color: var(--wh-primary-light); }
-    .mode-toggle .btn .badge { font-size: 0.6rem; padding: 0.15em 0.45em; }
+    /* ===== MODE TOGGLE (TABS) ===== */
+    .mode-toggle { display: flex; gap: 0.35rem; margin-top: 0.75rem; }
+    .mode-toggle .btn { flex: 1; font-size: 0.72rem; padding: 0.55rem 0.25rem; border-radius: 0.65rem; border: 1.5px solid var(--wh-border); background: var(--wh-card-bg); color: var(--wh-text-muted); transition: all 0.2s; font-weight: 600; line-height: 1.25; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .mode-toggle .btn i { font-size: 1.05rem; margin-bottom: 0.2rem; }
+    .mode-toggle .btn.active { background: var(--wh-primary) !important; color: #fff !important; border-color: var(--wh-primary) !important; box-shadow: 0 2px 8px rgba(99,102,241,0.3) !important; }
+    .mode-toggle .btn:not(.active):hover { background: var(--wh-bg); color: var(--wh-primary); border-color: var(--wh-primary-light); }
+    .mode-toggle .btn:not(.active):active { transform: scale(0.98); }
+    .mode-toggle .btn .badge { font-size: 0.6rem; padding: 0.15em 0.45em; margin-top: 0.15rem; }
 
     /* ===== SECONDARY NAV ===== */
     .secondary-nav { margin-top: 0.5rem; }
-    .secondary-nav .btn { border-radius: 0.6rem; font-size: 0.8rem; padding: 0.55rem; font-weight: 600; border: 1.5px solid var(--wh-border); background: var(--wh-card-bg); color: var(--wh-primary); transition: all 0.2s; }
+    .secondary-nav .btn { border-radius: 0.6rem; font-size: 0.8rem; padding: 0.55rem; font-weight: 600; border: 1.5px solid var(--wh-border); background: var(--wh-card-bg); color: var(--wh-primary); transition: all 0.2s; text-decoration: none; display: block; text-align: center; }
     .secondary-nav .btn:hover { background: var(--wh-primary); color: #fff; border-color: var(--wh-primary); }
+    .secondary-nav .btn:active { transform: scale(0.99); }
     .secondary-nav .btn i { margin-right: 0.35rem; }
 
     /* ===== SCANNER ===== */
-    .scanner-container { position: relative; margin-top: 0.75rem; border-radius: 0.75rem; overflow: hidden; background: #000; box-shadow: 0 0 0 2px var(--wh-primary-light), 0 4px 16px rgba(99,102,241,0.2); }
-    #reader { width: 100%; aspect-ratio: 1/1; background: #000; }
+    .scanner-container { position: relative; margin-top: 0.75rem; border-radius: 0.75rem; overflow: hidden; background: #0b0f19; box-shadow: 0 0 0 2px var(--wh-primary-light), 0 4px 16px rgba(99,102,241,0.2); }
+    #reader { width: 100%; aspect-ratio: 1/1; background: #0b0f19; }
     #reader video { object-fit: cover; }
     #reader__scan_region { display: flex; justify-content: center; align-items: center; position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
     #reader__scan_region img { display: none; }
     #reader__scan_region > svg { position: static !important; width: 100% !important; height: 100px !important; margin-top: -50px; }
 
     /* Scanner corner frame */
-    .scanner-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 70%; height: 50%; border: 2.5px solid var(--wh-primary-light); border-radius: 0.5rem; box-shadow: 0 0 0 9999px rgba(0,0,0,0.35); pointer-events: none; z-index: 5; }
-    .scanner-frame::before, .scanner-frame::after { content: ''; position: absolute; width: 20px; height: 20px; border-color: var(--wh-primary); border-style: solid; }
-    .scanner-frame::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
-    .scanner-frame::after { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
-    .scanner-frame .sf-br, .scanner-frame .sf-bl { position: absolute; width: 20px; height: 20px; border-color: var(--wh-primary); border-style: solid; }
-    .scanner-frame .sf-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
-    .scanner-frame .sf-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+    .scanner-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 72%; height: 52%; border: 2px solid rgba(129, 140, 248, 0.4); border-radius: 0.75rem; box-shadow: 0 0 0 9999px rgba(0,0,0,0.45); pointer-events: none; z-index: 5; }
+    .scanner-frame::before, .scanner-frame::after { content: ''; position: absolute; width: 22px; height: 22px; border-color: #818cf8; border-style: solid; }
+    .scanner-frame::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 6px 0 0 0; }
+    .scanner-frame::after { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 6px 0 0; }
+    .scanner-frame .sf-br, .scanner-frame .sf-bl { position: absolute; width: 22px; height: 22px; border-color: #818cf8; border-style: solid; }
+    .scanner-frame .sf-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 6px 0; }
+    .scanner-frame .sf-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-radius: 0 0 0 6px; }
 
     /* Scan line animation */
-    .scan-line { position: absolute; left: 15%; right: 15%; height: 2px; background: linear-gradient(90deg, transparent, var(--wh-primary-light), transparent); z-index: 6; animation: scanMove 1.8s ease-in-out infinite; border-radius: 1px; }
-    @keyframes scanMove { 0% { top: 30%; opacity: 0; } 30% { opacity: 1; } 70% { opacity: 1; } 100% { top: 65%; opacity: 0; } }
+    .scan-line { position: absolute; left: 14%; right: 14%; height: 2px; background: linear-gradient(90deg, transparent, #818cf8, #38bdf8, transparent); z-index: 6; animation: scanMove 1.8s ease-in-out infinite; border-radius: 2px; box-shadow: 0 0 8px rgba(129, 140, 248, 0.8); }
+    @keyframes scanMove { 0% { top: 26%; opacity: 0; } 30% { opacity: 1; } 70% { opacity: 1; } 100% { top: 72%; opacity: 0; } }
 
-    #status { position: absolute; top: 8px; left: 8px; z-index: 10; background: rgba(0,0,0,0.75); color: #fff; padding: 0.25rem 0.6rem; border-radius: 0.35rem; font-size: 0.75rem; backdrop-filter: blur(4px); }
-    #status.scanner-status-success { background: rgba(16,185,129,0.85); }
-    #status.scanner-status-danger { background: rgba(239,68,68,0.85); }
+    #status { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(15, 23, 42, 0.85); color: #fff; padding: 0.3rem 0.75rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); }
+    #status.scanner-status-success { background: rgba(16, 185, 129, 0.9); }
+    #status.scanner-status-danger { background: rgba(239, 68, 68, 0.9); }
+    #status.scanner-status-warning { background: rgba(245, 158, 11, 0.9); color: #000; }
+
+    /* Manual Barcode Input Card */
+    .manual-input-card { background: #ffffff; border: 1px solid var(--wh-border); border-radius: 0.75rem; padding: 0.6rem; }
+    .manual-input-card .input-group-text { background: var(--wh-bg); border-color: var(--wh-border); color: var(--wh-primary); font-size: 0.9rem; }
+    .manual-input-card .form-control { border-color: var(--wh-border); font-size: 0.88rem; font-weight: 500; }
+    .manual-input-card .form-control:focus { border-color: var(--wh-primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+    .manual-input-card .btn-primary { background: var(--wh-primary); border-color: var(--wh-primary); font-size: 0.85rem; }
 
     /* ===== PRODUCT CARD ===== */
-    .product-card { border-radius: 0.85rem; overflow: hidden; box-shadow: 0 2px 12px rgba(99,102,241,0.12); margin-top: 0.75rem; border: 1px solid var(--wh-border); background: var(--wh-card-bg); }
+    .product-card { border-radius: 0.85rem; overflow: hidden; box-shadow: 0 4px 16px rgba(99,102,241,0.14); margin-top: 0.75rem; border: 1px solid var(--wh-border); background: var(--wh-card-bg); animation: slideUp 0.25s ease-out; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .product-header { background: linear-gradient(135deg, #f8f7ff 0%, #eef0ff 100%); padding: 0.85rem 1rem; border-bottom: 1px solid var(--wh-border); }
-    .product-header h5 { font-size: 1rem; font-weight: 700; color: var(--wh-primary-dark); }
-    .product-header .text-muted { font-size: 0.75rem; color: var(--wh-text-muted) !important; }
+    .product-header h5 { font-size: 1.05rem; font-weight: 700; color: var(--wh-primary-dark); }
+    .product-header .text-muted { font-size: 0.78rem; color: var(--wh-text-muted) !important; font-family: monospace; }
     .product-body { padding: 1rem; }
 
     /* Stock info grid */
     .product-stock-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.75rem; }
     .product-stock-grid .stock-item { background: var(--wh-bg); border-radius: 0.5rem; padding: 0.55rem 0.65rem; border: 1px solid var(--wh-border); }
     .product-stock-grid .stock-item .stock-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--wh-text-muted); font-weight: 600; }
-    .product-stock-grid .stock-item .stock-value { font-size: 1rem; font-weight: 700; color: var(--wh-text); margin-top: 0.1rem; }
+    .product-stock-grid .stock-item .stock-value { font-size: 1.05rem; font-weight: 700; color: var(--wh-text); margin-top: 0.1rem; }
     .product-stock-grid .stock-item .stock-value.low { color: var(--wh-danger); }
     .product-stock-grid .stock-item .stock-value.good { color: var(--wh-success); }
 
     #stock-status { margin-top: 0.35rem; }
     #stock-status .badge { font-size: 0.7rem; font-weight: 600; padding: 0.3em 0.6em; }
 
-    .barcode-img { max-width: 90px; margin: 0 auto 0.75rem; }
-
     .action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 0.85rem; }
     .action-buttons .btn { border-radius: 0.6rem; font-weight: 600; font-size: 0.85rem; padding: 0.65rem 0.5rem; transition: all 0.2s; }
     .action-buttons .btn i { margin-right: 0.35rem; }
-    .action-buttons .btn-success { background: var(--wh-success) !important; border-color: var(--wh-success) !important; }
+    .action-buttons .btn-success { background: var(--wh-success) !important; border-color: var(--wh-success) !important; color: #fff !important; }
     .action-buttons .btn-success:active { transform: scale(0.97); }
-    .action-buttons .btn-danger { background: var(--wh-danger) !important; border-color: var(--wh-danger) !important; }
+    .action-buttons .btn-danger { background: var(--wh-danger) !important; border-color: var(--wh-danger) !important; color: #fff !important; }
     .action-buttons .btn-danger:active { transform: scale(0.97); }
-    .action-buttons .btn-outline-secondary { border: 1.5px solid var(--wh-border); color: var(--wh-text-muted); }
-    .action-buttons .btn-outline-secondary:hover { background: var(--wh-bg); border-color: var(--wh-primary); color: var(--wh-primary); }
 
     #retryBtn { border-radius: 0.6rem; font-weight: 600; font-size: 0.85rem; padding: 0.65rem; margin-top: 0.85rem !important; }
 
@@ -175,7 +182,7 @@
 <body>
   <!-- Flash Alert -->
   <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1050">
-    <div id="flashAlert" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div id="flashAlert" class="toast align-items-center border-0 shadow" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body">
           <!-- Message will be inserted here -->
@@ -199,45 +206,93 @@
   </style>
 
   <div class="scanner-wrapper">
+    <!-- Top Bar with Dashboard exit link and status -->
+    <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+      <a href="{{ url_for('main.dashboard') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 shadow-sm text-decoration-none">
+        <i class="fas fa-arrow-left me-1"></i> Dashboard
+      </a>
+      <span class="badge bg-white text-secondary border shadow-sm px-2 py-1">
+        <i class="fas fa-circle text-success me-1" style="font-size: 0.5rem;"></i> Warehouse Scanner
+      </span>
+    </div>
+
     <div class="card shadow">
       <div class="card-body">
         <!-- Header -->
         <div class="page-header">
           <h4><i class="fas fa-barcode"></i> Stock Scanner</h4>
-          <small>Scan product barcode to manage stock</small>
+          <small>Scan or enter product barcode to manage stock</small>
           
-          <!-- Navigation Menu Bar -->
+          <!-- Navigation Menu Bar with reliable anchor links -->
           <div class="mode-toggle">
-            <button type="button" class="btn active" id="scanner-mode-btn" onclick="switchToScannerMode()">
-              <i class="fas fa-barcode"></i> Stock Management
-            </button>
-            <button type="button" class="btn" id="audit-mode-btn" onclick="switchToAuditMode()">
+            <a href="{{ url_for('scanner.mobile_scanner') }}" class="btn active" id="scanner-mode-btn">
+              <i class="fas fa-barcode"></i> Stock Mgmt
+            </a>
+            <a href="{{ url_for('scanner.mobile_audit') }}" class="btn" id="audit-mode-btn">
               <i class="fas fa-clipboard-check"></i> Stock Audit
-            </button>
-            <button type="button" class="btn" id="requisitions-mode-btn" onclick="switchToRequisitionsMode()">
+            </a>
+            <a href="{{ url_for('scanner.mobile_pending_requisitions') }}" class="btn" id="requisitions-mode-btn">
               <i class="fas fa-file-invoice"></i> Pending <span class="badge bg-warning text-dark" id="pendingCount">0</span>
-            </button>
-          </div>
-          
-          <!-- Additional Navigation Buttons -->
-          <div class="secondary-nav">
-            <button type="button" class="btn w-100" onclick="switchToBatchSubAuditMode()">
-              <i class="fas fa-boxes"></i> Batch Sub Barcode Audit
-            </button>
+            </a>
+            <a href="{{ url_for('scanner.mobile_batch_sub_audit') }}" class="btn" id="batch-sub-mode-btn">
+              <i class="fas fa-boxes"></i> Batch Sub
+            </a>
           </div>
         </div>
 
         <!-- Scanner Container -->
         <div class="scanner-container position-relative">
-          <!-- Scanner -->
-          <div id="reader" class="mb-2"></div>
+          <!-- Scanner Video Container -->
+          <div id="reader" class="mb-0"></div>
           
           <!-- Status Display -->
-          <div id="status" class="scanner-status">Initializing camera...</div>
+          <div id="status" class="scanner-status">Starting camera...</div>
           
-          <!-- Scanner corner frame -->
+          <!-- Scanner corner frame & laser -->
           <div class="scanner-frame"><div class="sf-br"></div><div class="sf-bl"></div></div>
           <div class="scan-line"></div>
+
+          <!-- Camera Controls Overlay -->
+          <div class="scanner-controls-overlay position-absolute bottom-0 start-0 end-0 p-2 d-flex justify-content-center gap-2" style="z-index: 10; background: linear-gradient(transparent, rgba(11,15,25,0.85));">
+            <button type="button" class="btn btn-sm btn-dark bg-opacity-75 text-white border-0 rounded-pill px-3" id="toggleCameraBtn" onclick="toggleCamera()" title="Pause/Resume Camera">
+              <i class="fas fa-pause me-1"></i> <span id="toggleCameraText">Pause</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-dark bg-opacity-75 text-white border-0 rounded-pill px-3" id="switchCameraBtn" onclick="switchCamera()" title="Switch Camera">
+              <i class="fas fa-sync-alt me-1"></i> Flip
+            </button>
+            <button type="button" class="btn btn-sm btn-dark bg-opacity-75 text-white border-0 rounded-pill px-3 d-none" id="torchBtn" onclick="toggleTorch()" title="Flashlight">
+              <i class="fas fa-bolt me-1"></i> Light
+            </button>
+          </div>
+        </div>
+
+        <!-- Camera Notice (Shown if camera is blocked or insecure context) -->
+        <div id="camera-notice" class="alert alert-warning border-0 mt-3 d-none shadow-sm" style="border-radius: 0.75rem;">
+          <div class="d-flex align-items-start gap-2">
+            <i class="fas fa-video-slash mt-1 text-warning"></i>
+            <div class="flex-grow-1">
+              <strong class="d-block mb-1" style="font-size: 0.85rem;">Camera Permission or Security Notice</strong>
+              <p class="mb-2 small" id="camera-notice-text">
+                Mobile browsers require HTTPS or explicit permission to access the camera. You can tap below to try enabling camera, or use manual barcode entry.
+              </p>
+              <button type="button" class="btn btn-sm btn-warning fw-bold text-dark rounded-pill px-3" onclick="initializeCamera(true)">
+                <i class="fas fa-camera me-1"></i> Tap to Enable Camera
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manual Barcode / SKU Entry -->
+        <div class="manual-input-card mt-3 shadow-sm">
+          <form id="manualBarcodeForm" onsubmit="handleManualBarcode(event)" class="d-flex gap-2">
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-keyboard"></i></span>
+              <input type="text" id="manualBarcodeInput" class="form-control border-start-0" placeholder="Type or scan barcode..." autocomplete="off">
+            </div>
+            <button type="submit" class="btn btn-primary px-3 fw-bold" style="white-space: nowrap;">
+              <i class="fas fa-search me-1"></i> Look Up
+            </button>
+          </form>
         </div>
 
         <!-- Product Info Card -->
@@ -249,8 +304,8 @@
                 <div class="text-muted" id="product-barcode"></div>
                 <div id="stock-status"></div>
               </div>
-              <button class="btn btn-outline-primary btn-sm" onclick="showBatchesModal()">
-                <i class="fas fa-layer-group"></i> Batches
+              <button class="btn btn-outline-primary btn-sm rounded-pill" onclick="showBatchesModal()">
+                <i class="fas fa-layer-group me-1"></i> Batches
               </button>
             </div>
           </div>
@@ -258,7 +313,7 @@
           <div class="product-body">
             <div class="product-stock-grid">
               <div class="stock-item">
-                <div class="stock-label"><i class="fas fa-boxes me-1"></i>Stock</div>
+                <div class="stock-label"><i class="fas fa-boxes me-1"></i>Stock (Current/Initial)</div>
                 <div class="stock-value" id="product-stock-display"></div>
               </div>
               <div class="stock-item">
@@ -274,15 +329,24 @@
                 <div class="stock-value" id="product-reorder-level"></div>
               </div>
             </div>
+
+            <!-- Action Buttons: Add Stock & Remove Stock -->
+            <div class="action-buttons">
+              <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addStockModal">
+                <i class="fas fa-plus"></i> Add Stock
+              </button>
+              <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#removeStockModal">
+                <i class="fas fa-minus"></i> Remove Stock
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- Retry Button -->
-        <button class="btn btn-outline-secondary w-100 mt-3 d-none btn-lg" id="retryBtn" onclick="retryScan()">
-          <i class="fas fa-redo"></i> Scan Another Product
+        <button class="btn btn-outline-secondary w-100 mt-3 d-none btn-lg rounded-pill" id="retryBtn" onclick="retryScan()">
+          <i class="fas fa-redo me-1"></i> Scan Another Product
         </button>
       </div>
-    </div>
   </div>
 
   <!-- Add Stock Modal -->
@@ -400,490 +464,470 @@
     let html5QrCode = null;
     let currentProduct = null;
     let selectedBatchId = null;
+    let isCameraRunning = false;
+    let isCameraPaused = false;
+    let availableCameras = [];
+    let currentCameraIndex = 0;
+    let isInitializing = false;
+    let currentTorchState = false;
     
     // Pass user role from Flask template to JavaScript
     const userRole = '{{ current_user.role if current_user else "" }}';
 
-    // Initialize when page loads
-    window.addEventListener('load', function() {
-      console.log('window load event fired');
-      initializeCamera();
-      loadPendingRequisitionsCount(); // Load pending requisitions count
-    });
+    // Audio beep synthesis on barcode scan
+    function playBeepSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+      } catch (e) {
+        // AudioContext restricted or unsupported
+      }
+    }
+
+    // Tactile haptic feedback
+    function triggerHaptic() {
+      if (navigator.vibrate) {
+        try {
+          navigator.vibrate([40, 30, 40]);
+        } catch (e) {}
+      }
+    }
 
     async function loadPendingRequisitionsCount() {
-      console.log('loadPendingRequisitionsCount called');
       try {
         const response = await fetch('/scanner/api/pending-requisitions');
         const data = await response.json();
-        
         if (data.success) {
-          // Update the pending count in the toggle button
-          document.getElementById('pendingCount').textContent = data.count;
+          const badge = document.getElementById('pendingCount');
+          if (badge) badge.textContent = data.count;
         }
       } catch (error) {
         console.error('Error loading pending requisitions count:', error);
       }
     }
 
-    async function initializeCamera() {
-      console.log('initializeCamera called');
-      try {
-        // Check if permission is already granted
-        const permissionStatus = await navigator.permissions.query({ name: 'camera' });
-        
-        if (permissionStatus.state === 'granted') {
-          startCamera();
-        } else {
-          // Request permission immediately
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          stream.getTracks().forEach(track => track.stop()); // Stop the stream as we'll let Html5QrCode handle it
-          startCamera();
-        }
-      } catch (err) {
-        showStatus('Camera permission denied. Please allow camera access and refresh the page.', 'danger');
-        console.error('Permission Error:', err);
-      }
-    }
-
     function showStatus(message, type = 'info') {
-      console.log('showStatus called with message:', message, 'type:', type);
       const status = document.getElementById('status');
-      if (status) {
-        // For the new design, we only change the text content and color based on type
-        status.textContent = message || 'Unknown status';
-        status.classList.remove('d-none');
-        
-        // Update background color based on type
-        switch(type) {
-          case 'success':
-            status.style.background = 'rgba(25, 135, 84, 0.7)'; // Green
-            break;
-          case 'danger':
-            status.style.background = 'rgba(220, 53, 69, 0.7)'; // Red
-            break;
-          case 'warning':
-            status.style.background = 'rgba(255, 193, 7, 0.7)'; // Yellow
-            break;
-          default:
-            status.style.background = 'rgba(0,0,0,0.7)'; // Default black
-        }
-      } else {
-        console.error('Status element not found');
-      }
+      if (!status) return;
+      status.textContent = message || 'Unknown status';
+      status.className = 'scanner-status';
+      status.classList.remove('d-none');
+      if (type === 'success') status.classList.add('scanner-status-success');
+      else if (type === 'danger') status.classList.add('scanner-status-danger');
+      else if (type === 'warning') status.classList.add('scanner-status-warning');
     }
 
     function showFlashAlert(message, type = 'success') {
-      console.log('showFlashAlert called with message:', message, 'type:', type);
       const toast = document.getElementById('flashAlert');
       if (toast && toast.querySelector && toast.querySelector('.toast-body')) {
-        toast.className = `toast align-items-center text-white bg-${type} border-0`;
-        toast.querySelector('.toast-body').textContent = message || 'Unknown message';
-        
-        const bsToast = new bootstrap.Toast(toast, {
-          delay: 3000,
-          animation: true
-        });
+        const bgClass = type === 'error' ? 'bg-danger' : `bg-${type}`;
+        toast.className = `toast align-items-center text-white ${bgClass} border-0 shadow`;
+        toast.querySelector('.toast-body').textContent = message || '';
+        const bsToast = new bootstrap.Toast(toast, { delay: 3500, animation: true });
         bsToast.show();
-      } else {
-        console.error('Toast element not found');
       }
     }
 
-    async function startCamera() {
-      console.log('startCamera function called');
+    // Initialize camera safely with graceful fallbacks
+    async function initializeCamera(isUserGesture = false) {
+      if (isInitializing) return;
+      isInitializing = true;
+      
+      const statusEl = document.getElementById('status');
+      const cameraNotice = document.getElementById('camera-notice');
+      const noticeText = document.getElementById('camera-notice-text');
+
+      // Check browser MediaDevices support (insecure HTTP context on mobile disables this)
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn('mediaDevices.getUserMedia not available');
+        if (statusEl) {
+          statusEl.textContent = 'Camera unavailable (HTTPS required on mobile)';
+          statusEl.className = 'scanner-status scanner-status-warning';
+        }
+        if (cameraNotice) {
+          cameraNotice.classList.remove('d-none');
+          if (noticeText) {
+            noticeText.innerHTML = 'Mobile browsers restrict camera access over insecure HTTP. <strong>Use the manual barcode lookup below</strong> or access via HTTPS / localhost.';
+          }
+        }
+        isInitializing = false;
+        return;
+      }
+
+      showStatus('Starting camera...', 'info');
+
       try {
-        showStatus('Starting camera...');
-        
+        // Enumerate video devices
+        try {
+          availableCameras = await Html5Qrcode.getCameras();
+          console.log('Detected cameras:', availableCameras);
+        } catch (camErr) {
+          console.warn('Could not list cameras:', camErr);
+          availableCameras = [];
+        }
+
         // Clean up any existing scanner instance
         if (html5QrCode) {
           try {
-            await html5QrCode.stop();
-          } catch (stopError) {
-            console.log('Error stopping existing scanner:', stopError);
+            if (isCameraRunning) {
+              await html5QrCode.stop();
+            }
+          } catch (stopErr) {
+            console.log('Cleanup stop error:', stopErr);
           }
           html5QrCode = null;
         }
-        
-        // Initialize scanner
+
         html5QrCode = new Html5Qrcode("reader");
-        
-        // Configure scanner with more compatible settings
+
         const config = {
-          fps: 10,
-          qrbox: { width: 250, height: 100 },
-          aspectRatio: 1
+          fps: 15,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const edge = Math.min(viewfinderWidth, viewfinderHeight);
+            return {
+              width: Math.floor(edge * 0.78),
+              height: Math.floor(edge * 0.48)
+            };
+          },
+          aspectRatio: 1.0,
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+          }
         };
 
-        // Try to start camera with environment facing mode first
+        let startSuccess = false;
+
+        // Try environment/back camera first
         try {
           await html5QrCode.start(
-            { facingMode: "environment" },
+            { facingMode: { exact: "environment" } },
             config,
             onScanSuccess,
             onScanError
           );
-        } catch (primaryError) {
-          console.log('Primary camera setup failed, trying alternative:', primaryError);
-          // Fallback to any camera
-          await html5QrCode.start(
-            { facingMode: "user" },
-            config,
-            onScanSuccess,
-            onScanError
-          );
+          startSuccess = true;
+        } catch (envExactErr) {
+          try {
+            await html5QrCode.start(
+              { facingMode: "environment" },
+              config,
+              onScanSuccess,
+              onScanError
+            );
+            startSuccess = true;
+          } catch (envErr) {
+            console.log('Environment camera failed, trying fallback camera ID or user camera...');
+            if (availableCameras && availableCameras.length > 0) {
+              const cameraId = availableCameras[currentCameraIndex % availableCameras.length].id;
+              await html5QrCode.start(
+                cameraId,
+                config,
+                onScanSuccess,
+                onScanError
+              );
+              startSuccess = true;
+            } else {
+              await html5QrCode.start(
+                { facingMode: "user" },
+                config,
+                onScanSuccess,
+                onScanError
+              );
+              startSuccess = true;
+            }
+          }
         }
 
-        // Update status to show camera is active
-        showStatus('Camera is active and scanning', 'success');
+        if (startSuccess) {
+          isCameraRunning = true;
+          isCameraPaused = false;
+          showStatus('Ready — Align barcode in frame', 'success');
+          if (cameraNotice) cameraNotice.classList.add('d-none');
+          updateCameraControlUI();
+        }
       } catch (err) {
-        const errorMessage = err.message || 'Unknown error';
-        showStatus('Error starting camera: ' + errorMessage, 'danger');
-        console.error('Camera Error:', err);
-        
-        // Add retry button
-        const statusElement = document.getElementById('status');
-        if (statusElement) {
-          statusElement.innerHTML += ' <button class="btn btn-sm btn-outline-light ms-2" onclick="window.location.reload()">Retry</button>';
+        console.error('Camera startup error:', err);
+        isCameraRunning = false;
+        showStatus('Camera access denied or unavailable', 'danger');
+        if (cameraNotice) {
+          cameraNotice.classList.remove('d-none');
+          if (noticeText) {
+            noticeText.innerHTML = `Unable to start camera (${err.message || 'Permission denied'}). Please allow camera access in browser settings or use the manual barcode search below.`;
+          }
+        }
+      } finally {
+        isInitializing = false;
+      }
+    }
+
+    function updateCameraControlUI() {
+      const toggleText = document.getElementById('toggleCameraText');
+      const toggleBtn = document.getElementById('toggleCameraBtn');
+      const torchBtn = document.getElementById('torchBtn');
+
+      if (toggleText) toggleText.textContent = isCameraPaused ? 'Resume' : 'Pause';
+      if (toggleBtn) {
+        const icon = toggleBtn.querySelector('i');
+        if (icon) {
+          icon.className = isCameraPaused ? 'fas fa-play me-1' : 'fas fa-pause me-1';
+        }
+      }
+
+      // Check torch capability
+      if (html5QrCode && isCameraRunning && torchBtn) {
+        try {
+          const track = html5QrCode.getRunningTrackCameraCapabilities();
+          if (track && track.torchFeature && track.torchFeature().isSupported()) {
+            torchBtn.classList.remove('d-none');
+          } else {
+            torchBtn.classList.add('d-none');
+          }
+        } catch (e) {
+          torchBtn.classList.add('d-none');
         }
       }
     }
 
-    function onScanSuccess(decodedText) {
-      console.log('onScanSuccess called with decodedText:', decodedText);
-      // Always trim to 12 characters for barcode
-      const barcode = decodedText.slice(0, 12);
-      console.log('Trimmed barcode:', barcode);
-      
-      // Stop scanning temporarily
-      if (html5QrCode) {
-        html5QrCode.stop().then(() => {
-          console.log('Scanner stopped successfully');
-          document.getElementById('reader').classList.add('d-none');
-          // Hide status message when scanner stops
-          document.getElementById('status').classList.add('d-none');
-
-          fetch(`/products/lookup_product/${barcode}`)
-            .then(res => res.json())
-            .then(data => {
-              console.log('Product lookup response:', data);
-              if (data.success) {
-                currentProduct = data;
-
-                // Update product info
-                document.getElementById('product-name').innerText = data.name;
-                document.getElementById('product-barcode').innerText = `Barcode: ${data.barcode}`;
-                // Format stock display as "440/450" (quantity/initial_quantity)
-                document.getElementById('product-stock-display').innerText = `${data.quantity}/${data.initial_quantity}`;
-    reorderLevelElement.innerText = data.reorder_level;
-                } else {
-                  reorderLevelElement.innerText = 'N/A';
-                }
-                
-                // Update stock status
-                const stockStatus = document.getElementById('stock-status');
-                if (data.quantity === 0) {
-                  stockStatus.innerHTML = '<span class="badge bg-danger"><i class="fas fa-exclamation-circle"></i> No Stock</span>';
-                } else if (data.is_low_stock) {
-                  stockStatus.innerHTML = '<span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Low Stock</span>';
-                } else {
-                  stockStatus.innerHTML = '<span class="badge bg-success"><i class="fas fa-check-circle"></i> Stock Available</span>';
-                }
-
-                // Show product info and retry button
-                document.getElementById('product-info').classList.remove('d-none');
-                document.getElementById('retryBtn').classList.remove('d-none');
-                
-                // Hide status message on successful scan - ENSURE it's hidden
-                document.getElementById('status').classList.add('d-none');
-
-                // Set product IDs for modals
-                document.getElementById('add_product_id').value = data.id;
-                document.getElementById('remove_product_id').value = data.id;
-
-                // Show success message
-                showFlashAlert(`Scanned product: ${data.name}`, 'success');
-
-                // Store current product for reference
-                currentProduct = data;
-
-                // Disable expiry date for Supplies products
-                const expDateInput = document.querySelector('input[name="exp_date"]');
-                if (expDateInput) {
-                  if (data.account_title && data.account_title.toLowerCase().startsWith('supplies')) {
-                    expDateInput.disabled = true;
-                    expDateInput.value = '';
-                    expDateInput.required = false;
-                    expDateInput.placeholder = 'Disabled for Supplies';
-                    expDateInput.title = 'Expiry date is disabled for Supplies products';
-                  } else {
-                    expDateInput.disabled = false;
-                    expDateInput.required = true;
-                    expDateInput.placeholder = '';
-                    expDateInput.title = '';
-                  }
-                }
-
-                // Fetch and populate batches
-                fetchProductBatches(data.id);
-              } else {
-                // Show specific error message for company mismatch
-                if (data.message && (data.message.includes('Access denied') || data.message.includes('belongs to'))) {
-                  showFlashAlert(data.message, 'error');
-                  // Show retry button but keep camera hidden
-                  document.getElementById('retryBtn').classList.remove('d-none');
-                  // Hide status message on error
-                  document.getElementById('status').classList.add('d-none');
-                } else {
-                  showStatus('Product not found', 'warning');
-                  // Show retry button but keep camera hidden
-                  document.getElementById('retryBtn').classList.remove('d-none');
-                }
-              }
-            })
-            .catch(err => {
-              console.error('Lookup Error:', err);
-              showStatus('Error looking up product', 'danger');
-              // Show retry button but keep camera hidden
-              document.getElementById('retryBtn').classList.remove('d-none');
-            });
-        }).catch((stopError) => {
-          console.log('Error stopping scanner:', stopError);
-          document.getElementById('reader').classList.add('d-none');
-          // Hide status message even if stop fails
-          document.getElementById('status').classList.add('d-none');
-          
-          // Continue with product lookup even if stop fails
-          fetch(`/products/lookup_product/${barcode}`)
-            .then(res => res.json())
-            .then(data => {
-              console.log('Product lookup response (fallback):', data);
-              if (data.success) {
-                currentProduct = data;
-
-                // Update product info
-                document.getElementById('product-name').innerText = data.name;
-                document.getElementById('product-barcode').innerText = `Barcode: ${data.barcode}`;
-                // Format stock display as "440/450" (quantity/initial_quantity)
-                document.getElementById('product-stock-display').innerText = `${data.quantity}/${data.initial_quantity}`;
-                document.getElementById('product-uom').innerText = data.uom;
-                document.getElementById('product-account').innerText = data.account_title;
-                // Display reorder level - FIXED to properly show integer values including 0
-                const reorderLevelElement = document.getElementById('product-reorder-level');
-                if (data.reorder_level !== null && data.reorder_level !== undefined) {
-                  reorderLevelElement.innerText = data.reorder_level;
-                } else {
-                  reorderLevelElement.innerText = 'N/A';
-                }
-                
-                // Update stock status
-                const stockStatus = document.getElementById('stock-status');
-                if (data.quantity === 0) {
-                  stockStatus.innerHTML = '<span class="badge bg-danger"><i class="fas fa-exclamation-circle"></i> No Stock</span>';
-                } else if (data.is_low_stock) {
-                  stockStatus.innerHTML = '<span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Low Stock</span>';
-                } else {
-                  stockStatus.innerHTML = '<span class="badge bg-success"><i class="fas fa-check-circle"></i> Stock Available</span>';
-                }
-
-                // Show product info and retry button
-                document.getElementById('product-info').classList.remove('d-none');
-                document.getElementById('retryBtn').classList.remove('d-none');
-                
-                // Hide status message on successful scan - ENSURE it's hidden
-                document.getElementById('status').classList.add('d-none');
-
-                // Set product IDs for modals
-                document.getElementById('add_product_id').value = data.id;
-                document.getElementById('remove_product_id').value = data.id;
-
-                // Show success message
-                showFlashAlert(`Scanned product: ${data.name}`, 'success');
-
-                // Store current product for reference
-                currentProduct = data;
-
-                // Disable expiry date for Supplies products
-                const expDateInput = document.querySelector('input[name="exp_date"]');
-                if (expDateInput) {
-                  if (data.account_title && data.account_title.toLowerCase().startsWith('supplies')) {
-                    expDateInput.disabled = true;
-                    expDateInput.value = '';
-                    expDateInput.required = false;
-                    expDateInput.placeholder = 'Disabled for Supplies';
-                    expDateInput.title = 'Expiry date is disabled for Supplies products';
-                  } else {
-                    expDateInput.disabled = false;
-                    expDateInput.required = true;
-                    expDateInput.placeholder = '';
-                    expDateInput.title = '';
-                  }
-                }
-
-                // Fetch and populate batches
-                fetchProductBatches(data.id);
-              } else {
-                // Show specific error message for company mismatch
-                if (data.message && (data.message.includes('Access denied') || data.message.includes('belongs to'))) {
-                  showFlashAlert(data.message, 'error');
-                  // Show retry button but keep camera hidden
-                  document.getElementById('retryBtn').classList.remove('d-none');
-                  // Hide status message on error
-                  document.getElementById('status').classList.add('d-none');
-                } else {
-                  showStatus('Product not found', 'warning');
-                  // Show retry button but keep camera hidden
-                  document.getElementById('retryBtn').classList.remove('d-none');
-                }
-              }
-            })
-            .catch(err => {
-              console.error('Lookup Error (fallback):', err);
-              showStatus('Error looking up product', 'danger');
-              // Show retry button but keep camera hidden
-              document.getElementById('retryBtn').classList.remove('d-none');
-            });
-        });
-      } else {
-        document.getElementById('reader').classList.add('d-none');
-        // Hide status message when no scanner
-        document.getElementById('status').classList.add('d-none');
-        
-        // Continue with product lookup
-        fetch(`/products/lookup_product/${barcode}`)
-          .then(res => res.json())
-          .then(data => {
-            console.log('Product lookup response (no scanner):', data);
-            if (data.success) {
-              currentProduct = data;
-
-              // Update product info
-              document.getElementById('product-name').innerText = data.name;
-              document.getElementById('product-barcode').innerText = `Barcode: ${data.barcode}`;
-              // Format stock display as "440/450" (quantity/initial_quantity)
-              document.getElementById('product-stock-display').innerText = `${data.quantity}/${data.initial_quantity}`;
-              document.getElementById('product-uom').innerText = data.uom;
-              document.getElementById('product-account').innerText = data.account_title;
-              // Display reorder level - FIXED to properly show integer values including 0
-                const reorderLevelElement = document.getElementById('product-reorder-level');
-                if (data.reorder_level !== null && data.reorder_level !== undefined) {
-                  reorderLevelElement.innerText = data.reorder_level;
-                } else {
-                  reorderLevelElement.innerText = 'N/A';
-                }
-                
-                // Update stock status
-                const stockStatus = document.getElementById('stock-status');
-                if (data.quantity === 0) {
-                  stockStatus.innerHTML = '<span class="badge bg-danger"><i class="fas fa-exclamation-circle"></i> No Stock</span>';
-                } else if (data.is_low_stock) {
-                  stockStatus.innerHTML = '<span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Low Stock</span>';
-                } else {
-                  stockStatus.innerHTML = '<span class="badge bg-success"><i class="fas fa-check-circle"></i> Stock Available</span>';
-                }
-
-                // Show product info and retry button
-                document.getElementById('product-info').classList.remove('d-none');
-                document.getElementById('retryBtn').classList.remove('d-none');
-                
-                // Hide status message on successful scan - ENSURE it's hidden
-                document.getElementById('status').classList.add('d-none');
-
-                // Set product IDs for modals
-                document.getElementById('add_product_id').value = data.id;
-                document.getElementById('remove_product_id').value = data.id;
-
-                // Show success message
-                showFlashAlert(`Scanned product: ${data.name}`, 'success');
-
-                // Store current product for reference
-                currentProduct = data;
-
-                // Disable expiry date for Supplies products
-                const expDateInput = document.querySelector('input[name="exp_date"]');
-                if (expDateInput) {
-                  if (data.account_title && data.account_title.toLowerCase().startsWith('supplies')) {
-                    expDateInput.disabled = true;
-                    expDateInput.value = '';
-                    expDateInput.required = false;
-                    expDateInput.placeholder = 'Disabled for Supplies';
-                    expDateInput.title = 'Expiry date is disabled for Supplies products';
-                  } else {
-                    expDateInput.disabled = false;
-                    expDateInput.required = true;
-                    expDateInput.placeholder = '';
-                    expDateInput.title = '';
-                  }
-                }
-
-                // Fetch and populate batches
-                fetchProductBatches(data.id);
-            } else {
-              // Show specific error message for company mismatch
-              if (data.message && (data.message.includes('Access denied') || data.message.includes('belongs to'))) {
-                showFlashAlert(data.message, 'error');
-                // Show retry button but keep camera hidden
-                document.getElementById('retryBtn').classList.remove('d-none');
-                // Hide status message on error
-                document.getElementById('status').classList.add('d-none');
-              } else {
-                showStatus('Product not found', 'warning');
-                // Show retry button but keep camera hidden
-                document.getElementById('retryBtn').classList.remove('d-none');
-              }
-            }
-          })
-          .catch(err => {
-            console.error('Lookup Error (no scanner):', err);
-            showStatus('Error looking up product', 'danger');
-            // Show retry button but keep camera hidden
-            document.getElementById('retryBtn').classList.remove('d-none');
-          });
+    async function toggleCamera() {
+      if (!html5QrCode || !isCameraRunning) {
+        await initializeCamera(true);
+        return;
       }
+      try {
+        if (isCameraPaused) {
+          html5QrCode.resume();
+          isCameraPaused = false;
+          showStatus('Ready — Align barcode in frame', 'success');
+        } else {
+          html5QrCode.pause();
+          isCameraPaused = true;
+          showStatus('Camera paused', 'warning');
+        }
+        updateCameraControlUI();
+      } catch (e) {
+        console.warn('Error toggling camera pause:', e);
+      }
+    }
+
+    async function switchCamera() {
+      if (!availableCameras || availableCameras.length < 2) {
+        if (html5QrCode && isCameraRunning) {
+          try {
+            await html5QrCode.stop();
+            isCameraRunning = false;
+          } catch (e) {}
+        }
+        currentCameraIndex = (currentCameraIndex + 1) % 2;
+        const targetFacing = currentCameraIndex === 0 ? "environment" : "user";
+        try {
+          html5QrCode = new Html5Qrcode("reader");
+          await html5QrCode.start(
+            { facingMode: targetFacing },
+            { fps: 15, qrbox: { width: 250, height: 120 }, aspectRatio: 1.0 },
+            onScanSuccess,
+            onScanError
+          );
+          isCameraRunning = true;
+          isCameraPaused = false;
+          showStatus(`Switched camera (${targetFacing})`, 'success');
+          updateCameraControlUI();
+        } catch (e) {
+          console.warn('Switch camera failed:', e);
+          initializeCamera(true);
+        }
+        return;
+      }
+
+      currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+      const targetCam = availableCameras[currentCameraIndex];
+      showStatus(`Switching to ${targetCam.label || 'camera ' + (currentCameraIndex+1)}...`, 'info');
+      try {
+        if (html5QrCode && isCameraRunning) {
+          await html5QrCode.stop();
+          isCameraRunning = false;
+        }
+        html5QrCode = new Html5Qrcode("reader");
+        await html5QrCode.start(
+          targetCam.id,
+          { fps: 15, qrbox: { width: 250, height: 120 }, aspectRatio: 1.0 },
+          onScanSuccess,
+          onScanError
+        );
+        isCameraRunning = true;
+        isCameraPaused = false;
+        showStatus('Camera active — Ready to scan', 'success');
+        updateCameraControlUI();
+      } catch (e) {
+        console.error('Camera switch error:', e);
+        initializeCamera(true);
+      }
+    }
+
+    async function toggleTorch() {
+      if (!html5QrCode || !isCameraRunning) return;
+      try {
+        const capabilities = html5QrCode.getRunningTrackCameraCapabilities();
+        if (capabilities && capabilities.torchFeature && capabilities.torchFeature().isSupported()) {
+          currentTorchState = !currentTorchState;
+          await capabilities.torchFeature().apply(currentTorchState);
+          const torchBtn = document.getElementById('torchBtn');
+          if (torchBtn) {
+            torchBtn.classList.toggle('text-warning', currentTorchState);
+          }
+        }
+      } catch (e) {
+        console.warn('Torch toggle error:', e);
+      }
+    }
+
+    // Handle manual barcode form submission
+    function handleManualBarcode(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('manualBarcodeInput');
+      if (!input) return;
+      const barcode = input.value.trim();
+      if (!barcode) {
+        showFlashAlert('Please enter a barcode or SKU', 'warning');
+        input.focus();
+        return;
+      }
+      lookupProductByBarcode(barcode);
+    }
+
+    // On barcode detected from camera
+    function onScanSuccess(decodedText) {
+      playBeepSound();
+      triggerHaptic();
+      const barcode = (decodedText || '').trim().slice(0, 12);
+      lookupProductByBarcode(barcode);
     }
 
     function onScanError(error) {
-      console.log('onScanError called with error:', error);
-      // We'll only log scan errors, not show them
-      console.log('Scan error:', error);
+      // Ignore background decoding frames
     }
 
-    function retryScan() {
-      console.log('retryScan function called');
-      currentProduct = null;
-      selectedBatchId = null;
-      document.getElementById('product-info').classList.add('d-none');
-      document.getElementById('reader').classList.remove('d-none');
-      document.getElementById('retryBtn').classList.add('d-none');
-      document.getElementById('status').classList.remove('d-none'); // Show status during retry
-      showStatus('Initializing camera...', 'info'); // Show initializing message
-      
-      // Properly stop any existing scanner before starting a new one
-      if (html5QrCode) {
-        html5QrCode.stop().then(() => {
-          console.log('Previous scanner stopped successfully');
-          html5QrCode = null;
-          // Small delay to ensure cleanup before starting new scanner
-          setTimeout(() => {
-            startCamera();
-          }, 100);
-        }).catch((error) => {
-          console.log('Error stopping previous scanner:', error);
-          html5QrCode = null;
-          // Small delay to ensure cleanup before starting new scanner
-          setTimeout(() => {
-            startCamera();
-          }, 100);
-        });
-      } else {
-        // Small delay to ensure cleanup before starting new scanner
-        setTimeout(() => {
-          startCamera();
-        }, 100);
+    // Unified lookup pipeline
+    async function lookupProductByBarcode(barcode) {
+      console.log('Looking up product barcode:', barcode);
+      if (!barcode) return;
+
+      // Update manual input field so user sees what was scanned
+      const manualInput = document.getElementById('manualBarcodeInput');
+      if (manualInput) manualInput.value = barcode;
+
+      // Stop camera temporarily to free screen and CPU
+      if (html5QrCode && isCameraRunning) {
+        try {
+          await html5QrCode.stop();
+          isCameraRunning = false;
+        } catch (e) {
+          console.warn('Error pausing scanner:', e);
+        }
+      }
+      document.getElementById('reader').classList.add('d-none');
+      document.getElementById('status').classList.add('d-none');
+
+      try {
+        const res = await fetch(`/products/lookup_product/${encodeURIComponent(barcode)}`);
+        const data = await res.json();
+        console.log('Lookup result:', data);
+
+        if (data.success) {
+          currentProduct = data;
+
+          // Populate product card fields safely
+          document.getElementById('product-name').textContent = data.name || 'Unnamed Product';
+          document.getElementById('product-barcode').textContent = `Barcode: ${data.barcode || barcode}`;
+          document.getElementById('product-stock-display').textContent = `${data.quantity ?? 0} / ${data.initial_quantity ?? 0}`;
+          document.getElementById('product-uom').textContent = data.uom || 'pcs';
+          document.getElementById('product-account').textContent = data.account_title || 'General';
+
+          const reorderEl = document.getElementById('product-reorder-level');
+          if (reorderEl) {
+            reorderEl.textContent = (data.reorder_level !== null && data.reorder_level !== undefined) ? data.reorder_level : 'N/A';
+          }
+
+          // Stock status badge
+          const stockStatus = document.getElementById('stock-status');
+          if (stockStatus) {
+            if ((data.quantity ?? 0) <= 0) {
+              stockStatus.innerHTML = '<span class="badge bg-danger"><i class="fas fa-exclamation-circle me-1"></i> Out of Stock</span>';
+            } else if (data.is_low_stock) {
+              stockStatus.innerHTML = '<span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i> Low Stock</span>';
+            } else {
+              stockStatus.innerHTML = '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i> In Stock</span>';
+            }
+          }
+
+          // Show product card and retry button
+          document.getElementById('product-info').classList.remove('d-none');
+          document.getElementById('retryBtn').classList.remove('d-none');
+
+          // Set product IDs for modals
+          const addIdEl = document.getElementById('add_product_id');
+          if (addIdEl) addIdEl.value = data.id;
+          const removeIdEl = document.getElementById('remove_product_id');
+          if (removeIdEl) removeIdEl.value = data.id;
+
+          // Disable expiry date for Supplies products
+          const expDateInput = document.querySelector('input[name="exp_date"]');
+          if (expDateInput) {
+            if (data.account_title && data.account_title.toLowerCase().startsWith('supplies')) {
+              expDateInput.disabled = true;
+              expDateInput.value = '';
+              expDateInput.required = false;
+              expDateInput.placeholder = 'Disabled for Supplies';
+              expDateInput.title = 'Expiry date is disabled for Supplies products';
+            } else {
+              expDateInput.disabled = false;
+              expDateInput.required = true;
+              expDateInput.placeholder = '';
+              expDateInput.title = '';
+            }
+          }
+
+          // Fetch batches
+          fetchProductBatches(data.id);
+          showFlashAlert(`Found: ${data.name}`, 'success');
+        } else {
+          // Error or mismatch
+          const msg = data.message || 'Product not found with this barcode';
+          showFlashAlert(msg, 'error');
+          showStatus(msg, 'warning');
+          document.getElementById('retryBtn').classList.remove('d-none');
+        }
+      } catch (err) {
+        console.error('Lookup fetch error:', err);
+        showFlashAlert('Failed to connect to server for lookup', 'error');
+        showStatus('Error looking up product', 'danger');
+        document.getElementById('retryBtn').classList.remove('d-none');
       }
     }
-    
-    // Make retryScan available globally
+
+    // Reset view to scan next product
+    function retryScan() {
+      currentProduct = null;
+      selectedBatchId = null;
+      
+      const manualInput = document.getElementById('manualBarcodeInput');
+      if (manualInput) manualInput.value = '';
+
+      document.getElementById('product-info').classList.add('d-none');
+      document.getElementById('retryBtn').classList.add('d-none');
+      document.getElementById('reader').classList.remove('d-none');
+      document.getElementById('status').classList.remove('d-none');
+      
+      initializeCamera();
+    }
     window.retryScan = retryScan;
 
     function showAddStockModal() {
@@ -1335,53 +1379,21 @@
       initializeCamera(); // Initialize the camera when the page loads
     });
 
-    // Mode switching functions
+    // Mode switching functions for backward compatibility
     function switchToAuditMode() {
-      console.log('switchToAuditMode called');
-      // Update button states
-      document.getElementById('scanner-mode-btn').classList.remove('active', 'btn-primary');
-      document.getElementById('scanner-mode-btn').classList.add('btn-outline-primary');
-      document.getElementById('audit-mode-btn').classList.remove('btn-outline-primary');
-      document.getElementById('audit-mode-btn').classList.add('active', 'btn-primary');
-      document.getElementById('requisitions-mode-btn').classList.remove('active', 'btn-primary');
-      document.getElementById('requisitions-mode-btn').classList.add('btn-outline-primary');
-      
-      // Redirect to mobile audit page
-      window.location.href = '/scanner/mobile-audit';
+      window.location.href = '{{ url_for("scanner.mobile_audit") }}';
     }
 
     function switchToScannerMode() {
-      console.log('switchToScannerMode called');
-      // Update button states
-      document.getElementById('audit-mode-btn').classList.remove('active', 'btn-primary');
-      document.getElementById('audit-mode-btn').classList.add('btn-outline-primary');
-      document.getElementById('scanner-mode-btn').classList.remove('btn-outline-primary');
-      document.getElementById('scanner-mode-btn').classList.add('active', 'btn-primary');
-      document.getElementById('requisitions-mode-btn').classList.remove('active', 'btn-primary');
-      document.getElementById('requisitions-mode-btn').classList.add('btn-outline-primary');
-      
-      // We're already on the scanner page, so just refresh
-      location.reload();
+      window.location.href = '{{ url_for("scanner.mobile_scanner") }}';
     }
     
     function switchToBatchSubAuditMode() {
-      console.log('switchToBatchSubAuditMode called');
-      // Redirect to mobile batch sub audit page
-      window.location.href = '/scanner/mobile-batch-sub-audit';
+      window.location.href = '{{ url_for("scanner.mobile_batch_sub_audit") }}';
     }
     
     function switchToRequisitionsMode() {
-      console.log('switchToRequisitionsMode called');
-      // Update button states
-      document.getElementById('scanner-mode-btn').classList.remove('active', 'btn-primary');
-      document.getElementById('scanner-mode-btn').classList.add('btn-outline-primary');
-      document.getElementById('audit-mode-btn').classList.remove('active', 'btn-primary');
-      document.getElementById('audit-mode-btn').classList.add('btn-outline-primary');
-      document.getElementById('requisitions-mode-btn').classList.remove('btn-outline-primary');
-      document.getElementById('requisitions-mode-btn').classList.add('active', 'btn-primary');
-      
-      // Redirect to mobile pending requisitions page
-      window.location.href = '/scanner/mobile-pending-requisitions';
+      window.location.href = '{{ url_for("scanner.mobile_pending_requisitions") }}';
     }
   </script>
 

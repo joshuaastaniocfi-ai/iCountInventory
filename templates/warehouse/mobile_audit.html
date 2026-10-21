@@ -65,35 +65,48 @@
     .page-header h4 i { margin-right: 0.4rem; color: var(--wh-primary); }
     .page-header small { color: var(--wh-text-muted); font-size: 0.8rem; }
 
-    .mode-toggle { display: flex; gap: 0.4rem; margin-top: 0.75rem; }
-    .mode-toggle .btn { flex: 1; font-size: 0.75rem; padding: 0.5rem 0.3rem; border-radius: 0.6rem; border: 1.5px solid var(--wh-border); background: transparent; color: var(--wh-text-muted); transition: all 0.2s; font-weight: 600; line-height: 1.3; }
-    .mode-toggle .btn i { display: block; font-size: 1rem; margin-bottom: 0.15rem; }
-    .mode-toggle .btn.active { background: var(--wh-primary); color: #fff; border-color: var(--wh-primary); box-shadow: 0 2px 8px rgba(99,102,241,0.3); }
-    .mode-toggle .btn:not(.active):active { background: var(--wh-primary-light); color: #fff; border-color: var(--wh-primary-light); }
-    .mode-toggle .btn .badge { font-size: 0.6rem; padding: 0.15em 0.45em; }
+    .back-to-dash { border: 1.5px solid var(--wh-border) !important; color: var(--wh-text-muted) !important; font-weight: 600; font-size: 0.8rem; border-radius: 0.6rem; padding: 0.4rem 0.75rem; text-decoration: none; display: inline-flex; align-items: center; }
+    .back-to-dash:hover { background: var(--wh-bg) !important; border-color: var(--wh-primary) !important; color: var(--wh-primary) !important; }
+
+    .mode-toggle { display: flex; gap: 0.35rem; margin-top: 0.75rem; }
+    .mode-toggle .mode-tab { flex: 1; font-size: 0.72rem; padding: 0.55rem 0.25rem; border-radius: 0.65rem; border: 1.5px solid var(--wh-border); background: var(--wh-card-bg); color: var(--wh-text-muted); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); font-weight: 600; line-height: 1.25; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .mode-toggle .mode-tab i { font-size: 1.05rem; margin-bottom: 0.2rem; }
+    .mode-toggle .mode-tab.active { background: var(--wh-primary); color: #fff; border-color: var(--wh-primary); box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
+    .mode-toggle .mode-tab:not(.active):hover { background: #f8f9ff; border-color: var(--wh-primary-light); color: var(--wh-primary); }
+    .mode-toggle .mode-tab .badge { font-size: 0.6rem; padding: 0.15em 0.45em; }
 
     .input-group { border-radius: 0.6rem; overflow: hidden; }
     .input-group .input-group-text { background: var(--wh-bg); border: 1.5px solid var(--wh-border); color: var(--wh-text-muted); font-size: 0.85rem; }
     .input-group .form-control { border: 1.5px solid var(--wh-border); font-size: 0.9rem; padding: 0.5rem 0.75rem; }
     .input-group .form-control:focus { border-color: var(--wh-primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
 
-    .scanner-container { position: relative; margin-top: 0.75rem; border-radius: 0.75rem; overflow: hidden; background: #000; box-shadow: 0 0 0 2px var(--wh-primary-light), 0 4px 16px rgba(99,102,241,0.2); }
+    .scanner-container { position: relative; margin-top: 0.75rem; border-radius: 0.85rem; overflow: hidden; background: #000; box-shadow: 0 0 0 2px var(--wh-primary-light), 0 8px 24px rgba(99,102,241,0.25); min-height: 280px; }
     #reader { width: 100%; aspect-ratio: 1/1; background: #000; }
     #reader video { object-fit: cover; }
     #reader__scan_region { display: flex; justify-content: center; align-items: center; position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
     #reader__scan_region img { display: none; }
     #reader__scan_region > svg { position: static !important; width: 100% !important; height: 100px !important; margin-top: -50px; }
 
-    .scanner-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 70%; height: 50%; border: 2.5px solid var(--wh-primary-light); border-radius: 0.5rem; box-shadow: 0 0 0 9999px rgba(0,0,0,0.35); pointer-events: none; z-index: 5; }
-    .scanner-frame::before, .scanner-frame::after, .scanner-frame .sf-br, .scanner-frame .sf-bl { content: ''; position: absolute; width: 18px; height: 18px; border-color: var(--wh-primary); border-style: solid; }
+    .scanner-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 75%; height: 50%; border: 2.5px solid rgba(129, 140, 248, 0.9); border-radius: 0.75rem; box-shadow: 0 0 0 9999px rgba(0,0,0,0.45); pointer-events: none; z-index: 5; }
+    .scanner-frame::before, .scanner-frame::after, .scanner-frame .sf-br, .scanner-frame .sf-bl { content: ''; position: absolute; width: 18px; height: 18px; border-color: #ffffff; border-style: solid; }
     .scanner-frame::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
     .scanner-frame::after { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
     .scanner-frame .sf-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
     .scanner-frame .sf-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
-    .scan-line { position: absolute; left: 15%; right: 15%; height: 2px; background: linear-gradient(90deg, transparent, var(--wh-primary-light), transparent); z-index: 6; animation: scanMove 1.8s ease-in-out infinite; border-radius: 1px; }
-    @keyframes scanMove { 0% { top: 30%; opacity: 0; } 30% { opacity: 1; } 70% { opacity: 1; } 100% { top: 65%; opacity: 0; } }
+    .scan-line { position: absolute; left: 12%; right: 12%; height: 3px; background: linear-gradient(90deg, transparent, #a5b4fc, #818cf8, transparent); z-index: 6; animation: scanMove 1.8s ease-in-out infinite; border-radius: 2px; box-shadow: 0 0 8px #818cf8; }
+    @keyframes scanMove { 0% { top: 28%; opacity: 0; } 30% { opacity: 1; } 70% { opacity: 1; } 100% { top: 68%; opacity: 0; } }
 
-    #status { position: absolute; top: 8px; left: 8px; z-index: 10; background: rgba(0,0,0,0.75); color: #fff; padding: 0.25rem 0.6rem; border-radius: 0.35rem; font-size: 0.75rem; backdrop-filter: blur(4px); }
+    .scanner-status { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10; background: rgba(15, 23, 42, 0.85); color: #fff; padding: 0.35rem 0.65rem; border-radius: 0.5rem; font-size: 0.75rem; backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.15); text-align: center; }
+    .scanner-status-success { background: rgba(16, 185, 129, 0.85) !important; color: #fff; }
+    .scanner-status-danger { background: rgba(239, 68, 68, 0.85) !important; color: #fff; }
+    .scanner-status-warning { background: rgba(245, 158, 11, 0.9) !important; color: #1e1b4b; font-weight: 600; }
+
+    .camera-controls { position: absolute; bottom: 10px; left: 0; right: 0; z-index: 10; display: flex; justify-content: center; gap: 0.5rem; padding: 0 0.5rem; }
+    .camera-btn { background: rgba(15, 23, 42, 0.75); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 2rem; padding: 0.3rem 0.75rem; font-size: 0.72rem; font-weight: 600; backdrop-filter: blur(4px); transition: all 0.2s; }
+    .camera-btn:hover, .camera-btn:active { background: rgba(99, 102, 241, 0.85); color: #fff; border-color: transparent; }
+
+    .camera-notice-card { border-radius: 0.75rem; border: 1.5px dashed #f59e0b; background: #fffbeb; padding: 0.85rem; font-size: 0.8rem; color: #92400e; margin-top: 0.75rem; }
+    .manual-barcode-box { background: #f8fafc; border: 1.5px solid var(--wh-border); border-radius: 0.75rem; padding: 0.85rem; margin-top: 0.75rem; }
 
     .audit-card { border-radius: 0.85rem; overflow: hidden; box-shadow: 0 2px 10px var(--wh-shadow); margin-top: 0.75rem; border: 1px solid var(--wh-border); background: var(--wh-card-bg); }
     .audit-header { background: linear-gradient(135deg, #f8f7ff 0%, #eef0ff 100%); padding: 0.85rem 1rem; border-bottom: 1px solid var(--wh-border); }
@@ -149,22 +162,39 @@
   <div class="audit-wrapper">
     <div class="card shadow">
       <div class="card-body">
+        <!-- Top Navigation Bar -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <a href="{{ url_for('main.dashboard') }}" class="back-to-dash">
+            <i class="fas fa-arrow-left me-1"></i> Dashboard
+          </a>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+            <i class="fas fa-clipboard-check me-1"></i> Warehouse Mobile
+          </span>
+        </div>
+
         <!-- Header -->
         <div class="page-header">
           <h4><i class="fas fa-clipboard-check"></i> Stock Audit</h4>
           <small>Scan products and enter actual quantities</small>
           
-          <!-- Mode Toggle Buttons -->
+          <!-- Mode Toggle Navigation Tabs -->
           <div class="mode-toggle">
-            <button type="button" class="btn" id="scanner-mode-btn" onclick="switchToScannerMode()">
-              <i class="fas fa-barcode"></i> Stock Management
-            </button>
-            <button type="button" class="btn active" id="audit-mode-btn" onclick="switchToAuditMode()">
-              <i class="fas fa-clipboard-check"></i> Stock Audit
-            </button>
-            <button type="button" class="btn" id="requisitions-mode-btn" onclick="switchToRequisitionsMode()">
-              <i class="fas fa-file-invoice"></i> Pending <span class="badge bg-warning text-dark" id="pendingCount">0</span>
-            </button>
+            <a href="{{ url_for('scanner.mobile_scanner') }}" class="mode-tab" id="scanner-mode-tab">
+              <i class="fas fa-barcode"></i>
+              <span>Stock Mgmt</span>
+            </a>
+            <a href="{{ url_for('scanner.mobile_audit') }}" class="mode-tab active" id="audit-mode-tab">
+              <i class="fas fa-clipboard-check"></i>
+              <span>Stock Audit</span>
+            </a>
+            <a href="{{ url_for('scanner.mobile_pending_requisitions') }}" class="mode-tab" id="requisitions-mode-tab">
+              <i class="fas fa-file-invoice"></i>
+              <span>Pending <span class="badge bg-warning text-dark" id="pendingCount">0</span></span>
+            </a>
+            <a href="{{ url_for('scanner.mobile_batch_sub_audit') }}" class="mode-tab" id="batch-sub-mode-tab">
+              <i class="fas fa-boxes"></i>
+              <span>Batch Sub</span>
+            </a>
           </div>
         </div>
 
@@ -172,16 +202,57 @@
         <div class="mb-3">
           <div class="input-group">
             <span class="input-group-text"><i class="fas fa-user"></i></span>
-            <input type="text" id="auditor-name" class="form-control" placeholder="Enter your name" required onchange="saveAuditListToStorage()">
+            <input type="text" id="auditor-name" class="form-control" placeholder="Enter auditor name" required onchange="saveAuditListToStorage()">
           </div>
         </div>
 
         <!-- Scanner Container -->
         <div class="scanner-container position-relative">
-          <div id="reader" class="mb-3"></div>
+          <div id="reader"></div>
           <div id="status" class="scanner-status">Initializing camera...</div>
           <div class="scanner-frame"><div class="sf-br"></div><div class="sf-bl"></div></div>
           <div class="scan-line"></div>
+          <div class="camera-controls">
+            <button type="button" class="camera-btn" id="toggleCameraBtn" onclick="toggleCamera()">
+              <i class="fas fa-pause me-1"></i> <span id="toggleCameraText">Pause</span>
+            </button>
+            <button type="button" class="camera-btn" id="switchCameraBtn" onclick="switchCamera()">
+              <i class="fas fa-sync-alt me-1"></i> Flip
+            </button>
+            <button type="button" class="camera-btn d-none" id="torchBtn" onclick="toggleTorch()">
+              <i class="fas fa-bolt me-1"></i> Torch
+            </button>
+          </div>
+        </div>
+
+        <!-- Camera Notice (Insecure context / Permission helper) -->
+        <div id="camera-notice" class="camera-notice-card d-none">
+          <div class="d-flex align-items-start gap-2">
+            <i class="fas fa-exclamation-triangle text-warning mt-1"></i>
+            <div>
+              <div class="fw-bold mb-1">Camera Access Notice</div>
+              <div id="camera-notice-text">Mobile browsers block camera access on plain HTTP network connections. If using on your phone, use HTTPS or type barcodes manually below.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manual Barcode / SKU Entry Bar -->
+        <div class="manual-barcode-box">
+          <label class="form-label fw-bold mb-1">
+            <i class="fas fa-keyboard text-primary me-1"></i> Manual Barcode / SKU Audit
+          </label>
+          <form id="manualBarcodeForm" onsubmit="handleManualBarcodeSubmit(event)" class="d-flex gap-2">
+            <div class="input-group">
+              <span class="input-group-text bg-white"><i class="fas fa-barcode text-primary"></i></span>
+              <input type="text" id="manualBarcodeInput" class="form-control" placeholder="Enter barcode or SKU..." autocomplete="off">
+            </div>
+            <button type="submit" class="btn btn-primary px-3 text-nowrap" id="manualLookupBtn">
+              <i class="fas fa-search me-1"></i> Audit
+            </button>
+          </form>
+          <div class="form-text small text-muted mt-1">
+            <i class="fas fa-info-circle me-1"></i> Bluetooth & USB barcode scanners type directly here.
+          </div>
         </div>
 
         <!-- Product Audit Card -->
@@ -276,119 +347,134 @@
     </div>
   </div>
 
-     <script>
-     let html5QrCode = null;
-     let currentProduct = null;
-     let auditList = [];
-     let totalProducts = 0;
-     
-     // Load audit list from localStorage on page load
-     window.addEventListener('load', function() {
-       loadAuditListFromStorage();
-       initializeCamera();
-       loadPendingRequisitionsCount(); // Load pending requisitions count
-     });
-     
-     // Save audit list to localStorage
-     function saveAuditListToStorage() {
-       localStorage.setItem('mobileAuditList', JSON.stringify(auditList));
-       localStorage.setItem('mobileAuditAuditor', document.getElementById('auditor-name').value);
-     }
-     
-     // Load audit list from localStorage
-     function loadAuditListFromStorage() {
-       const savedList = localStorage.getItem('mobileAuditList');
-       const savedAuditor = localStorage.getItem('mobileAuditAuditor');
-       
-       if (savedList) {
-         try {
-           auditList = JSON.parse(savedList);
-           updateAuditList();
-         } catch (e) {
-           console.error('Error loading audit list from storage:', e);
-           auditList = [];
-         }
-       }
-       
-       if (savedAuditor) {
-         document.getElementById('auditor-name').value = savedAuditor;
-       }
-       
-       getTotalProductsCount();
-     }
-     
-     // Get total products count
-     function getTotalProductsCount() {
-       fetch('/api/get_total_products')
-         .then(res => res.json())
-         .then(data => {
-           if (data.success) {
-             totalProducts = data.total_products;
-             document.getElementById('total-products').textContent = totalProducts;
-           }
-         })
-         .catch(err => {
-           console.error('Error getting total products:', err);
-           totalProducts = 0;
-         });
-     }
-     
-     // Clear audit list from localStorage
-     function clearAuditListFromStorage() {
-       localStorage.removeItem('mobileAuditList');
-       localStorage.removeItem('mobileAuditAuditor');
-     }
-    
+  <script>
+    let html5QrCode = null;
+    let currentProduct = null;
+    let auditList = [];
+    let totalProducts = 0;
+    let isCameraRunning = false;
+    let isCameraPaused = false;
+    let availableCameras = [];
+    let currentCameraIndex = 0;
+    let isInitializing = false;
+    let currentTorchState = false;
+
+    // Audio beep synthesis on barcode scan
+    function playBeepSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+      } catch (e) {}
+    }
+
+    // Tactile haptic feedback
+    function triggerHaptic() {
+      if (navigator.vibrate) {
+        try {
+          navigator.vibrate([40, 30, 40]);
+        } catch (e) {}
+      }
+    }
+
+    // Load audit list from localStorage on page load
+    window.addEventListener('load', function() {
+      loadAuditListFromStorage();
+      initializeCamera();
+      loadPendingRequisitionsCount();
+    });
+
+    // Save audit list to localStorage
+    function saveAuditListToStorage() {
+      localStorage.setItem('mobileAuditList', JSON.stringify(auditList));
+      const auditorEl = document.getElementById('auditor-name');
+      if (auditorEl) {
+        localStorage.setItem('mobileAuditAuditor', auditorEl.value);
+      }
+    }
+
+    // Load audit list from localStorage
+    function loadAuditListFromStorage() {
+      const savedList = localStorage.getItem('mobileAuditList');
+      const savedAuditor = localStorage.getItem('mobileAuditAuditor');
+      
+      if (savedList) {
+        try {
+          auditList = JSON.parse(savedList);
+          updateAuditList();
+        } catch (e) {
+          console.error('Error loading audit list from storage:', e);
+          auditList = [];
+        }
+      }
+      
+      if (savedAuditor) {
+        const auditorEl = document.getElementById('auditor-name');
+        if (auditorEl) auditorEl.value = savedAuditor;
+      }
+      
+      getTotalProductsCount();
+    }
+
+    // Get total products count
+    function getTotalProductsCount() {
+      fetch('/api/get_total_products')
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.success) {
+            totalProducts = data.total_products || 0;
+            const totalEl = document.getElementById('total-products');
+            if (totalEl) totalEl.textContent = totalProducts;
+          }
+        })
+        .catch(err => {
+          console.error('Error getting total products:', err);
+          totalProducts = 0;
+        });
+    }
+
+    // Clear audit list from localStorage
+    function clearAuditListFromStorage() {
+      localStorage.removeItem('mobileAuditList');
+      localStorage.removeItem('mobileAuditAuditor');
+    }
+
     // Load pending requisitions count
     async function loadPendingRequisitionsCount() {
       try {
         const response = await fetch('/scanner/api/pending-requisitions');
         const data = await response.json();
-        
-        if (data.success) {
-          // Update the pending count in the toggle button
-          document.getElementById('pendingCount').textContent = data.count;
+        if (data && data.success) {
+          const badge = document.getElementById('pendingCount');
+          if (badge) badge.textContent = data.count || 0;
         }
       } catch (error) {
         console.error('Error loading pending requisitions count:', error);
       }
     }
 
-    // Initialize when page loads
-    window.addEventListener('load', function() {
-      initializeCamera();
-    });
-
-    async function initializeCamera() {
-      try {
-        // Check if permission is already granted
-        const permissionStatus = await navigator.permissions.query({ name: 'camera' });
-        
-        if (permissionStatus.state === 'granted') {
-          startCamera();
-        } else {
-          // Request permission immediately
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          stream.getTracks().forEach(track => track.stop()); // Stop the stream as we'll let Html5QrCode handle it
-          startCamera();
-        }
-      } catch (err) {
-        showStatus('Camera permission denied. Please allow camera access and refresh the page.', 'danger');
-        console.error('Permission Error:', err);
-      }
-    }
-
     function showStatus(message, type = 'info') {
       const status = document.getElementById('status');
-      status.className = `alert alert-${type} mb-3`;
-      status.textContent = message;
+      if (!status) return;
+      status.textContent = message || 'Unknown status';
+      status.className = 'scanner-status';
       status.classList.remove('d-none');
+      if (type === 'success') status.classList.add('scanner-status-success');
+      else if (type === 'danger') status.classList.add('scanner-status-danger');
+      else if (type === 'warning') status.classList.add('scanner-status-warning');
     }
 
     function showNotification(message, type = 'info') {
-      // Remove existing notifications
-      const existingNotifications = document.querySelectorAll('.notification-toast');
-      existingNotifications.forEach(notification => notification.remove());
+      const existing = document.querySelectorAll('.notification-toast');
+      existing.forEach(n => n.remove());
       
       const notification = document.createElement('div');
       notification.className = `notification-toast notification-${type}`;
@@ -398,179 +484,362 @@
           <span>${message}</span>
         </div>
       `;
-      
       document.body.appendChild(notification);
-      
-      // Show notification
       setTimeout(() => notification.classList.add('show'), 100);
-      
-      // Auto-hide after 5 seconds
       setTimeout(() => {
         notification.classList.remove('show');
         setTimeout(() => notification.remove(), 300);
       }, 5000);
     }
 
-    async function startCamera() {
+    // Initialize camera safely with graceful fallbacks
+    async function initializeCamera(isUserGesture = false) {
+      if (isInitializing) return;
+      isInitializing = true;
+
+      const statusEl = document.getElementById('status');
+      const cameraNotice = document.getElementById('camera-notice');
+      const noticeText = document.getElementById('camera-notice-text');
+
+      // Check browser MediaDevices support (insecure HTTP context on mobile disables this)
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn('mediaDevices.getUserMedia not available');
+        if (statusEl) {
+          statusEl.textContent = 'Camera unavailable (HTTPS required on mobile)';
+          statusEl.className = 'scanner-status scanner-status-warning';
+        }
+        if (cameraNotice) {
+          cameraNotice.classList.remove('d-none');
+          if (noticeText) {
+            noticeText.innerHTML = 'Mobile browsers restrict camera access over insecure HTTP. <strong>Use the manual barcode lookup below</strong> or access via HTTPS / localhost.';
+          }
+        }
+        isInitializing = false;
+        return;
+      }
+
+      showStatus('Starting camera...', 'info');
+
       try {
-        showStatus('Starting camera...');
-        
-        // Clean up any existing scanner instance
+        try {
+          availableCameras = await Html5Qrcode.getCameras();
+        } catch (camErr) {
+          availableCameras = [];
+        }
+
         if (html5QrCode) {
           try {
-            await html5QrCode.stop();
-          } catch (stopError) {
-            console.log('Error stopping existing scanner:', stopError);
-          }
+            if (isCameraRunning) {
+              await html5QrCode.stop();
+            }
+          } catch (stopErr) {}
           html5QrCode = null;
         }
-        
-        // Initialize scanner
+
         html5QrCode = new Html5Qrcode("reader");
-        
-        // Configure scanner with more compatible settings
+
         const config = {
-          fps: 10,
-          qrbox: { width: 250, height: 100 },
-          aspectRatio: 1
+          fps: 15,
+          qrbox: (w, h) => {
+            const edge = Math.min(w, h);
+            return { width: Math.floor(edge * 0.78), height: Math.floor(edge * 0.48) };
+          },
+          aspectRatio: 1.0,
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true }
         };
 
-        // Try to start camera with environment facing mode first
+        let startSuccess = false;
+
+        // Try environment/back camera first
         try {
           await html5QrCode.start(
-            { facingMode: "environment" },
+            { facingMode: { exact: "environment" } },
             config,
             onScanSuccess,
             onScanError
           );
-        } catch (primaryError) {
-          console.log('Primary camera setup failed, trying alternative:', primaryError);
-          // Fallback to any camera
-          await html5QrCode.start(
-            { facingMode: "user" },
-            config,
-            onScanSuccess,
-            onScanError
-          );
+          startSuccess = true;
+        } catch (envExactErr) {
+          try {
+            await html5QrCode.start(
+              { facingMode: "environment" },
+              config,
+              onScanSuccess,
+              onScanError
+            );
+            startSuccess = true;
+          } catch (envErr) {
+            if (availableCameras && availableCameras.length > 0) {
+              const camId = availableCameras[currentCameraIndex % availableCameras.length].id;
+              await html5QrCode.start(camId, config, onScanSuccess, onScanError);
+              startSuccess = true;
+            } else {
+              await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, onScanError);
+              startSuccess = true;
+            }
+          }
         }
 
-        // Update status to show camera is active
-        showStatus('Camera is active and scanning', 'success');
+        if (startSuccess) {
+          isCameraRunning = true;
+          isCameraPaused = false;
+          showStatus('Ready — Align barcode in frame', 'success');
+          if (cameraNotice) cameraNotice.classList.add('d-none');
+          updateCameraControlUI();
+        }
       } catch (err) {
-        const errorMessage = err.message || 'Unknown error';
-        showStatus('Error starting camera: ' + errorMessage, 'danger');
-        console.error('Camera Error:', err);
-        
-        // Add retry button that refreshes the page
-        const statusElement = document.getElementById('status');
-        if (statusElement) {
-          statusElement.innerHTML += ' <button class="btn btn-sm btn-outline-light ms-2" onclick="window.location.reload()">Retry</button>';
+        console.error('Camera startup error:', err);
+        isCameraRunning = false;
+        showStatus('Camera access denied or unavailable', 'danger');
+        if (cameraNotice) {
+          cameraNotice.classList.remove('d-none');
+          if (noticeText) {
+            noticeText.innerHTML = `Unable to start camera (${err.message || 'Permission denied'}). Please allow camera access in browser settings or use the manual barcode audit search below.`;
+          }
+        }
+      } finally {
+        isInitializing = false;
+      }
+    }
+
+    function updateCameraControlUI() {
+      const toggleText = document.getElementById('toggleCameraText');
+      const toggleBtn = document.getElementById('toggleCameraBtn');
+      const torchBtn = document.getElementById('torchBtn');
+
+      if (toggleText) toggleText.textContent = isCameraPaused ? 'Resume' : 'Pause';
+      if (toggleBtn) {
+        const icon = toggleBtn.querySelector('i');
+        if (icon) {
+          icon.className = isCameraPaused ? 'fas fa-play me-1' : 'fas fa-pause me-1';
+        }
+      }
+
+      if (html5QrCode && isCameraRunning && torchBtn) {
+        try {
+          const track = html5QrCode.getRunningTrackCameraCapabilities();
+          if (track && track.torchFeature && track.torchFeature().isSupported()) {
+            torchBtn.classList.remove('d-none');
+          } else {
+            torchBtn.classList.add('d-none');
+          }
+        } catch (e) {
+          torchBtn.classList.add('d-none');
         }
       }
     }
 
-    function showStatus(message, type = 'info') {
-      const status = document.getElementById('status');
-      if (status) {
-        // For the new design, we only change the text content and color based on type
-        status.textContent = message || 'Unknown status';
-        status.classList.remove('d-none');
-        
-        // Update background color based on type
-        switch(type) {
-          case 'success':
-            status.style.background = 'rgba(25, 135, 84, 0.7)'; // Green
-            break;
-          case 'danger':
-            status.style.background = 'rgba(220, 53, 69, 0.7)'; // Red
-            break;
-          case 'warning':
-            status.style.background = 'rgba(255, 193, 7, 0.7)'; // Yellow
-            break;
-          default:
-            status.style.background = 'rgba(0,0,0,0.7)'; // Default black
+    async function toggleCamera() {
+      if (!html5QrCode || !isCameraRunning) {
+        await initializeCamera(true);
+        return;
+      }
+      try {
+        if (isCameraPaused) {
+          html5QrCode.resume();
+          isCameraPaused = false;
+          showStatus('Ready — Align barcode in frame', 'success');
+        } else {
+          html5QrCode.pause();
+          isCameraPaused = true;
+          showStatus('Camera paused', 'warning');
         }
-      } else {
-        console.error('Status element not found');
+        updateCameraControlUI();
+      } catch (e) {
+        console.warn('Error toggling camera pause:', e);
+      }
+    }
+
+    async function switchCamera() {
+      if (!availableCameras || availableCameras.length < 2) {
+        if (html5QrCode && isCameraRunning) {
+          try {
+            await html5QrCode.stop();
+            isCameraRunning = false;
+          } catch (e) {}
+        }
+        currentCameraIndex = (currentCameraIndex + 1) % 2;
+        const targetFacing = currentCameraIndex === 0 ? "environment" : "user";
+        try {
+          html5QrCode = new Html5Qrcode("reader");
+          await html5QrCode.start(
+            { facingMode: targetFacing },
+            { fps: 15, qrbox: { width: 250, height: 120 }, aspectRatio: 1.0 },
+            onScanSuccess,
+            onScanError
+          );
+          isCameraRunning = true;
+          isCameraPaused = false;
+          showStatus(`Switched camera (${targetFacing})`, 'success');
+          updateCameraControlUI();
+        } catch (e) {
+          initializeCamera(true);
+        }
+        return;
+      }
+
+      currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+      const targetCam = availableCameras[currentCameraIndex];
+      showStatus(`Switching to ${targetCam.label || 'camera ' + (currentCameraIndex+1)}...`, 'info');
+      try {
+        if (html5QrCode && isCameraRunning) {
+          await html5QrCode.stop();
+          isCameraRunning = false;
+        }
+        html5QrCode = new Html5Qrcode("reader");
+        await html5QrCode.start(
+          targetCam.id,
+          { fps: 15, qrbox: { width: 250, height: 120 }, aspectRatio: 1.0 },
+          onScanSuccess,
+          onScanError
+        );
+        isCameraRunning = true;
+        isCameraPaused = false;
+        showStatus('Camera active — Ready to scan', 'success');
+        updateCameraControlUI();
+      } catch (e) {
+        initializeCamera(true);
+      }
+    }
+
+    async function toggleTorch() {
+      if (!html5QrCode || !isCameraRunning) return;
+      try {
+        currentTorchState = !currentTorchState;
+        await html5QrCode.applyVideoConstraints({
+          advanced: [{ torch: currentTorchState }]
+        });
+        const torchBtn = document.getElementById('torchBtn');
+        if (torchBtn) {
+          torchBtn.classList.toggle('btn-warning', currentTorchState);
+        }
+      } catch (e) {
+        console.warn('Torch not supported or toggle failed:', e);
+      }
+    }
+
+    // Unified product lookup for audit
+    async function lookupProductByBarcode(barcode) {
+      if (!barcode) return;
+      barcode = barcode.trim();
+      
+      playBeepSound();
+      triggerHaptic();
+
+      // Pause camera scanner if active
+      if (html5QrCode && isCameraRunning) {
+        try {
+          await html5QrCode.stop();
+          isCameraRunning = false;
+        } catch (e) {}
+      }
+
+      const readerEl = document.getElementById('reader');
+      const statusEl = document.getElementById('status');
+      if (readerEl) readerEl.classList.add('d-none');
+      if (statusEl) statusEl.classList.add('d-none');
+
+      showStatus(`Looking up barcode ${barcode}...`, 'info');
+
+      try {
+        const res = await fetch(`/products/lookup_product/${encodeURIComponent(barcode)}`);
+        const data = await res.json();
+
+        if (data && data.success) {
+          currentProduct = data;
+
+          const setTxt = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = (val !== undefined && val !== null) ? val : '';
+          };
+
+          setTxt('product-name', data.name);
+          setTxt('product-barcode-badge', data.barcode);
+          setTxt('product-uom-badge', data.uom);
+          setTxt('system-qty', data.quantity);
+          setTxt('product-uom', data.uom);
+          setTxt('product-uom-display', data.uom);
+          setTxt('product-account', data.account_title || 'General Inventory');
+          setTxt('uom-suffix', data.uom);
+
+          const stockPercentage = data.initial_quantity > 0 ? (data.quantity / data.initial_quantity * 100).toFixed(1) : '100.0';
+          setTxt('stock-percentage', `${stockPercentage}%`);
+
+          const actualQtyInput = document.getElementById('actual-qty');
+          if (actualQtyInput) {
+            actualQtyInput.value = '';
+            actualQtyInput.focus();
+          }
+
+          const discDisplay = document.getElementById('discrepancy-display');
+          if (discDisplay) discDisplay.classList.add('d-none');
+
+          const prodAudit = document.getElementById('product-audit');
+          if (prodAudit) prodAudit.classList.remove('d-none');
+
+          const retryBtn = document.getElementById('retryBtn');
+          if (retryBtn) retryBtn.classList.remove('d-none');
+
+          showNotification(`Scanned: ${data.name}`, 'success');
+        } else {
+          const errMsg = data && data.message ? data.message : 'Product not found';
+          showNotification('❌ ' + errMsg, 'error');
+          showStatus(errMsg, 'warning');
+
+          setTimeout(() => {
+            if (readerEl) readerEl.classList.remove('d-none');
+            if (statusEl) statusEl.classList.remove('d-none');
+            initializeCamera();
+          }, 2000);
+        }
+      } catch (err) {
+        console.error('Lookup Error:', err);
+        showNotification('❌ Error looking up product', 'error');
+        showStatus('Error looking up product', 'danger');
+
+        setTimeout(() => {
+          if (readerEl) readerEl.classList.remove('d-none');
+          if (statusEl) statusEl.classList.remove('d-none');
+          initializeCamera();
+        }, 2000);
       }
     }
 
     function onScanSuccess(decodedText) {
-      // Always trim to 12 characters for barcode
-      const barcode = decodedText.slice(0, 12);
-      
-      html5QrCode.stop().then(() => {
-        document.getElementById('reader').classList.add('d-none');
-        document.getElementById('status').classList.add('d-none');
-
-                 fetch(`/products/lookup_product/${barcode}`)
-           .then(res => res.json())
-           .then(data => {
-             if (data.success) {
-               currentProduct = data;
-
-               // Update product info
-               document.getElementById('product-name').innerText = data.name;
-               document.getElementById('product-barcode-badge').innerText = data.barcode;
-               document.getElementById('product-uom-badge').innerText = data.uom;
-               document.getElementById('system-qty').innerText = data.quantity;
-               document.getElementById('product-uom').innerText = data.uom;
-               document.getElementById('product-uom-display').innerText = data.uom;
-               document.getElementById('product-account').innerText = data.account_title;
-               document.getElementById('uom-suffix').innerText = data.uom;
-              
-              // Calculate and display stock percentage
-              const stockPercentage = (data.quantity / data.initial_quantity * 100).toFixed(1);
-              document.getElementById('stock-percentage').innerText = `${stockPercentage}%`;
-
-              // Clear previous input
-              document.getElementById('actual-qty').value = '';
-              document.getElementById('discrepancy-display').classList.add('d-none');
-
-              // Show product audit card and retry button
-              document.getElementById('product-audit').classList.remove('d-none');
-              document.getElementById('retryBtn').classList.remove('d-none');
-
-              // Focus on quantity input
-              document.getElementById('actual-qty').focus();
-
-              // Show success message
-              showNotification(`Scanned: ${data.name}`, 'success');
-
-              // Store current product for reference
-              currentProduct = data;
-            } else {
-              // Show specific error message for company mismatch
-              if (data.message && (data.message.includes('Access denied') || data.message.includes('belongs to'))) {
-                showNotification('❌ ' + data.message, 'error');
-              } else {
-                showStatus('Product not found in your company', 'warning');
-                showNotification('❌ Product not found in your company', 'error');
-              }
-              // Refresh the page after a short delay to allow user to see the error
-              setTimeout(() => {
-                window.location.reload();
-              }, 2000);
-            }
-          })
-          .catch(err => {
-            showStatus('Error looking up product', 'danger');
-            console.error('Lookup Error:', err);
-            // Refresh the page after a short delay to allow user to see the error
-            setTimeout(() => {
-              window.location.reload();
-            }, 2000);
-          });
-      });
+      if (!decodedText) return;
+      lookupProductByBarcode(decodedText);
     }
 
     function onScanError(error) {
-      // We'll only log scan errors, not show them
-      console.log('Scan error:', error);
+      // Ignore routine scan frame errors
+    }
+
+    function handleManualBarcodeSubmit(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('manualBarcodeInput');
+      if (!input) return;
+      const barcode = input.value.trim();
+      if (!barcode) {
+        showNotification('Please enter a barcode or SKU', 'error');
+        input.focus();
+        return;
+      }
+      lookupProductByBarcode(barcode);
     }
 
     function skipProduct() {
-      window.location.reload();
+      const prodAudit = document.getElementById('product-audit');
+      if (prodAudit) prodAudit.classList.add('d-none');
+      const retryBtn = document.getElementById('retryBtn');
+      if (retryBtn) retryBtn.classList.add('d-none');
+
+      const readerEl = document.getElementById('reader');
+      const statusEl = document.getElementById('status');
+      if (readerEl) readerEl.classList.remove('d-none');
+      if (statusEl) statusEl.classList.remove('d-none');
+
+      currentProduct = null;
+      initializeCamera();
     }
 
     // Handle actual quantity input
@@ -650,190 +919,154 @@
       const auditCountElement = document.getElementById('audit-count');
       const auditListSection = document.getElementById('audit-list-section');
       
-      auditCountElement.textContent = auditList.length;
+      if (auditCountElement) auditCountElement.textContent = auditList.length;
 
-      if (totalProducts > 0) {
-        document.getElementById('total-products').textContent = totalProducts;
+      const totalProductsEl = document.getElementById('total-products');
+      if (totalProductsEl && totalProducts > 0) {
+        totalProductsEl.textContent = totalProducts;
       }
       
       if (auditList.length > 0) {
-        auditListSection.classList.remove('d-none');
+        if (auditListSection) auditListSection.classList.remove('d-none');
         
-        auditListElement.innerHTML = '';
-        auditList.forEach((item, index) => {
-          const auditItem = document.createElement('div');
-          auditItem.className = 'audit-item';
-          
-          const discrepancyClass = item.discrepancy > 0 ? 'positive' : 
-                                  item.discrepancy < 0 ? 'negative' : 'zero';
-          
-          auditItem.innerHTML = `
-            <div class="d-flex justify-content-between align-items-start">
-              <div class="flex-grow-1">
-                <h6 class="mb-1">${item.product_name}</h6>
-                <div class="small text-muted mb-2">
-                  <span class="badge bg-dark">${item.product_barcode}</span>
-                  <span class="badge bg-secondary">${item.product_uom}</span>
+        if (auditListElement) {
+          auditListElement.innerHTML = '';
+          auditList.forEach((item, index) => {
+            const auditItem = document.createElement('div');
+            auditItem.className = 'audit-item';
+            
+            const discrepancyClass = item.discrepancy > 0 ? 'positive' : 
+                                    item.discrepancy < 0 ? 'negative' : 'zero';
+            
+            auditItem.innerHTML = `
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                  <h6 class="mb-1">${item.product_name}</h6>
+                  <div class="small text-muted mb-2">
+                    <span class="badge bg-dark">${item.product_barcode}</span>
+                    <span class="badge bg-secondary">${item.product_uom}</span>
+                  </div>
+                  <div class="row">
+                    <div class="col-4">
+                      <small class="text-muted">System:</small><br>
+                      <strong>${item.recorded_quantity}</strong>
+                    </div>
+                    <div class="col-4">
+                      <small class="text-muted">Actual:</small><br>
+                      <strong>${item.actual_quantity}</strong>
+                    </div>
+                    <div class="col-4">
+                      <small class="text-muted">Diff:</small><br>
+                      <span class="discrepancy ${discrepancyClass}">${item.discrepancy > 0 ? '+' : ''}${item.discrepancy}</span>
+                    </div>
+                  </div>
                 </div>
-                <div class="row">
-                  <div class="col-4">
-                    <small class="text-muted">System:</small><br>
-                    <strong>${item.recorded_quantity}</strong>
-                  </div>
-                  <div class="col-4">
-                    <small class="text-muted">Actual:</small><br>
-                    <strong>${item.actual_quantity}</strong>
-                  </div>
-                  <div class="col-4">
-                    <small class="text-muted">Diff:</small><br>
-                    <span class="discrepancy ${discrepancyClass}">${item.discrepancy > 0 ? '+' : ''}${item.discrepancy}</span>
-                  </div>
-                </div>
+                <button class="btn btn-outline-danger btn-sm ms-2" onclick="removeFromAudit(${index})">
+                  <i class="fas fa-times"></i>
+                </button>
               </div>
-              <button class="btn btn-outline-danger btn-sm ms-2" onclick="removeFromAudit(${index})">
-                <i class="fas fa-times"></i>
-              </button>
-            </div>
-          `;
-          
-          auditListElement.appendChild(auditItem);
-        });
+            `;
+            
+            auditListElement.appendChild(auditItem);
+          });
+        }
       } else {
-        auditListSection.classList.add('d-none');
+        if (auditListSection) auditListSection.classList.add('d-none');
       }
     }
 
-         function removeFromAudit(index) {
-       auditList.splice(index, 1);
-       updateAuditList();
-       saveAuditListToStorage();
-       showNotification('Item removed from audit list', 'info');
-     }
+    function removeFromAudit(index) {
+      auditList.splice(index, 1);
+      updateAuditList();
+      saveAuditListToStorage();
+      showNotification('Item removed from audit list', 'info');
+    }
 
-     function clearAuditList() {
-       if (confirm('Are you sure you want to clear the entire audit list?')) {
-         auditList = [];
-         updateAuditList();
-         clearAuditListFromStorage();
-         showNotification('Audit list cleared', 'info');
-       }
-     }
+    function clearAuditList() {
+      if (confirm('Are you sure you want to clear the entire audit list?')) {
+        auditList = [];
+        updateAuditList();
+        clearAuditListFromStorage();
+        showNotification('Audit list cleared', 'info');
+      }
+    }
 
-     function submitAudit() {
-       const auditorName = document.getElementById('auditor-name').value.trim();
-       
-       if (!auditorName) {
-         showNotification('Please enter your name', 'error');
-         document.getElementById('auditor-name').focus();
-         return;
-       }
-       
-       if (auditList.length === 0) {
-         showNotification('No items to audit', 'error');
-         return;
-       }
+    function submitAudit() {
+      const auditorEl = document.getElementById('auditor-name');
+      const auditorName = auditorEl ? auditorEl.value.trim() : '';
+      
+      if (!auditorName) {
+        showNotification('Please enter auditor name', 'error');
+        if (auditorEl) auditorEl.focus();
+        return;
+      }
+      
+      if (auditList.length === 0) {
+        showNotification('No items to audit', 'error');
+        return;
+      }
 
-       // Confirmation before submission
-       if (!confirm(`Are you sure you want to submit the audit for ${auditList.length} items?`)) {
-         return;
-       }
+      if (!confirm(`Are you sure you want to submit the audit for ${auditList.length} items?`)) {
+        return;
+      }
 
-       let confirmationMessage = `Submit audit for ${auditList.length} items?
+      if (totalProducts > 0 && auditList.length < totalProducts) {
+        const remainingProducts = totalProducts - auditList.length;
+        showNotification(`❌ Cannot submit: ${remainingProducts} products still not audited.`, 'error');
+        return;
+      }
+      
+      const auditData = {
+        audits: auditList,
+        verified_by: auditorName
+      };
+      
+      fetch('{{ url_for('scanner.submit_mobile_audit') }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(auditData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          showNotification(data.message, 'success');
+          
+          auditList = [];
+          updateAuditList();
+          clearAuditListFromStorage();
+          if (auditorEl) auditorEl.value = '';
+          
+          setTimeout(() => {
+            if (confirm('Audit submitted successfully! Would you like to view the audit report?')) {
+              window.location.href = `/api/stock_audit_report?batch=${data.batch_label}`;
+            } else {
+              location.reload();
+            }
+          }, 1000);
+        } else {
+          showNotification(data.message || 'Failed to submit audit', 'error');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showNotification('An error occurred while submitting the audit', 'error');
+      });
+    }
 
-Auditor: ${auditorName}`;
-       
-       // Check if all products are audited
-       if (totalProducts > 0 && auditList.length < totalProducts) {
-         const remainingProducts = totalProducts - auditList.length;
-         showNotification(`❌ Cannot submit: ${remainingProducts} products still not audited.`, 'error');
-         return; // Prevent submission of incomplete audit
-       } else if (totalProducts > 0 && auditList.length >= totalProducts) {
-         showNotification(`🎉 All products audited! Ready to submit.`, 'success');
-       }
+    // Mode switching functions fallback
+    function switchToScannerMode() {
+      window.location.href = '{{ url_for('scanner.mobile_scanner') }}';
+    }
 
-       if (!confirm(confirmationMessage)) {
-         return;
-       }
-       
-       const auditData = {
-         audits: auditList,
-         verified_by: auditorName
-       };
-       
-       fetch('{{ url_for('scanner.submit_mobile_audit') }}', {
-         method: 'POST',
-         headers: {
-           'Content-Type': 'application/json',
-         },
-         body: JSON.stringify(auditData)
-       })
-       .then(response => response.json())
-       .then(data => {
-         if (data.status === 'success') {
-           showNotification(data.message, 'success');
-           
-           // Clear audit list
-           auditList = [];
-           updateAuditList();
-           clearAuditListFromStorage();
-           document.getElementById('auditor-name').value = '';
-           
-           // Show success message and redirect option
-           setTimeout(() => {
-             if (confirm('Audit submitted successfully! Would you like to view the audit report?')) {
-               window.location.href = `/api/stock_audit_report?batch=${data.batch_label}`;
-             } else {
-               // Refresh page to show camera again
-               location.reload();
-             }
-           }, 1000);
-         } else {
-           showNotification(data.message || 'Failed to submit audit', 'error');
-         }
-       })
-       .catch(error => {
-         console.error('Error:', error);
-         showNotification('An error occurred while submitting the audit', 'error');
-       });
-     }
-
-     // Mode switching functions
-     function switchToScannerMode() {
-       // Update button states
-       document.getElementById('audit-mode-btn').classList.remove('active', 'btn-primary');
-       document.getElementById('audit-mode-btn').classList.add('btn-outline-primary');
-       document.getElementById('scanner-mode-btn').classList.remove('btn-outline-primary');
-       document.getElementById('scanner-mode-btn').classList.add('active', 'btn-primary');
-       
-       // Redirect to scanner page using Flask url_for
-       window.location.href = '{{ url_for('scanner.mobile_scanner') }}';
-     }
-
-     function switchToAuditMode() {
-       // Update button states
-       document.getElementById('scanner-mode-btn').classList.remove('active', 'btn-primary');
-       document.getElementById('scanner-mode-btn').classList.add('btn-outline-primary');
-       document.getElementById('audit-mode-btn').classList.remove('btn-outline-primary');
-       document.getElementById('audit-mode-btn').classList.add('active', 'btn-primary');
-       document.getElementById('requisitions-mode-btn').classList.remove('active', 'btn-primary');
-       document.getElementById('requisitions-mode-btn').classList.add('btn-outline-primary');
-       
-       // We're already on the audit page, so just refresh
-       location.reload();
-     }
-     
-     function switchToRequisitionsMode() {
-       // Update button states
-       document.getElementById('scanner-mode-btn').classList.remove('active', 'btn-primary');
-       document.getElementById('scanner-mode-btn').classList.add('btn-outline-primary');
-       document.getElementById('audit-mode-btn').classList.remove('active', 'btn-primary');
-       document.getElementById('audit-mode-btn').classList.add('btn-outline-primary');
-       document.getElementById('requisitions-mode-btn').classList.remove('btn-outline-primary');
-       document.getElementById('requisitions-mode-btn').classList.add('active', 'btn-primary');
-       
-       // Redirect to mobile pending requisitions page
-       window.location.href = '/scanner/mobile-pending-requisitions';
-     }
+    function switchToAuditMode() {
+      location.reload();
+    }
+    
+    function switchToRequisitionsMode() {
+      window.location.href = '{{ url_for('scanner.mobile_pending_requisitions') }}';
+    }
   </script>
 
   <!-- PWA Scripts -->

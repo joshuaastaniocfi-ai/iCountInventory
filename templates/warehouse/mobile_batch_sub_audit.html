@@ -60,8 +60,18 @@
     .card { border: none !important; border-radius: 1rem !important; box-shadow: 0 2px 12px var(--wh-shadow) !important; background: var(--wh-card-bg) !important; }
     .card-body { padding: 1.25rem !important; }
 
-    .page-header { text-align: center; padding-bottom: 1rem; }
-    .page-header h4 { font-size: 1.1rem; font-weight: 700; color: var(--wh-primary-dark); }
+    .back-to-dash { border: 1.5px solid var(--wh-border) !important; color: var(--wh-text-muted) !important; font-weight: 600; font-size: 0.8rem; border-radius: 0.6rem; padding: 0.4rem 0.75rem; text-decoration: none; display: inline-flex; align-items: center; }
+    .back-to-dash:hover { background: var(--wh-bg) !important; border-color: var(--wh-primary) !important; color: var(--wh-primary) !important; }
+
+    .mode-toggle { display: flex; gap: 0.35rem; margin-top: 0.75rem; }
+    .mode-toggle .mode-tab { flex: 1; font-size: 0.72rem; padding: 0.55rem 0.25rem; border-radius: 0.65rem; border: 1.5px solid var(--wh-border); background: var(--wh-card-bg); color: var(--wh-text-muted); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); font-weight: 600; line-height: 1.25; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .mode-toggle .mode-tab i { font-size: 1.05rem; margin-bottom: 0.2rem; }
+    .mode-toggle .mode-tab.active { background: var(--wh-primary); color: #fff; border-color: var(--wh-primary); box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
+    .mode-toggle .mode-tab:not(.active):hover { background: #f8f9ff; border-color: var(--wh-primary-light); color: var(--wh-primary); }
+    .mode-toggle .mode-tab .badge { font-size: 0.6rem; padding: 0.15em 0.45em; }
+
+    .page-header { text-align: center; padding-bottom: 0.75rem; }
+    .page-header h4 { font-size: 1.15rem; font-weight: 700; color: var(--wh-primary-dark); }
     .page-header h4 i { margin-right: 0.4rem; color: var(--wh-primary); }
     .page-header small { color: var(--wh-text-muted); font-size: 0.8rem; }
 
@@ -70,23 +80,33 @@
     .input-group .form-control { border: 1.5px solid var(--wh-border); font-size: 0.9rem; padding: 0.5rem 0.75rem; }
     .input-group .form-control:focus { border-color: var(--wh-primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
 
-    .scanner-container { position: relative; border-radius: 0.75rem; overflow: hidden; background: #000; box-shadow: 0 0 0 2px var(--wh-primary-light), 0 4px 16px rgba(99,102,241,0.2); margin-bottom: 0.75rem; }
+    .scanner-container { position: relative; border-radius: 0.85rem; overflow: hidden; background: #000; box-shadow: 0 0 0 2px var(--wh-primary-light), 0 8px 24px rgba(99,102,241,0.25); min-height: 280px; margin-bottom: 0.75rem; }
     #reader { width: 100%; aspect-ratio: 1/1; background: #000; }
     #reader video { object-fit: cover; }
     #reader__scan_region { display: flex; justify-content: center; align-items: center; position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
     #reader__scan_region img { display: none; }
     #reader__scan_region > svg { position: static !important; width: 100% !important; height: 100px !important; margin-top: -50px; }
 
-    .scanner-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 70%; height: 50%; border: 2.5px solid var(--wh-primary-light); border-radius: 0.5rem; box-shadow: 0 0 0 9999px rgba(0,0,0,0.35); pointer-events: none; z-index: 5; }
-    .scanner-frame::before, .scanner-frame::after, .scanner-frame .sf-br, .scanner-frame .sf-bl { content: ''; position: absolute; width: 18px; height: 18px; border-color: var(--wh-primary); border-style: solid; }
+    .scanner-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 75%; height: 50%; border: 2.5px solid rgba(129, 140, 248, 0.9); border-radius: 0.75rem; box-shadow: 0 0 0 9999px rgba(0,0,0,0.45); pointer-events: none; z-index: 5; }
+    .scanner-frame::before, .scanner-frame::after, .scanner-frame .sf-br, .scanner-frame .sf-bl { content: ''; position: absolute; width: 18px; height: 18px; border-color: #ffffff; border-style: solid; }
     .scanner-frame::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
     .scanner-frame::after { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
     .scanner-frame .sf-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
     .scanner-frame .sf-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
-    .scan-line { position: absolute; left: 15%; right: 15%; height: 2px; background: linear-gradient(90deg, transparent, var(--wh-primary-light), transparent); z-index: 6; animation: scanMove 1.8s ease-in-out infinite; border-radius: 1px; }
-    @keyframes scanMove { 0% { top: 30%; opacity: 0; } 30% { opacity: 1; } 70% { opacity: 1; } 100% { top: 65%; opacity: 0; } }
+    .scan-line { position: absolute; left: 12%; right: 12%; height: 3px; background: linear-gradient(90deg, transparent, #a5b4fc, #818cf8, transparent); z-index: 6; animation: scanMove 1.8s ease-in-out infinite; border-radius: 2px; box-shadow: 0 0 8px #818cf8; }
+    @keyframes scanMove { 0% { top: 28%; opacity: 0; } 30% { opacity: 1; } 70% { opacity: 1; } 100% { top: 68%; opacity: 0; } }
 
-    #status { position: absolute; top: 8px; left: 8px; z-index: 10; background: rgba(0,0,0,0.75); color: #fff; padding: 0.25rem 0.6rem; border-radius: 0.35rem; font-size: 0.75rem; backdrop-filter: blur(4px); }
+    .scanner-status { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10; background: rgba(15, 23, 42, 0.85); color: #fff; padding: 0.35rem 0.65rem; border-radius: 0.5rem; font-size: 0.75rem; backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.15); text-align: center; }
+    .scanner-status-success { background: rgba(16, 185, 129, 0.85) !important; color: #fff; }
+    .scanner-status-danger { background: rgba(239, 68, 68, 0.85) !important; color: #fff; }
+    .scanner-status-warning { background: rgba(245, 158, 11, 0.9) !important; color: #1e1b4b; font-weight: 600; }
+
+    .camera-controls { position: absolute; bottom: 10px; left: 0; right: 0; z-index: 10; display: flex; justify-content: center; gap: 0.5rem; padding: 0 0.5rem; }
+    .camera-btn { background: rgba(15, 23, 42, 0.75); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 2rem; padding: 0.3rem 0.75rem; font-size: 0.72rem; font-weight: 600; backdrop-filter: blur(4px); transition: all 0.2s; }
+    .camera-btn:hover, .camera-btn:active { background: rgba(99, 102, 241, 0.85); color: #fff; border-color: transparent; }
+
+    .camera-notice-card { border-radius: 0.75rem; border: 1.5px dashed #f59e0b; background: #fffbeb; padding: 0.85rem; font-size: 0.8rem; color: #92400e; margin-bottom: 0.75rem; }
+    .manual-barcode-box { background: #f8fafc; border: 1.5px solid var(--wh-border); border-radius: 0.75rem; padding: 0.85rem; margin-bottom: 0.85rem; }
     #batch-audit { margin-top: 0; }
     #retryBtn { display: none; }
 
@@ -167,17 +187,47 @@
   <div class="audit-wrapper">
     <div class="card shadow">
       <div class="card-body">
+        <!-- Top Navigation Bar -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <a href="{{ url_for('main.dashboard') }}" class="back-to-dash">
+            <i class="fas fa-arrow-left me-1"></i> Dashboard
+          </a>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+            <i class="fas fa-boxes me-1"></i> Warehouse Mobile
+          </span>
+        </div>
+
         <!-- Header -->
         <div class="page-header">
           <h4><i class="fas fa-clipboard-check"></i> Batch Sub Audit</h4>
           <small>All products with batch sub barcodes</small>
+          
+          <!-- Mode Toggle Navigation Tabs -->
+          <div class="mode-toggle">
+            <a href="{{ url_for('scanner.mobile_scanner') }}" class="mode-tab" id="scanner-mode-tab">
+              <i class="fas fa-barcode"></i>
+              <span>Stock Mgmt</span>
+            </a>
+            <a href="{{ url_for('scanner.mobile_audit') }}" class="mode-tab" id="audit-mode-tab">
+              <i class="fas fa-clipboard-check"></i>
+              <span>Stock Audit</span>
+            </a>
+            <a href="{{ url_for('scanner.mobile_pending_requisitions') }}" class="mode-tab" id="requisitions-mode-tab">
+              <i class="fas fa-file-invoice"></i>
+              <span>Pending <span class="badge bg-warning text-dark" id="pendingCount">0</span></span>
+            </a>
+            <a href="{{ url_for('scanner.mobile_batch_sub_audit') }}" class="mode-tab active" id="batch-sub-mode-tab">
+              <i class="fas fa-boxes"></i>
+              <span>Batch Sub</span>
+            </a>
+          </div>
         </div>
 
         <!-- Auditor Info -->
         <div class="mb-3">
           <div class="input-group">
             <span class="input-group-text"><i class="fas fa-user"></i></span>
-            <input type="text" id="auditor-name" class="form-control" placeholder="Enter your name" required>
+            <input type="text" id="auditor-name" class="form-control" placeholder="Enter auditor name" required>
           </div>
         </div>
 
@@ -187,6 +237,47 @@
           <div id="status" class="scanner-status">Initializing camera...</div>
           <div class="scanner-frame"><div class="sf-br"></div><div class="sf-bl"></div></div>
           <div class="scan-line"></div>
+          <div class="camera-controls">
+            <button type="button" class="camera-btn" id="toggleCameraBtn" onclick="toggleCamera()">
+              <i class="fas fa-pause me-1"></i> <span id="toggleCameraText">Pause</span>
+            </button>
+            <button type="button" class="camera-btn" id="switchCameraBtn" onclick="switchCamera()">
+              <i class="fas fa-sync-alt me-1"></i> Flip
+            </button>
+            <button type="button" class="camera-btn d-none" id="torchBtn" onclick="toggleTorch()">
+              <i class="fas fa-bolt me-1"></i> Torch
+            </button>
+          </div>
+        </div>
+
+        <!-- Camera Notice (Insecure context / Permission helper) -->
+        <div id="camera-notice" class="camera-notice-card d-none">
+          <div class="d-flex align-items-start gap-2">
+            <i class="fas fa-exclamation-triangle text-warning mt-1"></i>
+            <div>
+              <div class="fw-bold mb-1">Camera Access Notice</div>
+              <div id="camera-notice-text">Mobile browsers block camera access on plain HTTP connections. If using on your phone, use HTTPS or type barcodes manually below.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manual Barcode / SKU Entry Bar -->
+        <div class="manual-barcode-box">
+          <label class="form-label fw-bold mb-1">
+            <i class="fas fa-keyboard text-primary me-1"></i> Manual Sub Barcode Entry
+          </label>
+          <form id="manualBarcodeForm" onsubmit="handleManualSubBarcodeSubmit(event)" class="d-flex gap-2">
+            <div class="input-group">
+              <span class="input-group-text bg-white"><i class="fas fa-barcode text-primary"></i></span>
+              <input type="text" id="manualBarcodeInput" class="form-control" placeholder="Enter batch sub barcode..." autocomplete="off">
+            </div>
+            <button type="submit" class="btn btn-primary px-3 text-nowrap">
+              <i class="fas fa-search me-1"></i> Audit
+            </button>
+          </form>
+          <div class="form-text small text-muted mt-1">
+            <i class="fas fa-info-circle me-1"></i> Bluetooth & USB scanners scan directly here.
+          </div>
         </div>
 
         <!-- Scanner Controls -->
@@ -244,80 +335,329 @@
     let auditList = [];
     let productsData = [];
     let html5QrCode = null;
+    let isCameraRunning = false;
+    let isCameraPaused = false;
+    let availableCameras = [];
+    let currentCameraIndex = 0;
+    let isInitializing = false;
+    let currentTorchState = false;
+
+    // Audio beep synthesis on barcode scan
+    function playBeepSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+      } catch (e) {}
+    }
+
+    // Tactile haptic feedback
+    function triggerHaptic() {
+      if (navigator.vibrate) {
+        try {
+          navigator.vibrate([40, 30, 40]);
+        } catch (e) {}
+      }
+    }
+
+    function showStatus(message, type = 'info') {
+      const status = document.getElementById('status');
+      if (!status) return;
+      status.textContent = message || 'Unknown status';
+      status.className = 'scanner-status';
+      status.classList.remove('d-none');
+      if (type === 'success') status.classList.add('scanner-status-success');
+      else if (type === 'danger') status.classList.add('scanner-status-danger');
+      else if (type === 'warning') status.classList.add('scanner-status-warning');
+    }
+
+    // Load pending requisitions count
+    async function loadPendingRequisitionsCount() {
+      try {
+        const response = await fetch('/scanner/api/pending-requisitions');
+        const data = await response.json();
+        if (data && data.success) {
+          const badge = document.getElementById('pendingCount');
+          if (badge) badge.textContent = data.count || 0;
+        }
+      } catch (error) {
+        console.error('Error loading pending requisitions count:', error);
+      }
+    }
     
     // Load products data from the server when page loads
     window.addEventListener('load', function() {
       loadProductsData();
       initializeCamera();
+      loadPendingRequisitionsCount();
       
-      // Add event listener to the Submit button
-      document.getElementById('batch-audit').addEventListener('click', submitAudit);
+      const submitBtn = document.getElementById('batch-audit');
+      if (submitBtn) submitBtn.addEventListener('click', submitAudit);
     });
     
-    // Initialize camera
-    async function initializeCamera() {
+    // Initialize camera safely
+    async function initializeCamera(isUserGesture = false) {
+      if (isInitializing) return;
+      isInitializing = true;
+
+      const statusEl = document.getElementById('status');
+      const cameraNotice = document.getElementById('camera-notice');
+      const noticeText = document.getElementById('camera-notice-text');
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn('mediaDevices.getUserMedia not available');
+        if (statusEl) {
+          statusEl.textContent = 'Camera unavailable (HTTPS required on mobile)';
+          statusEl.className = 'scanner-status scanner-status-warning';
+        }
+        if (cameraNotice) {
+          cameraNotice.classList.remove('d-none');
+          if (noticeText) {
+            noticeText.innerHTML = 'Mobile browsers restrict camera access over insecure HTTP. <strong>Use the manual sub barcode lookup below</strong> or access via HTTPS / localhost.';
+          }
+        }
+        isInitializing = false;
+        return;
+      }
+
+      showStatus('Starting camera...', 'info');
+
       try {
-        // Clean up any existing scanner instance
+        try {
+          availableCameras = await Html5Qrcode.getCameras();
+        } catch (camErr) {
+          availableCameras = [];
+        }
+
         if (html5QrCode) {
           try {
-            await html5QrCode.stop();
-          } catch (stopError) {
-          }
+            if (isCameraRunning) {
+              await html5QrCode.stop();
+            }
+          } catch (stopError) {}
           html5QrCode = null;
         }
         
-        // Initialize scanner
         html5QrCode = new Html5Qrcode("reader");
         
-        // Configure scanner with more compatible settings
         const config = {
-          fps: 10,
-          qrbox: { width: 250, height: 100 },
-          aspectRatio: 1
+          fps: 15,
+          qrbox: (w, h) => {
+            const edge = Math.min(w, h);
+            return { width: Math.floor(edge * 0.78), height: Math.floor(edge * 0.48) };
+          },
+          aspectRatio: 1.0,
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true }
         };
 
-        // Try to start camera with environment facing mode first
+        let startSuccess = false;
+
         try {
           await html5QrCode.start(
-            { facingMode: "environment" },
+            { facingMode: { exact: "environment" } },
             config,
             onScanSuccess,
             onScanError
           );
-        } catch (primaryError) {
-          // Fallback to any camera
-          await html5QrCode.start(
-            { facingMode: "user" },
-            config,
-            onScanSuccess,
-            onScanError
-          );
+          startSuccess = true;
+        } catch (envExactErr) {
+          try {
+            await html5QrCode.start(
+              { facingMode: "environment" },
+              config,
+              onScanSuccess,
+              onScanError
+            );
+            startSuccess = true;
+          } catch (primaryError) {
+            if (availableCameras && availableCameras.length > 0) {
+              const camId = availableCameras[currentCameraIndex % availableCameras.length].id;
+              await html5QrCode.start(camId, config, onScanSuccess, onScanError);
+              startSuccess = true;
+            } else {
+              await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, onScanError);
+              startSuccess = true;
+            }
+          }
         }
 
-        // Update status
-        const statusElement = document.getElementById('status');
-        if (statusElement) {
-          statusElement.textContent = 'Camera is active and scanning';
+        if (startSuccess) {
+          isCameraRunning = true;
+          isCameraPaused = false;
+          showStatus('Ready — Align batch barcode in frame', 'success');
+          if (cameraNotice) cameraNotice.classList.add('d-none');
+          updateCameraControlUI();
         }
       } catch (err) {
-        const statusElement = document.getElementById('status');
-        if (statusElement) {
-          statusElement.textContent = 'Error starting camera: ' + (err.message || 'Unknown error');
+        isCameraRunning = false;
+        showStatus('Camera access denied or unavailable', 'danger');
+        if (cameraNotice) {
+          cameraNotice.classList.remove('d-none');
+          if (noticeText) {
+            noticeText.innerHTML = `Unable to start camera (${err.message || 'Permission denied'}). Please allow camera access in browser settings or use the manual entry form below.`;
+          }
+        }
+      } finally {
+        isInitializing = false;
+      }
+    }
+
+    function updateCameraControlUI() {
+      const toggleText = document.getElementById('toggleCameraText');
+      const toggleBtn = document.getElementById('toggleCameraBtn');
+      const torchBtn = document.getElementById('torchBtn');
+
+      if (toggleText) toggleText.textContent = isCameraPaused ? 'Resume' : 'Pause';
+      if (toggleBtn) {
+        const icon = toggleBtn.querySelector('i');
+        if (icon) {
+          icon.className = isCameraPaused ? 'fas fa-play me-1' : 'fas fa-pause me-1';
         }
       }
+
+      if (html5QrCode && isCameraRunning && torchBtn) {
+        try {
+          const track = html5QrCode.getRunningTrackCameraCapabilities();
+          if (track && track.torchFeature && track.torchFeature().isSupported()) {
+            torchBtn.classList.remove('d-none');
+          } else {
+            torchBtn.classList.add('d-none');
+          }
+        } catch (e) {
+          torchBtn.classList.add('d-none');
+        }
+      }
+    }
+
+    async function toggleCamera() {
+      if (!html5QrCode || !isCameraRunning) {
+        await initializeCamera(true);
+        return;
+      }
+      try {
+        if (isCameraPaused) {
+          html5QrCode.resume();
+          isCameraPaused = false;
+          showStatus('Ready — Align batch barcode in frame', 'success');
+        } else {
+          html5QrCode.pause();
+          isCameraPaused = true;
+          showStatus('Camera paused', 'warning');
+        }
+        updateCameraControlUI();
+      } catch (e) {
+        console.warn('Error toggling camera pause:', e);
+      }
+    }
+
+    async function switchCamera() {
+      if (!availableCameras || availableCameras.length < 2) {
+        if (html5QrCode && isCameraRunning) {
+          try {
+            await html5QrCode.stop();
+            isCameraRunning = false;
+          } catch (e) {}
+        }
+        currentCameraIndex = (currentCameraIndex + 1) % 2;
+        const targetFacing = currentCameraIndex === 0 ? "environment" : "user";
+        try {
+          html5QrCode = new Html5Qrcode("reader");
+          await html5QrCode.start(
+            { facingMode: targetFacing },
+            { fps: 15, qrbox: { width: 250, height: 120 }, aspectRatio: 1.0 },
+            onScanSuccess,
+            onScanError
+          );
+          isCameraRunning = true;
+          isCameraPaused = false;
+          showStatus(`Switched camera (${targetFacing})`, 'success');
+          updateCameraControlUI();
+        } catch (e) {
+          initializeCamera(true);
+        }
+        return;
+      }
+
+      currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+      const targetCam = availableCameras[currentCameraIndex];
+      showStatus(`Switching to ${targetCam.label || 'camera ' + (currentCameraIndex+1)}...`, 'info');
+      try {
+        if (html5QrCode && isCameraRunning) {
+          await html5QrCode.stop();
+          isCameraRunning = false;
+        }
+        html5QrCode = new Html5Qrcode("reader");
+        await html5QrCode.start(
+          targetCam.id,
+          { fps: 15, qrbox: { width: 250, height: 120 }, aspectRatio: 1.0 },
+          onScanSuccess,
+          onScanError
+        );
+        isCameraRunning = true;
+        isCameraPaused = false;
+        showStatus('Camera active — Ready to scan', 'success');
+        updateCameraControlUI();
+      } catch (e) {
+        initializeCamera(true);
+      }
+    }
+
+    async function toggleTorch() {
+      if (!html5QrCode || !isCameraRunning) return;
+      try {
+        currentTorchState = !currentTorchState;
+        await html5QrCode.applyVideoConstraints({
+          advanced: [{ torch: currentTorchState }]
+        });
+        const torchBtn = document.getElementById('torchBtn');
+        if (torchBtn) {
+          torchBtn.classList.toggle('btn-warning', currentTorchState);
+        }
+      } catch (e) {
+        console.warn('Torch not supported or toggle failed:', e);
+      }
+    }
+
+    function handleManualSubBarcodeSubmit(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('manualBarcodeInput');
+      if (!input) return;
+      const barcode = input.value.trim();
+      if (!barcode) {
+        showFlashMessage('Please enter a batch sub barcode', 'error');
+        input.focus();
+        return;
+      }
+      playBeepSound();
+      triggerHaptic();
+      handleBarcodeScan(barcode);
     }
     
     // Scan success callback
     function onScanSuccess(decodedText) {
-      // Always trim to 12 characters for barcode (same as mobile scanner)
-      const barcode = decodedText.slice(0, 12);
+      const barcode = (decodedText || '').trim();
+      if (!barcode) return;
       
-      // Stop scanning temporarily
+      playBeepSound();
+      triggerHaptic();
+
       if (html5QrCode) {
         html5QrCode.stop().then(() => {
-          // Process the scanned barcode
+          isCameraRunning = false;
+          handleBarcodeScan(barcode);
+        }).catch(() => {
           handleBarcodeScan(barcode);
         });
+      } else {
+        handleBarcodeScan(barcode);
       }
     }
     

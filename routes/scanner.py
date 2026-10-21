@@ -20,14 +20,6 @@ scanner = Blueprint('scanner', __name__, url_prefix='/scanner')
 @login_required
 @admin_required  # Only SYS-Admin and WH-Admin can access
 def scanner_view():
-    # Check if user is accessing from mobile device
-    user_agent = request.headers.get('User-Agent', '')
-    is_mobile = is_mobile_device(user_agent)
-    
-    if not is_mobile:
-        flash('Scanner is only available on mobile devices.', 'warning')
-        return redirect(url_for('main.dashboard'))
-    
     return render_template('warehouse/scan_add_remove.html', current_user=current_user)
 
 
@@ -35,28 +27,9 @@ def scanner_view():
 @login_required
 @admin_required  # Only SYS-Admin and WH-Admin can access
 def mobile_scanner():
-    """Mobile-optimized scanner route with enhanced mobile detection"""
-    user_agent = request.headers.get('User-Agent', '')
-    is_mobile = is_mobile_device(user_agent)
-    
-    if not is_mobile:
-        # Return JSON response for API calls
-        if request.headers.get('Accept') == 'application/json':
-            return jsonify({
-                'success': False,
-                'message': 'Scanner is only available on mobile devices',
-                'redirect': url_for('main.dashboard')
-            }), 403
-        
-        # Redirect for browser requests
-        flash('Scanner is only available on mobile devices.', 'warning')
-        return redirect(url_for('main.dashboard'))
-    
-    # Set mobile-specific headers
+    """Mobile-optimized scanner route"""
     response = make_response(render_template('warehouse/scan_add_remove.html', current_user=current_user))
-    response.headers['X-Mobile-Only'] = 'true'
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    
     return response
 
 
@@ -65,27 +38,8 @@ def mobile_scanner():
 @admin_required  # Only SYS-Admin and WH-Admin can access
 def mobile_audit():
     """Mobile-optimized stock audit route"""
-    user_agent = request.headers.get('User-Agent', '')
-    is_mobile = is_mobile_device(user_agent)
-    
-    if not is_mobile:
-        # Return JSON response for API calls
-        if request.headers.get('Accept') == 'application/json':
-            return jsonify({
-                'success': False,
-                'message': 'Mobile audit is only available on mobile devices',
-                'redirect': url_for('main.dashboard')
-            }), 403
-        
-        # Redirect for browser requests
-        flash('Mobile audit is only available on mobile devices.', 'warning')
-        return redirect(url_for('main.dashboard'))
-    
-    # Set mobile-specific headers
     response = make_response(render_template('warehouse/mobile_audit.html', current_user=current_user))
-    response.headers['X-Mobile-Only'] = 'true'
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    
     return response
 
 
@@ -383,22 +337,6 @@ def lookup_batch_by_sub_barcode():
 @admin_required  # Only SYS-Admin, WH-Admin, and Company-Admin can access
 def mobile_requisition_fulfillment(requisition_id):
     """Mobile-optimized requisition fulfillment scanner route"""
-    user_agent = request.headers.get('User-Agent', '')
-    is_mobile = is_mobile_device(user_agent)
-    
-    if not is_mobile:
-        # Return JSON response for API calls
-        if request.headers.get('Accept') == 'application/json':
-            return jsonify({
-                'success': False,
-                'message': 'Requisition fulfillment scanner is only available on mobile devices',
-                'redirect': url_for('main.dashboard')
-            }), 403
-        
-        # Redirect for browser requests
-        flash('Requisition fulfillment scanner is only available on mobile devices.', 'warning')
-        return redirect(url_for('requisitions.view_requisitions'))
-    
     # Get the requisition
     requisition = Requisition.query.get_or_404(requisition_id)
     
@@ -1015,27 +953,8 @@ def api_update_requisition_status():
 @admin_required  # Only SYS-Admin, WH-Admin, and Company-Admin can access
 def mobile_pending_requisitions():
     """Mobile-optimized pending requisitions view route"""
-    user_agent = request.headers.get('User-Agent', '')
-    is_mobile = is_mobile_device(user_agent)
-    
-    if not is_mobile:
-        # Return JSON response for API calls
-        if request.headers.get('Accept') == 'application/json':
-            return jsonify({
-                'success': False,
-                'message': 'Pending requisitions view is only available on mobile devices',
-                'redirect': url_for('main.dashboard')
-            }), 403
-        
-        # Redirect for browser requests
-        flash('Pending requisitions view is only available on mobile devices.', 'warning')
-        return redirect(url_for('requisitions.view_requisitions'))
-    
-    # Set mobile-specific headers
     response = make_response(render_template('warehouse/mobile_pending_requisitions.html', current_user=current_user))
-    response.headers['X-Mobile-Only'] = 'true'
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    
     return response
 
 
@@ -1044,27 +963,8 @@ def mobile_pending_requisitions():
 @admin_required  # Only SYS-Admin, WH-Admin, and Company-Admin can access
 def mobile_batch_sub_audit():
     """Mobile-optimized batch sub barcode audit route"""
-    user_agent = request.headers.get('User-Agent', '')
-    is_mobile = is_mobile_device(user_agent)
-    
-    if not is_mobile:
-        # Return JSON response for API calls
-        if request.headers.get('Accept') == 'application/json':
-            return jsonify({
-                'success': False,
-                'message': 'Mobile batch sub audit is only available on mobile devices',
-                'redirect': url_for('main.dashboard')
-            }), 403
-        
-        # Redirect for browser requests
-        flash('Mobile batch sub audit is only available on mobile devices.', 'warning')
-        return redirect(url_for('main.dashboard'))
-    
-    # Set mobile-specific headers
     response = make_response(render_template('warehouse/mobile_batch_sub_audit.html', current_user=current_user))
-    response.headers['X-Mobile-Only'] = 'true'
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    
     return response
 
 
@@ -1073,21 +973,6 @@ def mobile_batch_sub_audit():
 @admin_required  # Only SYS-Admin, WH-Admin, and Company-Admin can access
 def batch_audit_pending():
     """Batch audit pending list route"""
-    user_agent = request.headers.get('User-Agent', '')
-    is_mobile = is_mobile_device(user_agent)
-    
-    if not is_mobile:
-        # Return JSON response for API calls
-        if request.headers.get('Accept') == 'application/json':
-            return jsonify({
-                'success': False,
-                'message': 'Batch audit pending list is only available on mobile devices',
-                'redirect': url_for('main.dashboard')
-            }), 403
-        
-        # Redirect for browser requests
-        flash('Batch audit pending list is only available on mobile devices.', 'warning')
-        return redirect(url_for('main.dashboard'))
     
     try:
         # Get pending batch audits (status = 'pending') grouped by batch_label
