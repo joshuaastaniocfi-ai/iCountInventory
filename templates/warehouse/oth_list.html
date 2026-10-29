@@ -1,65 +1,232 @@
 {% extends 'layouts/base-sidebar.html' %}
 
-{% block title %}On The House (OTH) Requests{% endblock %}
+{% block title %}On The House (OTH) Requests - iCount{% endblock %}
 
 {% block extra_css %}
 <style>
+  /* ═════════════════════════════════════════════════════════════════
+     ON THE HOUSE (OTH) - MODERN iCOUNT MONOCHROME UI
+     ═════════════════════════════════════════════════════════════════ */
+  
+  .oth-page {
+    font-family: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding-bottom: 3rem;
+  }
+
+  /* Header */
   .oth-header-icon {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+    background: #18181b;
     color: #ffffff;
-    font-size: 1.35rem;
-    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
+    font-size: 1.2rem;
+    box-shadow: 0 4px 14px rgba(24, 24, 27, 0.16);
+    flex-shrink: 0;
+  }
+  :where(.dark-mode) .oth-header-icon {
+    background: #27272a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  .oth-kpi-card {
-    border: 1px solid var(--border-color, #e2e8f0);
-    border-radius: 14px;
+  .oth-page-title {
+    font-size: 1.45rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-primary, #18181b);
+    line-height: 1.2;
+  }
+
+  .oth-count-badge {
+    background: var(--surface, #f4f4f5);
+    color: var(--text-secondary, #52525b);
+    border: 1px solid var(--border, #e4e4e7);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    vertical-align: middle;
+  }
+  :where(.dark-mode) .oth-count-badge {
+    background: #27272a;
+    color: #a1a1aa;
+    border-color: #3f3f46;
+  }
+
+  /* KPI Stat Cards */
+  .oth-stat-card {
+    border: 1px solid var(--border, #e4e4e7);
+    border-radius: 12px;
     background: var(--card-bg, #ffffff);
-    padding: 18px 20px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    padding: 16px 18px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
     position: relative;
     overflow: hidden;
+    height: 100%;
   }
-  .oth-kpi-card:hover {
+  :where(.dark-mode) .oth-stat-card {
+    background: #18181b;
+    border-color: #27272a;
+  }
+  .oth-stat-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
   }
-  .oth-kpi-card::before {
+  .oth-stat-card::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
-    width: 4px;
+    width: 3px;
     height: 100%;
   }
-  .oth-kpi-all::before { background: #64748b; }
-  .oth-kpi-pending::before { background: #f59e0b; }
-  .oth-kpi-approved::before { background: #3b82f6; }
-  .oth-kpi-released::before { background: #10b981; }
-  .oth-kpi-declined::before { background: #ef4444; }
+  .oth-stat-all::before { background: #18181b; }
+  .oth-stat-pending::before { background: #f59e0b; }
+  .oth-stat-approved::before { background: #3b82f6; }
+  .oth-stat-released::before { background: #10b981; }
+  .oth-stat-declined::before { background: #ef4444; }
 
-  .oth-kpi-val {
-    font-size: 1.75rem;
-    font-weight: 800;
-    line-height: 1.2;
-    color: var(--text-main, #0f172a);
+  :where(.dark-mode) .oth-stat-all::before { background: #f4f4f5; }
+
+  .oth-stat-val {
+    font-size: 1.65rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text-primary, #18181b);
+    letter-spacing: -0.02em;
   }
-  .oth-kpi-lbl {
-    font-size: 0.76rem;
+  :where(.dark-mode) .oth-stat-val {
+    color: #f4f4f5;
+  }
+
+  .oth-stat-lbl {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted, #71717a);
+    margin-top: 4px;
+  }
+
+  .oth-stat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    background: var(--surface, #f4f4f5);
+    color: var(--text-muted, #71717a);
+  }
+  :where(.dark-mode) .oth-stat-icon {
+    background: #27272a;
+    color: #a1a1aa;
+  }
+
+  /* Filter Bar & Tabs */
+  .oth-filter-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border, #e4e4e7);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  :where(.dark-mode) .oth-filter-card {
+    background: #18181b;
+    border-color: #27272a;
+  }
+
+  .filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary, #52525b);
+    background: var(--surface, #f4f4f5);
+    border: 1px solid var(--border, #e4e4e7);
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+  :where(.dark-mode) .filter-pill {
+    background: #27272a;
+    border-color: #3f3f46;
+    color: #a1a1aa;
+  }
+  .filter-pill:hover {
+    color: var(--text-primary, #18181b);
+    background: #e4e4e7;
+  }
+  :where(.dark-mode) .filter-pill:hover {
+    background: #3f3f46;
+    color: #ffffff;
+  }
+  .filter-pill.active {
+    background: #18181b;
+    color: #ffffff;
+    border-color: #18181b;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+  :where(.dark-mode) .filter-pill.active {
+    background: #f4f4f5;
+    color: #18181b;
+    border-color: #f4f4f5;
+  }
+
+  /* Table */
+  .oth-table-card {
+    border: 1px solid var(--border, #e4e4e7);
+    border-radius: 12px;
+    background: var(--card-bg, #ffffff);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    overflow: hidden;
+  }
+  :where(.dark-mode) .oth-table-card {
+    background: #18181b;
+    border-color: #27272a;
+  }
+
+  .oth-table {
+    margin-bottom: 0;
+    width: 100%;
+    font-size: 0.86rem;
+  }
+  .oth-table th {
+    background: var(--surface, #fafafa);
+    color: var(--text-muted, #71717a);
+    font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--text-muted, #64748b);
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border, #e4e4e7);
+    white-space: nowrap;
   }
-  .oth-kpi-icon {
-    font-size: 1.5rem;
-    opacity: 0.8;
+  :where(.dark-mode) .oth-table th {
+    background: #202023;
+    border-color: #27272a;
+    color: #a1a1aa;
+  }
+  .oth-table td {
+    padding: 12px 14px;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-subtle, #f4f4f5);
+    color: var(--text-primary, #18181b);
+  }
+  :where(.dark-mode) .oth-table td {
+    border-color: #27272a;
+    color: #f4f4f5;
+  }
+  .oth-table tr:hover td {
+    background-color: var(--surface-hover, rgba(0, 0, 0, 0.015));
+  }
+  :where(.dark-mode) .oth-table tr:hover td {
+    background-color: rgba(255, 255, 255, 0.02);
   }
 
   /* Status Badges */
@@ -67,112 +234,38 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 5px 11px;
-    border-radius: 9999px;
-    font-size: 0.74rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     white-space: nowrap;
   }
   .badge-oth-pending {
-    background-color: rgba(245, 158, 11, 0.12);
+    background-color: rgba(245, 158, 11, 0.1);
     color: #d97706;
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    border: 1px solid rgba(245, 158, 11, 0.25);
   }
   .badge-oth-approved {
-    background-color: rgba(59, 130, 246, 0.12);
+    background-color: rgba(59, 130, 246, 0.1);
     color: #2563eb;
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    border: 1px solid rgba(59, 130, 246, 0.25);
   }
   .badge-oth-released {
-    background-color: rgba(16, 185, 129, 0.12);
+    background-color: rgba(16, 185, 129, 0.1);
     color: #059669;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    border: 1px solid rgba(16, 185, 129, 0.25);
   }
   .badge-oth-declined {
-    background-color: rgba(239, 68, 68, 0.12);
+    background-color: rgba(239, 68, 68, 0.1);
     color: #dc2626;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-  }
-
-  /* Table styling */
-  .oth-table-card {
-    border: 1px solid var(--border-color, #e2e8f0);
-    border-radius: 14px;
-    background: var(--card-bg, #ffffff);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
-    overflow: hidden;
-  }
-  .oth-table {
-    margin-bottom: 0;
-    width: 100%;
-  }
-  .oth-table th {
-    background: var(--surface-bg, #f8fafc);
-    color: var(--text-muted, #64748b);
-    font-size: 0.73rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 12px 14px;
-    border-bottom: 1px solid var(--border-color, #e2e8f0);
-  }
-  .oth-table td {
-    padding: 13px 14px;
-    vertical-align: middle;
-    border-bottom: 1px solid var(--border-color, #f1f5f9);
-    font-size: 0.88rem;
-    color: var(--text-main, #1e293b);
-  }
-  .oth-table tr:hover td {
-    background-color: var(--hover-bg, rgba(241, 245, 249, 0.6));
-  }
-
-  /* Filter pill tabs */
-  .filter-tab {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 9999px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--text-muted, #64748b);
-    background: var(--surface-bg, #f1f5f9);
-    border: 1px solid transparent;
-    text-decoration: none;
-    transition: all 0.15s ease;
-  }
-  .filter-tab:hover {
-    color: var(--text-main, #0f172a);
-    background: #e2e8f0;
-  }
-  .filter-tab.active {
-    background: #0d9488;
-    color: #ffffff;
-    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
-  }
-
-  .btn-release-oth {
-    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
-    color: #ffffff;
-    border: none;
-    font-weight: 600;
-    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
-    transition: all 0.2s ease;
-  }
-  .btn-release-oth:hover {
-    background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%);
-    color: #ffffff;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+    border: 1px solid rgba(239, 68, 68, 0.25);
   }
 
   .pulse-dot {
     display: inline-block;
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: currentColor;
     animation: pulseGlow 1.5s infinite;
@@ -182,11 +275,65 @@
     50% { opacity: 0.4; transform: scale(1.3); }
     100% { opacity: 1; transform: scale(1); }
   }
+
+  /* Action Buttons */
+  .btn-oth-primary {
+    background: #18181b;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+  }
+  .btn-oth-primary:hover {
+    background: #27272a;
+    color: #ffffff;
+    transform: translateY(-1px);
+  }
+  :where(.dark-mode) .btn-oth-primary {
+    background: #f4f4f5;
+    color: #18181b;
+  }
+  :where(.dark-mode) .btn-oth-primary:hover {
+    background: #e4e4e7;
+    color: #18181b;
+  }
+
+  .btn-oth-release {
+    background: #18181b;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.78rem;
+    padding: 4px 10px;
+    transition: all 0.15s ease;
+  }
+  .btn-oth-release:hover {
+    background: #27272a;
+    color: #ffffff;
+  }
+  :where(.dark-mode) .btn-oth-release {
+    background: #f4f4f5;
+    color: #18181b;
+  }
+
+  /* Monospace ID tag */
+  .oth-id-badge {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--text-primary, #18181b);
+    letter-spacing: -0.01em;
+  }
+  :where(.dark-mode) .oth-id-badge {
+    color: #f4f4f5;
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3 px-3 px-md-4">
+<div class="oth-page container-fluid py-3 px-3 px-md-4">
 
   <!-- ── 1. Page Header ── -->
   <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
@@ -195,25 +342,25 @@
         <i class="fas fa-utensils"></i>
       </div>
       <div>
-        <h3 class="fw-bold mb-1" style="background: linear-gradient(45deg, #0d9488, #2563eb); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-          On The House (OTH) Requests
-        </h3>
-        <p class="text-muted small mb-0">
-          <i class="fas fa-circle-info me-1 text-teal"></i> Employee snack &amp; food privilege management &bull; Warehouse stock issuance workflow
+        <div class="d-flex align-items-center gap-2">
+          <h1 class="oth-page-title mb-0">On The House (OTH) Requests</h1>
+          <span class="oth-count-badge">{{ total_count }} total</span>
+        </div>
+        <p class="text-muted small mb-0 mt-1">
+          Employee snack &amp; food privilege workflow &bull; Warehouse stock issuance and audit tracking
         </p>
       </div>
     </div>
 
     <div class="d-flex align-items-center gap-2 flex-wrap">
       {% if current_user.role in ['WH-Admin', 'SYS-Admin', 'Company-Admin'] %}
-      <button class="btn btn-primary d-inline-flex align-items-center gap-2 px-3 py-2 fw-semibold" 
-              style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); border: none; box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);"
+      <button class="btn btn-oth-primary d-inline-flex align-items-center gap-2 px-3 py-2" 
               data-bs-toggle="modal" data-bs-target="#newOthModal">
-        <i class="fas fa-plus-circle"></i>
+        <i class="fas fa-plus"></i>
         <span>New OTH Request</span>
       </button>
       {% endif %}
-      <a href="{{ url_for('reports.ledger') }}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2 px-3 py-2">
+      <a href="{{ url_for('reports.ledger') }}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2 px-3 py-2" style="border-radius: 8px;">
         <i class="fas fa-book-journal-whills"></i>
         <span>Stock Ledger</span>
       </a>
@@ -223,112 +370,110 @@
   <!-- ── 2. KPI Cards ── -->
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3 col-xl">
-      <div class="oth-kpi-card oth-kpi-all">
+      <div class="oth-stat-card oth-stat-all">
         <div class="d-flex justify-content-between align-items-center">
           <div>
-            <div class="oth-kpi-val">{{ total_count }}</div>
-            <div class="oth-kpi-lbl">Total Requests</div>
+            <div class="oth-stat-val">{{ total_count }}</div>
+            <div class="oth-stat-lbl">Total Requests</div>
           </div>
-          <div class="oth-kpi-icon text-muted"><i class="fas fa-list-check"></i></div>
+          <div class="oth-stat-icon"><i class="fas fa-list-check"></i></div>
         </div>
       </div>
     </div>
     <div class="col-6 col-md-3 col-xl">
-      <div class="oth-kpi-card oth-kpi-pending">
+      <div class="oth-stat-card oth-stat-pending">
         <div class="d-flex justify-content-between align-items-center">
           <div>
-            <div class="oth-kpi-val text-warning">{{ pending_count }}</div>
-            <div class="oth-kpi-lbl">Pending Approval</div>
+            <div class="oth-stat-val" style="color: #d97706;">{{ pending_count }}</div>
+            <div class="oth-stat-lbl">Pending Approval</div>
           </div>
-          <div class="oth-kpi-icon text-warning"><i class="fas fa-clock"></i></div>
+          <div class="oth-stat-icon" style="color: #d97706;"><i class="fas fa-clock"></i></div>
         </div>
       </div>
     </div>
     <div class="col-6 col-md-3 col-xl">
-      <div class="oth-kpi-card oth-kpi-approved">
+      <div class="oth-stat-card oth-stat-approved">
         <div class="d-flex justify-content-between align-items-center">
           <div>
-            <div class="oth-kpi-val text-primary">{{ approved_count }}</div>
-            <div class="oth-kpi-lbl">Approved (Ready)</div>
+            <div class="oth-stat-val" style="color: #2563eb;">{{ approved_count }}</div>
+            <div class="oth-stat-lbl">Approved (Ready)</div>
           </div>
-          <div class="oth-kpi-icon text-primary"><i class="fas fa-check-double"></i></div>
+          <div class="oth-stat-icon" style="color: #2563eb;"><i class="fas fa-check-double"></i></div>
         </div>
       </div>
     </div>
     <div class="col-6 col-md-3 col-xl">
-      <div class="oth-kpi-card oth-kpi-released">
+      <div class="oth-stat-card oth-stat-released">
         <div class="d-flex justify-content-between align-items-center">
           <div>
-            <div class="oth-kpi-val text-success">{{ released_count }}</div>
-            <div class="oth-kpi-lbl">Released (Deducted)</div>
+            <div class="oth-stat-val" style="color: #059669;">{{ released_count }}</div>
+            <div class="oth-stat-lbl">Released (Deducted)</div>
           </div>
-          <div class="oth-kpi-icon text-success"><i class="fas fa-box-open"></i></div>
+          <div class="oth-stat-icon" style="color: #059669;"><i class="fas fa-box-open"></i></div>
         </div>
       </div>
     </div>
     <div class="col-6 col-md-3 col-xl">
-      <div class="oth-kpi-card oth-kpi-declined">
+      <div class="oth-stat-card oth-stat-declined">
         <div class="d-flex justify-content-between align-items-center">
           <div>
-            <div class="oth-kpi-val text-danger">{{ declined_count }}</div>
-            <div class="oth-kpi-lbl">Declined</div>
+            <div class="oth-stat-val" style="color: #dc2626;">{{ declined_count }}</div>
+            <div class="oth-stat-lbl">Declined</div>
           </div>
-          <div class="oth-kpi-icon text-danger"><i class="fas fa-ban"></i></div>
+          <div class="oth-stat-icon" style="color: #dc2626;"><i class="fas fa-ban"></i></div>
         </div>
       </div>
     </div>
   </div>
 
   <!-- ── 3. Filters & Search Bar ── -->
-  <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
-    <div class="card-body p-3">
-      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
-        <!-- Status Tabs -->
-        <div class="d-flex flex-wrap gap-2">
-          <a href="{{ url_for('oth.oth_list', status='all', search=search, start_date=start_date, end_date=end_date) }}" 
-             class="filter-tab {{ 'active' if status_filter == 'all' or not status_filter }}">
-            <i class="fas fa-layer-group"></i> All ({{ total_count }})
-          </a>
-          <a href="{{ url_for('oth.oth_list', status='Pending', search=search, start_date=start_date, end_date=end_date) }}" 
-             class="filter-tab {{ 'active' if status_filter|lower == 'pending' }}">
-            <i class="fas fa-clock text-warning"></i> Pending ({{ pending_count }})
-          </a>
-          <a href="{{ url_for('oth.oth_list', status='Approved', search=search, start_date=start_date, end_date=end_date) }}" 
-             class="filter-tab {{ 'active' if status_filter|lower == 'approved' }}">
-            <i class="fas fa-check text-primary"></i> Approved ({{ approved_count }})
-          </a>
-          <a href="{{ url_for('oth.oth_list', status='Released', search=search, start_date=start_date, end_date=end_date) }}" 
-             class="filter-tab {{ 'active' if status_filter|lower == 'released' }}">
-            <i class="fas fa-circle-check text-success"></i> Released ({{ released_count }})
-          </a>
-          <a href="{{ url_for('oth.oth_list', status='Declined', search=search, start_date=start_date, end_date=end_date) }}" 
-             class="filter-tab {{ 'active' if status_filter|lower == 'declined' }}">
-            <i class="fas fa-circle-xmark text-danger"></i> Declined ({{ declined_count }})
-          </a>
-        </div>
-
-        <!-- Search & Date Filter Form -->
-        <form method="GET" action="{{ url_for('oth.oth_list') }}" class="d-flex align-items-center gap-2 flex-wrap">
-          <input type="hidden" name="status" value="{{ status_filter }}">
-          <div class="input-group input-group-sm" style="min-width: 220px;">
-            <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
-            <input type="text" name="search" class="form-control border-start-0" placeholder="Search employee, product, purpose..." value="{{ search }}">
-          </div>
-          <div class="input-group input-group-sm" style="width: 140px;">
-            <input type="date" name="start_date" class="form-control" title="Start Date" value="{{ start_date }}">
-          </div>
-          <span class="text-muted small">to</span>
-          <div class="input-group input-group-sm" style="width: 140px;">
-            <input type="date" name="end_date" class="form-control" title="End Date" value="{{ end_date }}">
-          </div>
-          <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-          {% if search or start_date or end_date or (status_filter and status_filter != 'all') %}
-          <a href="{{ url_for('oth.oth_list') }}" class="btn btn-sm btn-outline-secondary" title="Clear Filters">
-            <i class="fas fa-xmark"></i>
-          </a>
-          {% endif %}
-        </form>
+  <div class="oth-filter-card mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+      <!-- Status Tabs -->
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{{ url_for('oth.oth_list', status='all', search=search, start_date=start_date, end_date=end_date) }}" 
+           class="filter-pill {{ 'active' if status_filter == 'all' or not status_filter }}">
+          <i class="fas fa-layer-group"></i> All ({{ total_count }})
+        </a>
+        <a href="{{ url_for('oth.oth_list', status='Pending', search=search, start_date=start_date, end_date=end_date) }}" 
+           class="filter-pill {{ 'active' if status_filter|lower == 'pending' }}">
+          <i class="fas fa-clock text-warning"></i> Pending ({{ pending_count }})
+        </a>
+        <a href="{{ url_for('oth.oth_list', status='Approved', search=search, start_date=start_date, end_date=end_date) }}" 
+           class="filter-pill {{ 'active' if status_filter|lower == 'approved' }}">
+          <i class="fas fa-check text-primary"></i> Approved ({{ approved_count }})
+        </a>
+        <a href="{{ url_for('oth.oth_list', status='Released', search=search, start_date=start_date, end_date=end_date) }}" 
+           class="filter-pill {{ 'active' if status_filter|lower == 'released' }}">
+          <i class="fas fa-circle-check text-success"></i> Released ({{ released_count }})
+        </a>
+        <a href="{{ url_for('oth.oth_list', status='Declined', search=search, start_date=start_date, end_date=end_date) }}" 
+           class="filter-pill {{ 'active' if status_filter|lower == 'declined' }}">
+          <i class="fas fa-circle-xmark text-danger"></i> Declined ({{ declined_count }})
+        </a>
       </div>
+
+      <!-- Search & Date Filter Form -->
+      <form method="GET" action="{{ url_for('oth.oth_list') }}" class="d-flex align-items-center gap-2 flex-wrap">
+        <input type="hidden" name="status" value="{{ status_filter }}">
+        <div class="input-group input-group-sm" style="min-width: 220px;">
+          <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
+          <input type="text" name="search" class="form-control border-start-0" placeholder="Search employee, product, purpose..." value="{{ search }}">
+        </div>
+        <div class="input-group input-group-sm" style="width: 140px;">
+          <input type="date" name="start_date" class="form-control" title="Start Date" value="{{ start_date }}">
+        </div>
+        <span class="text-muted small">to</span>
+        <div class="input-group input-group-sm" style="width: 140px;">
+          <input type="date" name="end_date" class="form-control" title="End Date" value="{{ end_date }}">
+        </div>
+        <button type="submit" class="btn btn-sm btn-dark" style="border-radius: 6px;">Filter</button>
+        {% if search or start_date or end_date or (status_filter and status_filter != 'all') %}
+        <a href="{{ url_for('oth.oth_list') }}" class="btn btn-sm btn-outline-secondary" style="border-radius: 6px;" title="Clear Filters">
+          <i class="fas fa-xmark"></i>
+        </a>
+        {% endif %}
+      </form>
     </div>
   </div>
 
@@ -340,14 +485,14 @@
         <thead>
           <tr>
             <th style="width: 12%;">Date &amp; ID</th>
-            <th style="width: 18%;">Product</th>
+            <th style="width: 20%;">Product</th>
             <th style="width: 10%; text-align: center;">Quantity</th>
             <th style="width: 14%;">Employee (Recipient)</th>
-            <th style="width: 16%;">Purpose</th>
+            <th style="width: 15%;">Purpose</th>
             <th style="width: 11%;">Requested By</th>
             <th style="width: 11%;">Approver</th>
             <th style="width: 10%; text-align: center;">Status</th>
-            <th style="width: 13%; text-align: center;">Action</th>
+            <th style="width: 12%; text-align: center;">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -355,37 +500,37 @@
           <tr id="oth-row-{{ r.id }}">
             <!-- 1. Date & ID -->
             <td>
-              <div class="fw-bold" style="color: #0d9488;">#OTH-{{ '%04d' % r.id }}</div>
-              <div class="small text-muted">
+              <div class="oth-id-badge">#OTH-{{ '%04d' % r.id }}</div>
+              <div class="small text-muted" style="font-size: 0.75rem;">
                 <i class="far fa-calendar-alt me-1"></i>{{ r.transaction_date.strftime('%b %d, %Y') if r.transaction_date else '—' }}
               </div>
             </td>
 
             <!-- 2. Product -->
             <td>
-              <div class="fw-semibold text-dark">{{ r.product.name if r.product else 'Product #' ~ r.product_id }}</div>
-              <div class="small text-muted d-flex align-items-center gap-1">
-                <code>{{ (r.product.barcode if r.product else '') or 'No barcode' }}</code>
-                {% if r.product and r.product.category %}
-                  &bull; <span>{{ r.product.category }}</span>
+              <div class="fw-semibold text-dark-emphasis">{{ r.product.name if r.product else 'Product #' ~ r.product_id }}</div>
+              <div class="small text-muted d-flex align-items-center gap-1 mt-1" style="font-size: 0.75rem;">
+                <span class="badge bg-light text-secondary border" style="font-family: ui-monospace, monospace; font-size: 0.7rem;">{{ (r.product.barcode if r.product else '') or 'No barcode' }}</span>
+                {% if r.product and r.product.station %}
+                  &bull; <span>{{ r.product.station }}</span>
                 {% endif %}
               </div>
             </td>
 
             <!-- 3. Quantity -->
             <td class="text-center">
-              <span class="fs-6 fw-bold" style="color: #0d9488;">{{ r.quantity }}</span>
-              <small class="text-muted d-block">{{ (r.product.uom if r.product else '') or 'unit' }}</small>
+              <span class="fs-6 fw-bold text-dark-emphasis">{{ r.quantity }}</span>
+              <small class="text-muted d-block" style="font-size: 0.72rem;">{{ (r.product.uom if r.product else '') or 'unit' }}</small>
             </td>
 
             <!-- 4. Employee (Recipient) -->
             <td>
               <div class="d-flex align-items-center gap-2">
-                <div class="rounded-circle d-flex align-items-center justify-content-center bg-light text-primary" style="width: 28px; height: 28px; font-size: 0.8rem;">
+                <div class="rounded-circle d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary" style="width: 28px; height: 28px; font-size: 0.75rem;">
                   <i class="fas fa-user"></i>
                 </div>
                 <div>
-                  <span class="fw-bold text-dark">{{ r.employee_name }}</span>
+                  <span class="fw-semibold text-dark-emphasis">{{ r.employee_name }}</span>
                 </div>
               </div>
             </td>
@@ -396,8 +541,8 @@
                 {{ r.purpose }}
               </div>
               {% if r.admin_notes %}
-              <div class="small text-muted text-truncate mt-1" style="max-width: 220px;" title="Notes: {{ r.admin_notes }}">
-                <i class="fas fa-comment-dots me-1 text-info"></i>{{ r.admin_notes }}
+              <div class="small text-muted text-truncate mt-1" style="max-width: 220px; font-size: 0.75rem;" title="Notes: {{ r.admin_notes }}">
+                <i class="fas fa-comment-dots me-1 text-primary"></i>{{ r.admin_notes }}
               </div>
               {% endif %}
             </td>
@@ -413,7 +558,7 @@
             <!-- 7. Approver -->
             <td>
               {% if r.approver_name %}
-                <div class="fw-semibold small text-dark">{{ r.approver_name }}</div>
+                <div class="fw-semibold small text-dark-emphasis">{{ r.approver_name }}</div>
                 <div class="text-muted" style="font-size: 0.72rem;">
                   {% if r.status == 'Approved' and r.date_approved %}
                     Approved {{ r.date_approved.strftime('%m/%d %H:%M') }}
@@ -426,8 +571,8 @@
                   <i class="fas fa-user-clock me-1"></i>{{ r.intended_approver }}
                 </div>
               {% else %}
-                <span class="badge bg-light text-muted border" style="font-size: 0.72rem;">
-                  <i class="fas fa-user-shield me-1" style="color: #0d9488;"></i>Company / Sys Admin
+                <span class="badge bg-light text-muted border" style="font-size: 0.7rem;">
+                  <i class="fas fa-user-shield me-1"></i>Company Admin
                 </span>
               {% endif %}
             </td>
@@ -462,12 +607,12 @@
                 <!-- Company-Admin & SYS-Admin actions when Pending -->
                 {% if r.status == 'Pending' %}
                   {% if current_user.role in ['Company-Admin', 'SYS-Admin'] %}
-                    <button class="btn btn-sm btn-success px-2 py-1" 
+                    <button class="btn btn-sm btn-success px-2 py-1" style="font-size: 0.78rem;"
                             title="Approve OTH Request"
                             onclick="openApproveModal({{ r.id }}, '{{ r.employee_name|escape }}', '{{ r.quantity }} {{ (r.product.uom if r.product else 'unit')|escape }} of {{ (r.product.name if r.product else 'Item')|escape }}')">
                       <i class="fas fa-check me-1"></i>Approve
                     </button>
-                    <button class="btn btn-sm btn-outline-danger px-2 py-1" 
+                    <button class="btn btn-sm btn-outline-danger px-2 py-1" style="font-size: 0.78rem;"
                             title="Decline OTH Request"
                             onclick="openDeclineModal({{ r.id }}, '{{ r.employee_name|escape }}')">
                       <i class="fas fa-xmark me-1"></i>Decline
@@ -481,18 +626,18 @@
                 <!-- Warehouse Admin, Company Admin & SYS-Admin actions when Approved: SET RELEASED -->
                 {% elif r.status == 'Approved' %}
                   {% if current_user.role in ['WH-Admin', 'SYS-Admin', 'Company-Admin'] %}
-                    <button class="btn btn-sm btn-release-oth px-2 py-1"
+                    <button class="btn btn-oth-release"
                             title="Set Released and deduct warehouse inventory"
                             onclick="openReleaseModal({{ r.id }}, '{{ r.employee_name|escape }}', '{{ (r.product.name if r.product else 'Item')|escape }}', {{ r.quantity }}, '{{ (r.product.uom if r.product else 'unit')|escape }}', {{ r.product.warehouse_qty if r.product else 0 }})">
                       <i class="fas fa-boxes-packing me-1"></i>Set Released
                     </button>
                   {% else %}
                     <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">
-                      <i class="fas fa-hourglass-start me-1"></i>Ready for WH Release
+                      <i class="fas fa-hourglass-start me-1"></i>Ready for Release
                     </span>
                   {% endif %}
 
-                <!-- Declined: User explicitly requested: "and once declined by the company admin there is no release button" -->
+                <!-- Declined -->
                 {% elif r.status == 'Declined' %}
                   <span class="badge bg-light text-danger border" style="font-size: 0.72rem;" title="{{ r.admin_notes or 'Declined' }}">
                     <i class="fas fa-ban me-1"></i>No Release
@@ -500,7 +645,7 @@
 
                 <!-- Released: Slip and Details -->
                 {% elif r.status == 'Released' %}
-                  <a href="{{ url_for('oth.oth_slip', oth_id=r.id) }}" target="_blank" class="btn btn-sm btn-outline-teal px-2 py-1" style="color: #0d9488; border-color: #0d9488;" title="View & Print Slip">
+                  <a href="{{ url_for('oth.oth_slip', oth_id=r.id) }}" target="_blank" class="btn btn-sm btn-outline-secondary px-2 py-1" style="font-size: 0.78rem;" title="View & Print Slip">
                     <i class="fas fa-receipt me-1"></i>Slip
                   </a>
                 {% endif %}
@@ -515,8 +660,10 @@
     {% else %}
     <div class="text-center py-5">
       <div class="py-4">
-        <i class="fas fa-utensils fa-3x text-muted mb-3 opacity-50"></i>
-        <h5 class="fw-bold text-muted">No OTH Requests Found</h5>
+        <div class="oth-header-icon mx-auto mb-3" style="width: 56px; height: 56px; font-size: 1.5rem;">
+          <i class="fas fa-utensils"></i>
+        </div>
+        <h5 class="fw-bold text-dark-emphasis">No OTH Requests Found</h5>
         <p class="text-muted small mb-3">
           {% if search or (status_filter and status_filter != 'all') or start_date or end_date %}
             No requests matched your active filters. Try resetting the filters.
@@ -525,9 +672,8 @@
           {% endif %}
         </p>
         {% if current_user.role in ['WH-Admin', 'SYS-Admin', 'Company-Admin'] %}
-        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newOthModal"
-                style="background: #0d9488; border-color: #0d9488;">
-          <i class="fas fa-plus-circle me-1"></i>Create First OTH Request
+        <button class="btn btn-sm btn-oth-primary px-3 py-2" data-bs-toggle="modal" data-bs-target="#newOthModal">
+          <i class="fas fa-plus me-1"></i>Create First OTH Request
         </button>
         {% endif %}
       </div>
@@ -538,14 +684,14 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════ -->
-<!-- MODAL 1: NEW OTH REQUEST (Warehouse Admin / SYS-Admin / Company-Admin)-->
+<!-- MODAL 1: NEW OTH REQUEST                                              -->
 <!-- ══════════════════════════════════════════════════════════════════════ -->
 {% if current_user.role in ['WH-Admin', 'SYS-Admin', 'Company-Admin'] %}
 <div class="modal fade" id="newOthModal" tabindex="-1" aria-labelledby="newOthModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0 shadow" style="border-radius: 16px;">
-      <div class="modal-header text-white" style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); border-radius: 16px 16px 0 0;">
-        <h5 class="modal-title fw-bold" id="newOthModalLabel">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 14px; overflow: hidden;">
+      <div class="modal-header bg-dark text-white p-3">
+        <h5 class="modal-title fw-bold" id="newOthModalLabel" style="font-size: 1.05rem;">
           <i class="fas fa-utensils me-2"></i>New On The House (OTH) Request
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -553,10 +699,10 @@
 
       <form id="newOthForm" method="POST" action="{{ url_for('oth.create_oth_request') }}" onsubmit="return submitNewOth(event)">
         <div class="modal-body p-4">
-          <div class="alert alert-info d-flex align-items-center gap-2 mb-3 py-2 small" style="background-color: rgba(13, 148, 136, 0.08); border-color: rgba(13, 148, 136, 0.2); color: #0f766e;">
-            <i class="fas fa-info-circle fs-5"></i>
+          <div class="alert alert-secondary d-flex align-items-center gap-2 mb-3 py-2 small" style="border-radius: 8px;">
+            <i class="fas fa-info-circle fs-5 text-primary"></i>
             <div>
-              <strong>OTH Privilege Flow:</strong> Once submitted, the request goes to Company Admin for approval. After approval, you can click <strong>"Set Released"</strong> to deduct the stock from the warehouse.
+              <strong>OTH Workflow:</strong> Submitted requests route to Company Admin for verification. Once approved, click <strong>"Set Released"</strong> to deduct warehouse stock.
             </div>
           </div>
 
@@ -572,7 +718,7 @@
               </div>
             </div>
 
-            <!-- Approver Authority Info (Read-only notice, no manual approver input needed) -->
+            <!-- Approver Authority Info -->
             <div class="col-md-6">
               <label class="form-label small fw-bold text-uppercase text-muted">
                 Approver Authority
@@ -641,7 +787,7 @@
 
         <div class="modal-footer bg-light p-3">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" id="btnSubmitOth" class="btn btn-primary px-4 fw-semibold" style="background: #0d9488; border-color: #0d9488;" onclick="submitNewOth(event)">
+          <button type="button" id="btnSubmitOth" class="btn btn-dark px-4 fw-semibold" onclick="submitNewOth(event)">
             <i class="fas fa-paper-plane me-1"></i>Submit for Approval
           </button>
         </div>
@@ -652,13 +798,13 @@
 {% endif %}
 
 <!-- ══════════════════════════════════════════════════════════════════════ -->
-<!-- MODAL 2: APPROVE OTH (Company Admin)                                  -->
+<!-- MODAL 2: APPROVE OTH                                                  -->
 <!-- ══════════════════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="approveOthModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow" style="border-radius: 16px;">
-      <div class="modal-header bg-success text-white" style="border-radius: 16px 16px 0 0;">
-        <h5 class="modal-title fw-bold">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 14px; overflow: hidden;">
+      <div class="modal-header bg-success text-white p-3">
+        <h5 class="modal-title fw-bold" style="font-size: 1.05rem;">
           <i class="fas fa-check-circle me-2"></i>Approve OTH Request
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -669,9 +815,9 @@
           <p class="mb-3">
             Are you sure you want to approve this On The House request for <strong id="approve_emp_name"></strong>?
           </p>
-          <div class="p-3 mb-3 rounded" style="background: #f8fafc; border-left: 4px solid #10b981;">
+          <div class="p-3 mb-3 rounded" style="background: var(--surface, #f8fafc); border-left: 4px solid #10b981; border: 1px solid var(--border, #e2e8f0); border-left-width: 4px;">
             <div class="small text-muted">Item &amp; Quantity:</div>
-            <div class="fw-bold text-dark" id="approve_item_desc"></div>
+            <div class="fw-bold text-dark-emphasis" id="approve_item_desc"></div>
           </div>
 
           <div class="mb-3">
@@ -696,13 +842,13 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════ -->
-<!-- MODAL 3: DECLINE OTH (Company Admin)                                  -->
+<!-- MODAL 3: DECLINE OTH                                                  -->
 <!-- ══════════════════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="declineOthModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow" style="border-radius: 16px;">
-      <div class="modal-header bg-danger text-white" style="border-radius: 16px 16px 0 0;">
-        <h5 class="modal-title fw-bold">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 14px; overflow: hidden;">
+      <div class="modal-header bg-danger text-white p-3">
+        <h5 class="modal-title fw-bold" style="font-size: 1.05rem;">
           <i class="fas fa-ban me-2"></i>Decline OTH Request
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -732,31 +878,31 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════ -->
-<!-- MODAL 4: SET RELEASED (Warehouse Admin)                               -->
+<!-- MODAL 4: SET RELEASED                                                 -->
 <!-- ══════════════════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="releaseOthModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow" style="border-radius: 16px;">
-      <div class="modal-header text-white" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); border-radius: 16px 16px 0 0;">
-        <h5 class="modal-title fw-bold">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 14px; overflow: hidden;">
+      <div class="modal-header bg-dark text-white p-3">
+        <h5 class="modal-title fw-bold" style="font-size: 1.05rem;">
           <i class="fas fa-boxes-packing me-2"></i>Set Released (Deduct Warehouse Stock)
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body p-4">
-        <div class="alert alert-warning py-2 small mb-3">
+        <div class="alert alert-warning py-2 small mb-3" style="border-radius: 8px;">
           <i class="fas fa-triangle-exclamation me-1"></i>
-          This action will immediately <strong>deduct the quantity from warehouse inventory</strong> and record a transaction out in the Product Ledger.
+          This action will immediately <strong>deduct the quantity from warehouse inventory</strong> and record a transaction in the Product Ledger.
         </div>
 
-        <div class="p-3 rounded mb-3" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+        <div class="p-3 rounded mb-3" style="background: var(--surface, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: 8px;">
           <div class="d-flex justify-content-between mb-2">
             <span class="text-muted small">Employee:</span>
-            <span class="fw-bold" id="rel_employee_name"></span>
+            <span class="fw-bold text-dark-emphasis" id="rel_employee_name"></span>
           </div>
           <div class="d-flex justify-content-between mb-2">
             <span class="text-muted small">Product:</span>
-            <span class="fw-bold" id="rel_product_name"></span>
+            <span class="fw-bold text-dark-emphasis" id="rel_product_name"></span>
           </div>
           <div class="d-flex justify-content-between mb-2">
             <span class="text-muted small">Deduction Quantity:</span>
@@ -771,7 +917,7 @@
       </div>
       <div class="modal-footer bg-light p-3">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" id="btnConfirmRelease" class="btn btn-release-oth px-4 fw-semibold" onclick="confirmReleaseOth()">
+        <button type="button" id="btnConfirmRelease" class="btn btn-dark px-4 fw-semibold" onclick="confirmReleaseOth()">
           <i class="fas fa-check me-1"></i>Confirm &amp; Set Released
         </button>
       </div>
@@ -872,7 +1018,6 @@ function submitNewOth(e) {
   })
   .catch(err => {
     console.error(err);
-    // If fetch failed, fallback to standard form POST submission
     document.getElementById('newOthForm').submit();
   });
   return false;
@@ -1014,7 +1159,7 @@ function confirmReleaseOth() {
   });
 }
 
-// Helper to show alert if showAlert function does not exist
+// Fallback alert
 if (typeof showAlert !== 'function') {
   window.showAlert = function(message, type) {
     const alertDiv = document.createElement('div');

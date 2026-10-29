@@ -61,33 +61,6 @@
     </div>
   </header>
 
-  <!-- Status / Role Summary Cards -->
-  {% set stat_cards = [
-    {'role': '',          'status': '',           'key': 'total',      'title': 'All Users',         'count': stats.total,                          'icon': 'fa-users',         'label': 'total registered'},
-    {'role': 'Admins',    'status': '',           'key': 'admins',     'title': 'Administrators',    'count': stats.sys_admin + stats.company_admin, 'icon': 'fa-crown',         'label': 'system & company'},
-    {'role': 'WH-Admin',  'status': '',           'key': 'wh',         'title': 'Warehouse Admins',  'count': stats.wh_admin,                       'icon': 'fa-warehouse',     'label': 'inventory ops'},
-    {'role': 'Purchaser', 'status': '',           'key': 'purchaser',  'title': 'Purchasers',        'count': stats.purchaser,                      'icon': 'fa-cart-shopping', 'label': 'purchasing team'},
-    {'role': 'User',      'status': '',           'key': 'regular',    'title': 'Store Staff',       'count': stats.regular,                        'icon': 'fa-user',          'label': 'store users'},
-    {'role': '',          'status': 'unverified', 'key': 'unverified', 'title': 'Unverified',        'count': stats.unverified,                     'icon': 'fa-user-clock',    'label': 'pending verification'},
-    {'role': '',          'status': 'banned',     'key': 'banned',     'title': 'Banned',            'count': stats.banned,                         'icon': 'fa-ban',           'label': 'suspended accounts'}
-  ] %}
-  <nav class="users-stats" aria-label="Filter users by role or status">
-    {% for card in stat_cards %}
-      {% set is_active = (not card.role and not card.status and not active_role and not active_status) or (card.role and active_role == card.role) or (card.status and active_status == card.status) %}
-      {% set target_filters = dict(base_filters) %}
-      {% if card.role %}{% set _ = target_filters.update({'role': card.role}) %}{% endif %}
-      {% if card.status %}{% set _ = target_filters.update({'status': card.status}) %}{% endif %}
-      <a href="{{ url_for('admin.admin_users', **target_filters) }}" class="users-stat users-stat--{{ card.key }} {{ 'is-active' if is_active }}" {% if is_active %}aria-current="true"{% endif %} id="userStat-{{ card.key }}">
-        <span class="users-stat-icon" aria-hidden="true"><i class="fas {{ card.icon }}"></i></span>
-        <span class="users-stat-body">
-          <span class="users-stat-title">{{ card.title }}</span>
-          <span class="users-stat-value">{{ card.count }}</span>
-          <span class="users-stat-label">{{ card.label }}</span>
-        </span>
-      </a>
-    {% endfor %}
-  </nav>
-
   <!-- Filters -->
   <div class="collapse show" id="userFilterCollapse">
     <div class="users-filter-card">

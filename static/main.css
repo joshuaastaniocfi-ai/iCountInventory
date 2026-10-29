@@ -233,7 +233,6 @@ body {
   color: var(--text-primary);
   font-size: 15px;
   line-height: 1.6;
-  transition: background-color 0.4s var(--ease-smooth), color 0.3s var(--ease-smooth);
 }
 
 /* Header */
@@ -1426,7 +1425,9 @@ html.sidebar-closed .header {
 
 /* Animation classes */
 .fade-in {
-    animation: fadeIn 0.5s ease-in;
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
 }
 
 .slide-in-left {
