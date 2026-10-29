@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import csv
 import io
 import os
+import calendar
 from zoneinfo import ZoneInfo
 
 # Third-party imports
@@ -23,6 +24,15 @@ from helpers import user_redirect_to_requisition, admin_required, sys_admin_requ
 products = Blueprint('products', __name__, url_prefix='/products')
 
 
+def add_months_to_date(value, months):
+    """Add calendar months while keeping end-of-month dates valid."""
+    month_index = value.month - 1 + months
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(value.day, calendar.monthrange(year, month)[1])
+    return value.replace(year=year, month=month, day=day)
+
+
 @products.route('/add_product', methods=['GET'])
 @login_required
 @user_redirect_to_requisition
@@ -40,12 +50,27 @@ def add_product_page():
     
     account_titles = [title[0] for title in account_titles]
     
+    if current_user.company_id:
+        stations_query = db.session.query(Product.station).filter(
+            Product.company_id == current_user.company_id,
+            Product.station.isnot(None),
+            Product.station != ''
+        ).distinct().order_by(Product.station).all()
+    else:
+        stations_query = db.session.query(Product.station).filter(
+            Product.station.isnot(None),
+            Product.station != ''
+        ).distinct().order_by(Product.station).all()
+    stations = [s[0] for s in stations_query if s[0]]
+    
     # Create a minimal pagination object to prevent template errors
     from collections import namedtuple
     Pagination = namedtuple('Pagination', ['pages', 'total'])
     pagination = Pagination(pages=0, total=0)
     
-    return render_template('shared/products.html', account_titles=account_titles, pagination=pagination)
+    stations_query = db.session.query(Product.station).filter(Product.station.isnot(None), Product.station != '').distinct().order_by(Product.station).all()
+    stations = [s[0] for s in stations_query if s[0]]
+    return render_template('shared/products.html', account_titles=account_titles, stations=stations, pagination=pagination)
 
 
 @products.route('/products', methods=['GET'], endpoint='legacy_products_path')
@@ -67,6 +92,7 @@ def view_products():
     page = request.args.get('page', 1, type=int)
     search_query = request.args.get('q', '').strip()
     account_type = request.args.get('account_type', '').strip()
+    station_filter = request.args.get('station', '').strip()
     status_filter = request.args.get('status', '').strip()
     company_id = request.args.get('company_id', '').strip()
     
@@ -101,6 +127,10 @@ def view_products():
     # Apply account title filter
     if account_type:
         query = query.filter(Product.account_title == account_type)
+    
+    # Apply station filter
+    if station_filter:
+        query = query.filter(Product.station == station_filter)
     
     # Apply status filter
     if status_filter:
@@ -162,6 +192,20 @@ def view_products():
     
     account_titles = [title[0] for title in account_titles]
     
+    # Get unique stations for the filter dropdown
+    if current_user.company_id:
+        stations_query = db.session.query(Product.station).filter(
+            Product.company_id == current_user.company_id,
+            Product.station.isnot(None),
+            Product.station != ''
+        ).distinct().order_by(Product.station).all()
+    else:
+        stations_query = db.session.query(Product.station).filter(
+            Product.station.isnot(None),
+            Product.station != ''
+        ).distinct().order_by(Product.station).all()
+    stations = [s[0] for s in stations_query if s[0]]
+    
     # Order by name and paginate
     query = query.order_by(Product.name)
     pagination = query.paginate(page=page, per_page=20, error_out=False)
@@ -177,6 +221,7 @@ def view_products():
                          products=products,
                          pagination=pagination,
                          account_titles=account_titles,
+                         stations=stations,
                          query_string=query_string,
                          companies=companies,
                          now=datetime.now(ZoneInfo("Asia/Manila")))
@@ -293,7 +338,7 @@ def add_product():
                     int_quantity=initial_quantity,
                     exp_date=exp_date_obj,
                     supplier_name=purchase_order_place if purchase_order_place else 'Initial Stock',
-                    sub_barcode=generate_sub_barcode(barcode, exp_date_obj)  # Generate sub-barcode
+                    sub_barcode=None
                 )
                 db.session.add(batch)
                 db.session.commit()
@@ -327,6 +372,57 @@ def add_product():
     return redirect(url_for('products.view_products'))
 
 
+@products.route('/edit_product/<int:product_id>', methods=['POST'])
+@login_required
+@edit_delete_required
+def edit_product(product_id):
+    """Update product details without changing stock quantities or batches."""
+    try:
+        if current_user.role == 'SYS-Admin' and current_user.company_id is None:
+            product = Product.query.get(product_id)
+        else:
+            product = Product.query.filter_by(
+                id=product_id,
+                company_id=current_user.company_id
+            ).first()
+
+        if not product:
+            flash('Product not found or access denied', 'error')
+            return redirect(url_for('products.view_products'))
+
+        name = request.form.get('name', '').strip()
+        account_title = request.form.get('account_title', '').strip()
+        uom = request.form.get('uom', '').strip()
+        if not name or not account_title or not uom:
+            flash('Name, Account Title, and UOM are required', 'error')
+            return redirect(url_for('products.view_products'))
+
+        product.name = name
+        product.account_title = account_title
+        product.item_uom_desc = request.form.get('item_uom_desc', '').strip()
+        product.uom_conversion = request.form.get('uom_conversion', '1').strip() or '1'
+        product.uom = uom
+        product.low_stock_threshold = int(request.form.get('low_stock_threshold', 10))
+        product.reorder_level = int(request.form.get('reorder_level', 0))
+        product.exp_date = request.form.get('exp_date', '').strip() or None
+        product.purchase_order_place = request.form.get('purchase_order_place', '').strip()
+
+        db.session.commit()
+        log_activity(
+            action='Product Edited',
+            details=f'Updated product: {product.name} (Barcode: {product.barcode})'
+        )
+        flash(f'Product "{product.name}" updated successfully', 'success')
+    except (TypeError, ValueError) as e:
+        db.session.rollback()
+        flash(f'Invalid product details: {str(e)}', 'error')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating product: {str(e)}', 'error')
+
+    return redirect(url_for('products.view_products'))
+
+
 @products.route('/add_batch', methods=['POST'])
 @login_required
 @user_redirect_to_requisition
@@ -337,7 +433,7 @@ def add_batch():
     quantity = float(data.get('quantity'))
     exp_date_str = data.get('exp_date')
     supplier_name = data.get('supplier_name')
-    location = data.get('location', '').strip() or None
+
 
     if not all([product_id, quantity, exp_date_str]):
         return {'status': 'error', 'message': 'Missing required fields'}, 400
@@ -361,8 +457,8 @@ def add_batch():
             int_quantity=quantity,
             exp_date=exp_date,
             supplier_name=supplier_name,
-            location=location,
-            sub_barcode=generate_sub_barcode(product.barcode, exp_date)
+
+            sub_barcode=None
         )
 
         db.session.add(new_batch)
@@ -394,8 +490,7 @@ def add_batch():
             details=f"Added new batch to <strong>{product.name}</strong> with "
                     f"quantity <span class='badge bg-info'>{quantity} {product.uom}</span>, "
                     f"expires: <strong>{exp_date}</strong>, "
-                    f"supplier: <strong>{supplier_name or 'N/A'}</strong>, "
-                    f"sub-barcode: <strong>{new_batch.sub_barcode}</strong>"
+                    f"supplier: <strong>{supplier_name or 'N/A'}</strong>"
         )
 
         return {'status': 'success', 'message': 'Batch added successfully'}
@@ -470,22 +565,6 @@ def delete_batch():
             product.warehouse_qty = 0
         product.quantity = product.warehouse_qty + product.store_qty
 
-        # Delete the batch barcode image file before deleting the batch
-        if batch.sub_barcode:
-            try:
-                # Determine the barcode image path
-                if product.company_id:
-                    barcode_image_path = os.path.join(current_app.root_path, 'static', 'batch_barcodes', f'company_{product.company_id}', f'{batch.sub_barcode}.png')
-                else:
-                    barcode_image_path = os.path.join(current_app.root_path, 'static', 'batch_barcodes', f'{batch.sub_barcode}.png')
-                
-                # Delete the barcode image file if it exists
-                if os.path.exists(barcode_image_path):
-                    os.remove(barcode_image_path)
-            except Exception as e:
-                # Log the error but don't stop the deletion process
-                print(f"Warning: Could not delete barcode image for batch {batch.id}: {e}")
-
         # Log before deleting
         log_activity(
             action="Delete Batch",
@@ -536,7 +615,7 @@ def update_batch():
     batch_id = data.get('batch_id')
     exp_date_str = data.get('exp_date')
     supplier_name = data.get('supplier_name')
-    location = data.get('location', '').strip() or None
+
     new_quantity_str = data.get('quantity')
 
     if not all([product_id, batch_id]):
@@ -605,7 +684,7 @@ def update_batch():
         # Apply updates
         batch.exp_date = new_exp_date
         batch.supplier_name = supplier_name
-        batch.location = location
+
         
         
         # If quantity provided, validate and update
@@ -665,60 +744,72 @@ def update_batch():
 @user_redirect_to_requisition
 @admin_required
 def add_stock():
-    product_id = request.form['product_id']
-    add_qty = float(request.form['quantity'])
-    supplier_name = request.form.get('supplier_name')
-    location = request.form.get('location', '').strip() or None
-    exp_date_str = request.form.get('exp_date')
+    product_id = request.form.get('product_id')
+    try:
+        add_qty = float(request.form.get('quantity', 0))
+    except (TypeError, ValueError):
+        return jsonify({'message': 'Enter a valid quantity.'}), 400
+
+    if not product_id or add_qty <= 0:
+        return jsonify({'message': 'Product and a quantity greater than zero are required.'}), 400
+
+    supplier_name = request.form.get('supplier_name', '').strip() or None
+
+    production_date_str = request.form.get('production_date', '').strip()
+    shelf_life_raw = request.form.get('shelf_life_months', '3').strip()
+
+    try:
+        production_date = datetime.strptime(production_date_str, '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        # Keep accepting the legacy payload while all new UI submissions use production_date.
+        legacy_exp_date = request.form.get('exp_date', '').strip()
+        try:
+            production_date = datetime.strptime(legacy_exp_date, '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            return jsonify({'message': 'Production date is required.'}), 400
+
+    try:
+        shelf_life_months = int(shelf_life_raw)
+    except (TypeError, ValueError):
+        return jsonify({'message': 'Choose a valid shelf life.'}), 400
+    if shelf_life_months not in (3, 6, 12):
+        return jsonify({'message': 'Shelf life must be 3, 6, or 12 months.'}), 400
+
+    exp_date = add_months_to_date(production_date, shelf_life_months)
 
     # Get current time in PHT
     current_time = datetime.now(ZoneInfo("Asia/Manila"))
 
-    exp_date = None
-    if exp_date_str:
-        exp_date = datetime.strptime(exp_date_str, '%Y-%m-%d')
-
     # Check if product exists and belongs to the user's company
-    product = Product.query.filter_by(
-        id=product_id,
-        company_id=current_user.company_id
-    ).first()
+    product_query = Product.query.filter(Product.id == product_id)
+    if current_user.role != 'SYS-Admin':
+        product_query = product_query.filter(Product.company_id == current_user.company_id)
+    product = product_query.first()
+    # (company scoping handled above)
+
+
+
     
     if not product:
         return jsonify({'message': 'Product not found'}), 404
 
-    # Check if this is a Supplies product
-    supplies_categories = ['Supplies-Kitchen', 'Supplies-Packaging', 'Supplies-Store Dining', 'Supplies-Store Office', 'Supplies-Utility']
-    is_supplies_product = product.account_title in supplies_categories or product.account_title.lower().startswith('supplies')
-
     # Create new batch
-    if exp_date:
-        # For products with expiry date
+    try:
         new_batch = WarehouseProductBatch(
             product_id=product_id,
             quantity=add_qty,
             int_quantity=add_qty,
-            exp_date=exp_date.date(),
+            production_date=production_date,
+            exp_date=exp_date,
             supplier_name=supplier_name,
-            location=location,
+
             added_on=current_time,
-            sub_barcode=generate_sub_barcode(product.barcode, exp_date.date())
+            sub_barcode=None
         )
-    elif is_supplies_product:
-        future_date = datetime(2099, 12, 31).date()
-        new_batch = WarehouseProductBatch(
-            product_id=product_id,
-            quantity=add_qty,
-            int_quantity=add_qty,
-            exp_date=future_date,
-            supplier_name=supplier_name,
-            location=location,
-            added_on=current_time,
-            sub_barcode=generate_sub_barcode(product.barcode, future_date)
-        )
-    else:
-        # For non-Supplies products without expiry date, return error
-        return jsonify({'message': 'Expiry date is required for non-Supplies products'}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception('add_stock failed creating batch')
+        return jsonify({'message': f'Could not create batch: {e}'}), 500
 
     # sub_barcode is now generated above, so we don't need to generate it here
     # new_batch.sub_barcode = generate_sub_barcode(product.barcode, new_batch.exp_date)
@@ -760,18 +851,14 @@ def add_stock():
     formatted_time = current_time.strftime('%Y-%m-%d %I:%M:%S %p')
 
     # Determine expiry date for logging
-    if exp_date:
-        exp_date_str = exp_date.strftime('%Y-%m-%d')
-    elif is_supplies_product:
-        exp_date_str = 'N/A (Supplies)'
-    else:
-        exp_date_str = 'N/A'
+    exp_date_str = exp_date.strftime('%Y-%m-%d')
 
     log_activity(
         action="Add Stock",
         details=f"<strong>{add_qty} {product.uom}</strong> added to "
                 f"<strong>{product.name}</strong><br>"
-                f"Batch exp: {exp_date_str}<br>"
+                f"Production date: {production_date.strftime('%Y-%m-%d')}<br>"
+                f"Shelf life: {shelf_life_months} months · Expiry: {exp_date_str}<br>"
                 f"Supplier: {supplier_name or 'N/A'}<br>"
                 f"Added on: {formatted_time}<br>"
                 f"New Total: <span class='badge bg-warning'>{product.quantity} {product.uom}</span>"
@@ -875,14 +962,35 @@ def remove_stock():
 
 @products.route('/lookup_product/<barcode>')
 def lookup_product(barcode):
+    raw_barcode = str(barcode or '').strip()
+    # Hardware scanners may include AIM symbology prefixes or formatting
+    # characters, and EAN readers may return a leading zero for a stored
+    # 12-digit product code. Try those equivalent representations while
+    # keeping the database value unchanged.
+    normalized_barcode = raw_barcode
+    for prefix in (']C1', ']E0', ']d2', ']Q3'):
+        if normalized_barcode.startswith(prefix):
+            normalized_barcode = normalized_barcode[len(prefix):]
+            break
+    normalized_barcode = normalized_barcode.replace(' ', '').replace('-', '')
+    barcode_candidates = [raw_barcode, normalized_barcode]
+    if normalized_barcode.isdigit():
+        if len(normalized_barcode) == 13:
+            barcode_candidates.append(normalized_barcode[:12])
+            barcode_candidates.append(normalized_barcode[-12:])
+        elif len(normalized_barcode) < 12:
+            barcode_candidates.append(normalized_barcode.zfill(12))
+        barcode_candidates.append(normalized_barcode.lstrip('0'))
+    barcode_candidates = list(dict.fromkeys(value for value in barcode_candidates if value))
+
     # For SYS-Admin users, allow access to all products regardless of company
     if current_user.role == 'SYS-Admin':
-        product = Product.query.filter_by(barcode=barcode).first()
+        product = Product.query.filter(Product.barcode.in_(barcode_candidates)).first()
     else:
         # For other users, check only in their company
-        product = Product.query.filter_by(
-            barcode=barcode,
-            company_id=current_user.company_id
+        product = Product.query.filter(
+            Product.barcode.in_(barcode_candidates),
+            Product.company_id == current_user.company_id
         ).first()
 
     if product:
@@ -903,7 +1011,7 @@ def lookup_product(barcode):
     else:
         # Check if product exists in another company (for non-SYS-Admin users)
         if current_user.role != 'SYS-Admin':
-            product = Product.query.filter_by(barcode=barcode).first()
+            product = Product.query.filter(Product.barcode.in_(barcode_candidates)).first()
             if product:
                 # Product exists but not in the user's company
                 user_company_id = getattr(current_user, 'company_id', None)
@@ -942,12 +1050,18 @@ def lookup_product(barcode):
 
 
 @products.route('/get_product_batches/<int:product_id>')
+@login_required
+@admin_required
 def get_product_batches(product_id):
-    # Check if product exists and belongs to the user's company
-    product = Product.query.filter_by(
-        id=product_id,
-        company_id=current_user.company_id
-    ).first_or_404()
+    # SYS-Admin users without a company can view batches for any product.
+    # Other users are restricted to products in their assigned company.
+    if current_user.role == 'SYS-Admin':
+        product = Product.query.get_or_404(product_id)
+    else:
+        product = Product.query.filter_by(
+            id=product_id,
+            company_id=current_user.company_id
+        ).first_or_404()
 
     # Get all batches ordered by expiration date
     batches = (WarehouseProductBatch.query
@@ -964,8 +1078,9 @@ def get_product_batches(product_id):
 
     for index, batch in enumerate(batches, start=1):
         # Calculate days until expiry
-        days_until_expiry = (batch.exp_date - current_date).days
+        days_until_expiry = (batch.exp_date - current_date).days if batch.exp_date else None
         expiry_status = (
+            'text-muted' if days_until_expiry is None else
             'text-danger' if days_until_expiry <= 30 else
             'text-warning' if days_until_expiry <= 60 else
             'text-success'
@@ -975,13 +1090,15 @@ def get_product_batches(product_id):
             'id': batch.id,
             'batch_number': index,
             'quantity': batch.quantity,
-            'exp_date': batch.exp_date.strftime('%Y-%m-%d'),
-            'added_on': batch.added_on.strftime('%Y-%m-%d %I:%M:%S %p'),
+            'production_date': batch.production_date.strftime('%Y-%m-%d') if batch.production_date else None,
+            'exp_date': batch.exp_date.strftime('%Y-%m-%d') if batch.exp_date else None,
+            'added_on': batch.added_on.strftime('%Y-%m-%d %I:%M:%S %p') if batch.added_on else None,
             'days_until_expiry': days_until_expiry,
             'expiry_status': expiry_status,
             'percentage': 0,
             'sub_barcode': batch.sub_barcode,
-            'location': batch.location
+
+            'supplier_name': batch.supplier_name
         })
 
     return jsonify({
@@ -1031,14 +1148,17 @@ def toggle_product_favorite(product_id):
 @user_redirect_to_requisition
 def export_inventory_xlsx():
     """Export inventory data as Excel (.xlsx) file."""
+    if current_user.role not in ['SYS-Admin', 'WH-Admin', 'Company-Admin', 'Purchaser']:
+        flash('Access denied. You do not have permission to export inventory.', 'error')
+        return redirect(url_for('products.view_products'))
+
     try:
-        # Define account codes dictionary
-        account_codes = {
-          "COS-Beverages": 201, "COS-Ice Cream": 202, "COS-Desserts": 203, "COS-Food": 204,
-          "COS-Chicken": 205, "COS-Condiments": 206, "COS-Rice": 207,
-          "Supplies-Kitchen": 300, "Supplies-Packaging": 301, "Supplies-Store Dining": 302,
-          "Supplies-Store Office": 303, "Supplies-Utility": 304
-        }
+        # Get active query filters from request
+        search_query = request.args.get('q', '').strip()
+        account_type = request.args.get('account_type', '').strip()
+        station_filter = request.args.get('station', '').strip()
+        status_filter = request.args.get('status', '').strip()
+        company_id = request.args.get('company_id', '').strip()
         
         # Base query - filter by current user's company
         if current_user.role == 'SYS-Admin' and current_user.company_id is None:
@@ -1048,18 +1168,87 @@ def export_inventory_xlsx():
             # Filter by current user's company
             query = Product.query.filter_by(company_id=current_user.company_id)
         
-        # Get relevant products (COS-Beverages to Supplies-Utility)
-        relevant_categories = [
-            "COS-Beverages", "COS-Ice Cream", "COS-Desserts", "COS-Food",
-            "COS-Chicken", "COS-Condiments", "COS-Rice",
-            "Supplies-Kitchen", "Supplies-Packaging", "Supplies-Store Dining",
-            "Supplies-Store Office", "Supplies-Utility"
-        ]
-        
-        # Query products in these categories and current user's company
-        products_list = query.filter(
-            Product.account_title.in_(relevant_categories)
-        ).order_by(Product.account_title, Product.name).all()
+        # Apply company filter for SYS-Admin
+        if current_user.role == 'SYS-Admin' and company_id:
+            try:
+                company_id_int = int(company_id)
+                query = query.filter_by(company_id=company_id_int)
+            except (ValueError, TypeError):
+                pass
+
+        # Apply search filter
+        if search_query:
+            search_filter = or_(
+                Product.name.ilike(f'%{search_query}%'),
+                Product.barcode.ilike(f'%{search_query}%'),
+                Product.item_uom_desc.ilike(f'%{search_query}%')
+            )
+            query = query.filter(search_filter)
+
+        # Apply account title filter
+        if account_type:
+            query = query.filter(Product.account_title == account_type)
+
+        # Apply station filter
+        if station_filter:
+            query = query.filter(Product.station == station_filter)
+
+        # Apply status filter
+        if status_filter:
+            if status_filter == 'OK':
+                query = query.filter(
+                    Product.quantity > 0,
+                    db.or_(
+                        db.and_(Product.reorder_level > 0, Product.quantity > Product.reorder_level),
+                        db.and_(Product.reorder_level == 0, Product.initial_quantity > 0, 
+                               Product.quantity > (Product.initial_quantity * (Product.low_stock_threshold / 100)))
+                    )
+                )
+            elif status_filter == 'Low Stock':
+                query = query.filter(
+                    Product.quantity > 0,
+                    db.or_(
+                        db.and_(Product.reorder_level > 0, Product.quantity <= Product.reorder_level),
+                        db.and_(Product.reorder_level == 0, Product.initial_quantity > 0, 
+                               Product.quantity <= (Product.initial_quantity * (Product.low_stock_threshold / 100)))
+                    )
+                )
+            elif status_filter == 'No Stock':
+                query = query.filter(Product.quantity == 0)
+            elif status_filter == 'Expiring Soon':
+                today = datetime.now(ZoneInfo("Asia/Manila")).date()
+                thirty_days = today + timedelta(days=30)
+                query = query.join(WarehouseProductBatch).filter(
+                    WarehouseProductBatch.exp_date.between(today, thirty_days),
+                    WarehouseProductBatch.quantity > 0
+                ).distinct()
+            elif status_filter == 'Expiring 3 Months':
+                today = datetime.now(ZoneInfo("Asia/Manila")).date()
+                thirty_days = today + timedelta(days=30)
+                ninety_days = today + timedelta(days=90)
+                query = query.join(WarehouseProductBatch).filter(
+                    WarehouseProductBatch.exp_date.between(thirty_days, ninety_days),
+                    WarehouseProductBatch.quantity > 0
+                ).distinct()
+            elif status_filter == 'Expired':
+                today = datetime.now(ZoneInfo("Asia/Manila")).date()
+                query = query.join(WarehouseProductBatch).filter(
+                    WarehouseProductBatch.exp_date < today,
+                    WarehouseProductBatch.quantity > 0
+                ).distinct()
+            elif status_filter == 'Favorites':
+                query = query.filter(Product.is_favorite.is_(True))
+
+        # Query all matching products (no restrictive 12 category whitelist)
+        products_list = query.order_by(Product.name.asc()).all()
+
+        # Define account codes dictionary for reference
+        account_codes = {
+            "COS-Beverages": 201, "COS-Ice Cream": 202, "COS-Desserts": 203, "COS-Food": 204,
+            "COS-Chicken": 205, "COS-Condiments": 206, "COS-Rice": 207,
+            "Supplies-Kitchen": 300, "Supplies-Packaging": 301, "Supplies-Store Dining": 302,
+            "Supplies-Store Office": 303, "Supplies-Utility": 304
+        }
         
         # Create Excel workbook
         from openpyxl import Workbook
@@ -1069,28 +1258,31 @@ def export_inventory_xlsx():
         wb = Workbook()
         ws = wb.active
         ws.title = "Inventory Report"
+        ws.views.sheetView[0].showGridLines = True
         
         # Define styles
-        header_font = Font(bold=True, color="FFFFFF")
-        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-        header_alignment = Alignment(horizontal="center", vertical="center")
+        header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         
-        # Define borders
+        border_color = "CBD5E1"
         thin_border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
+            left=Side(style='thin', color=border_color),
+            right=Side(style='thin', color=border_color),
+            top=Side(style='thin', color=border_color),
+            bottom=Side(style='thin', color=border_color)
         )
         
         # Write header row
         headers = [
-            'Product Name', 'Description', 'UOM', 'Account Title', 'FS Code', 
-            'Purchase Order Place', 'Current Stock', 'Stock Status', 'Nearest Expiry Date'
+            'Barcode', 'Product Name', 'Description', 'Station', 'Account Title', 'FS Code',
+            'Warehouse Stock', 'Store Stock', 'Total Stock', 'UOM',
+            'Stock Status', 'Nearest Expiry Date', 'Purchase Order Place'
         ]
         
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=header)
+        ws.row_dimensions[1].height = 28
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx, value=header)
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = header_alignment
@@ -1098,99 +1290,151 @@ def export_inventory_xlsx():
         
         # Write data rows
         now_ph = datetime.now(ZoneInfo("Asia/Manila"))
+        current_date = now_ph.date()
         row = 2
         
+        # Predefined status styles
+        status_styles = {
+            "Out of Stock": {
+                "fill": PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid"),
+                "font": Font(name="Calibri", size=10, bold=True, color="991B1B")
+            },
+            "Low Stock": {
+                "fill": PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid"),
+                "font": Font(name="Calibri", size=10, bold=True, color="92400E")
+            },
+            "In Stock": {
+                "fill": PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid"),
+                "font": Font(name="Calibri", size=10, bold=True, color="166534")
+            }
+        }
+        expired_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+        expired_font = Font(name="Calibri", size=10, bold=True, color="991B1B")
+
         for product in products_list:
-            # Calculate stock status using the is_low_stock property
-            if product.quantity == 0:
+            wh_qty = float(product.warehouse_qty or 0.0)
+            store_qty = float(product.store_qty or 0.0)
+            total_qty = float(product.quantity or 0.0)
+            
+            # Calculate stock status
+            if total_qty == 0:
                 stock_status = "Out of Stock"
             elif product.is_low_stock:
                 stock_status = "Low Stock"
             else:
                 stock_status = "In Stock"
             
-            # Get nearest expiry date
-            nearest_expiry = None
+            # Get nearest expiry date from warehouse or store batches
+            nearest_expiry = "N/A"
             if product.warehouse_batches:
-                # Get batches with stock and future expiry dates
-                valid_batches = [batch for batch in product.warehouse_batches if batch.quantity > 0 and batch.exp_date > now_ph.date()]
+                valid_batches = [b for b in product.warehouse_batches if (b.quantity or 0) > 0 and b.exp_date and b.exp_date.year < 2099]
                 if valid_batches:
-                    nearest_batch = min(valid_batches, key=lambda x: x.exp_date)
-                    nearest_expiry = nearest_batch.exp_date.strftime('%Y-%m-%d')
-                else:
-                    # Check for expired batches
-                    expired_batches = [batch for batch in product.warehouse_batches if batch.quantity > 0 and batch.exp_date <= now_ph.date()]
-                    if expired_batches:
+                    future_batches = [b for b in valid_batches if b.exp_date >= current_date]
+                    if future_batches:
+                        nearest = min(future_batches, key=lambda x: x.exp_date)
+                        nearest_expiry = nearest.exp_date.strftime('%Y-%m-%d')
+                    else:
                         nearest_expiry = "EXPIRED"
+
+            if nearest_expiry == "N/A" and product.store_batches:
+                valid_store = [b for b in product.store_batches if (b.quantity or 0) > 0 and b.exp_date and b.exp_date.year < 2099]
+                if valid_store:
+                    future_store = [b for b in valid_store if b.exp_date >= current_date]
+                    if future_store:
+                        nearest = min(future_store, key=lambda x: x.exp_date)
+                        nearest_expiry = nearest.exp_date.strftime('%Y-%m-%d')
+                    else:
+                        nearest_expiry = "EXPIRED"
+
+            if nearest_expiry == "N/A" and product.exp_date:
+                nearest_expiry = str(product.exp_date)
             
-            # Write row data
+            # Row data
             row_data = [
-                product.name,
+                product.barcode or '',
+                product.name or '',
                 product.item_uom_desc or '',
-                product.uom or '',
-                product.account_title,
+                product.station or '-',
+                product.account_title or '',
                 account_codes.get(product.account_title, ''),
-                product.purchase_order_place or '',
-                product.quantity,
+                round(wh_qty, 2),
+                round(store_qty, 2),
+                round(total_qty, 2),
+                product.uom or '',
                 stock_status,
-                nearest_expiry or 'N/A'
+                nearest_expiry,
+                product.purchase_order_place or ''
             ]
             
-            for col, value in enumerate(row_data, 1):
-                cell = ws.cell(row=row, column=col, value=value)
+            ws.row_dimensions[row].height = 20
+            
+            for col_idx, value in enumerate(row_data, 1):
+                cell = ws.cell(row=row, column=col_idx, value=value)
+                cell.font = Font(name="Calibri", size=10)
                 cell.border = thin_border
                 
-                # Apply conditional formatting for stock status
-                if col == 8:  # Stock Status column
-                    if value == "Out of Stock":
-                        cell.fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
-                        cell.font = Font(color="FFFFFF", bold=True)
-                    elif value == "Low Stock":
-                        cell.fill = PatternFill(start_color="FFA500", end_color="FFA500", fill_type="solid")
-                        cell.font = Font(color="FFFFFF", bold=True)
-                    elif value == "In Stock":
-                        cell.fill = PatternFill(start_color="90EE90", end_color="90EE90", fill_type="solid")
-                        cell.font = Font(color="000000", bold=True)
+                # Alignments & formats
+                if col_idx in [1, 4, 6, 10, 11, 12]:  # Barcode, Station, FS Code, UOM, Status, Expiry
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                elif col_idx in [7, 8, 9]:  # Numbers
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                    cell.number_format = '#,##0.00'
+                else:
+                    cell.alignment = Alignment(horizontal="left", vertical="center")
+                
+                # Highlight Stock Status
+                if col_idx == 11 and value in status_styles:
+                    cell.fill = status_styles[value]["fill"]
+                    cell.font = status_styles[value]["font"]
+
+                # Highlight Expired
+                if col_idx == 12 and value == "EXPIRED":
+                    cell.fill = expired_fill
+                    cell.font = expired_font
             
             row += 1
         
-        # Auto-adjust column widths
-        for column in ws.columns:
-            max_length = 0
-            column_letter = get_column_letter(column[0].column)
-            
-            for cell in column:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            
-            adjusted_width = min(max_length + 2, 50)  # Cap at 50 characters
-            ws.column_dimensions[column_letter].width = adjusted_width
+        # Enable Excel Auto-Filter and freeze header row
+        ws.freeze_panes = "A2"
+        ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}{max(row - 1, 1)}"
         
-        # Save to bytes
+        # Auto-adjust column widths cleanly
+        for column in ws.columns:
+            max_len = 0
+            col_letter = get_column_letter(column[0].column)
+            for cell in column:
+                val = cell.value
+                if val is not None:
+                    max_len = max(max_len, len(str(val)))
+            ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+        
+        # Save workbook to buffer
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
         
-        # Prepare response
-        timestamp = datetime.now(ZoneInfo("Asia/Manila")).strftime('%Y%m%d_%H%M%S')
+        timestamp = now_ph.strftime('%Y%m%d_%H%M%S')
+        filename = f"inventory_export_{timestamp}.xlsx"
         
         return Response(
             output.getvalue(),
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment;filename=inventory_export_{timestamp}.xlsx"}
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
         )
         
     except Exception as e:
-        # Log the error
         log_activity(
             action="Export Excel Error",
             details=f"Failed to export Excel: {str(e)}"
         )
+        if request.headers.get('Accept') == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' or request.is_json:
+            return jsonify({'status': 'error', 'message': f'Failed to export Excel: {str(e)}'}), 500
         flash(f'Error exporting Excel: {str(e)}', 'error')
         return redirect(url_for('products.view_products'))
+
 
 
 @products.route('/import_products_csv', methods=['GET', 'POST'])
@@ -1365,7 +1609,7 @@ def import_products_csv():
                         int_quantity=quantity,
                         exp_date=exp_date,
                         supplier_name=row.get('supplier_name', '').strip(),
-                        sub_barcode=generate_sub_barcode(new_product.barcode, exp_date)  # Generate sub-barcode
+                        sub_barcode=None
                     )
                     db.session.add(first_batch)
                 
@@ -1520,7 +1764,7 @@ def import_from_product_dict():
                             int_quantity=quantity,
                             exp_date=exp_date,
                             supplier_name=row.get('supplier_name', '').strip(),
-                            sub_barcode=generate_sub_barcode(new_product.barcode, exp_date)  # Generate sub-barcode
+                            sub_barcode=None
                         )
                         db.session.add(first_batch)
                     

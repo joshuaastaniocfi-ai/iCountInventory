@@ -23,6 +23,8 @@
   <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="{{ url_for('static', filename='mobile_scanner_nav.css') }}" rel="stylesheet">
   <style>
     :root {
       --wh-primary: #6366f1;
@@ -47,7 +49,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       background: var(--wh-bg);
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
       color: var(--wh-text);
       min-height: 100vh;
     }
@@ -140,8 +142,9 @@
     .requisition-details .badge { font-size: 0.7rem; }
     .requisition-details p { margin-bottom: 0.2rem; font-size: 0.85rem; }
   </style>
+  <link href="{{ url_for('static', filename='mobile_scanner_theme.css', v='20261023-workbench-2') }}" rel="stylesheet">
 </head>
-<body>
+<body class="scanner-mobile-page">
   <!-- Flash Alert -->
   <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1050">
     <div id="flashAlert" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
@@ -159,43 +162,18 @@
     <div class="spinner"></div>
   </div>
 
+  {% include 'warehouse/_mobile_scanner_nav.html' %}
+
   <div class="requisitions-wrapper">
     <div class="card shadow">
       <div class="card-body">
-        <!-- Top Navigation Bar -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <a href="{{ url_for('main.dashboard') }}" class="back-to-dash">
-            <i class="fas fa-arrow-left me-1"></i> Dashboard
-          </a>
-          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-            <i class="fas fa-file-invoice me-1"></i> Warehouse Mobile
-          </span>
-        </div>
-
         <!-- Header -->
-        <div class="page-header">
-          <h4><i class="fas fa-file-invoice"></i> Pending Requisitions</h4>
-          <small>Manage pending requisitions</small>
-          
-          <!-- Mode Toggle Navigation Tabs -->
-          <div class="mode-toggle">
-            <a href="{{ url_for('scanner.mobile_scanner') }}" class="mode-tab" id="scanner-mode-tab">
-              <i class="fas fa-barcode"></i>
-              <span>Stock Mgmt</span>
-            </a>
-            <a href="{{ url_for('scanner.mobile_audit') }}" class="mode-tab" id="audit-mode-tab">
-              <i class="fas fa-clipboard-check"></i>
-              <span>Stock Audit</span>
-            </a>
-            <a href="{{ url_for('scanner.mobile_pending_requisitions') }}" class="mode-tab active" id="requisitions-mode-tab">
-              <i class="fas fa-file-invoice"></i>
-              <span>Pending <span class="badge bg-warning text-dark" id="pendingCount">0</span></span>
-            </a>
-            <a href="{{ url_for('scanner.mobile_batch_sub_audit') }}" class="mode-tab" id="batch-sub-mode-tab">
-              <i class="fas fa-boxes"></i>
-              <span>Batch Sub</span>
-            </a>
+        <div class="page-header d-flex justify-content-between align-items-center">
+          <div>
+            <h4 class="mb-0"><i class="fas fa-file-invoice me-1"></i> Pending Requisitions</h4>
+            <small>Manage pending requisitions</small>
           </div>
+          <span class="badge bg-warning text-dark fs-6 rounded-pill px-3 py-2" id="pagePendingCountBadge" style="display:none;">0 pending</span>
         </div>
 
         <!-- Pending Requisitions List -->
@@ -222,7 +200,16 @@
         
         if (data.success) {
           // Update the pending count in the toggle button
-          document.getElementById('pendingCount').textContent = data.count;
+          const pendingNavBadge = document.getElementById('pendingCount');
+          if (pendingNavBadge) {
+            pendingNavBadge.textContent = data.count;
+            pendingNavBadge.style.display = data.count > 0 ? 'inline-flex' : 'none';
+          }
+          const pageBadge = document.getElementById('pagePendingCountBadge');
+          if (pageBadge) {
+            pageBadge.textContent = `${data.count} pending`;
+            pageBadge.style.display = data.count > 0 ? 'inline-block' : 'none';
+          }
           
           updateRequisitionsList(data.requisitions);
         } else {
@@ -262,44 +249,21 @@
           year: 'numeric'
         });
         
-        // Determine validation status
-        const validationStatus = req.validated ? 
-          '<span class="badge bg-success">Validated</span>' : 
-          '<span class="badge bg-secondary">Not Validated</span>';
+        const validationStatus = '';
         
-        // Action buttons based on validation status
-        let actionButtons = '';
-        if (req.validated) {
-          actionButtons = `
-            <div class="action-buttons">
-              <button class="btn btn-success btn-sm" onclick="approveRequisition(${req.id})">
-                <span class="btn-spinner dark"></span>
-                <i class="fas fa-check"></i> Approve
-              </button>
-              <button class="btn btn-danger btn-sm" onclick="declineRequisition(${req.id})">
-                <span class="btn-spinner dark"></span>
-                <i class="fas fa-times"></i> Decline
-              </button>
-            </div>
-          `;
-        } else {
-          actionButtons = `
-            <div class="action-buttons">
-              <button class="btn btn-primary btn-sm" onclick="validateRequisition(${req.id})">
-                <span class="btn-spinner"></span>
-                <i class="fas fa-shield-alt"></i> Validate
-              </button>
-              <button class="btn btn-success btn-sm" onclick="approveRequisition(${req.id})" disabled>
-                <span class="btn-spinner dark"></span>
-                <i class="fas fa-check"></i> Approve
-              </button>
-              <button class="btn btn-danger btn-sm" onclick="declineRequisition(${req.id})">
-                <span class="btn-spinner dark"></span>
-                <i class="fas fa-times"></i> Decline
-              </button>
-            </div>
-          `;
-        }
+        // Action buttons
+        const actionButtons = `
+          <div class="action-buttons">
+            <button class="btn btn-success btn-sm" onclick="approveRequisition(${req.id})">
+              <span class="btn-spinner dark"></span>
+              <i class="fas fa-check"></i> Approve
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="declineRequisition(${req.id})">
+              <span class="btn-spinner dark"></span>
+              <i class="fas fa-times"></i> Decline
+            </button>
+          </div>
+        `;
         
         html += `
           <div class="requisition-card">

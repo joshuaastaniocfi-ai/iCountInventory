@@ -20,7 +20,6 @@
 {% set base_filters = {} %}
 {% for k, v in current_filters.items() if k != 'status' %}{% set _ = base_filters.update({k: v}) %}{% endfor %}
 {% set active_status = (status or '')|lower %}
-{% set validator_roles = ['SYS-Admin', 'WH-Admin', 'Company-Admin'] %}
 
 <!-- Full screen spinner overlay -->
 <div id="spinnerOverlay" class="spinner-overlay" role="status" aria-live="polite">
@@ -35,10 +34,6 @@
     <div class="req-title-wrap">
       <div class="req-page-icon" aria-hidden="true"><i class="fas fa-clipboard-list"></i></div>
       <div class="min-w-0">
-        <div class="req-eyebrow">
-          <span>{{ now.strftime('%A') }}</span>
-          <span>{{ now.strftime('%B %d, %Y') }}</span>
-        </div>
         <h1 class="req-title">Requisitions</h1>
         <p class="req-subtitle">
           {% if active_status == 'pending' %}
@@ -66,7 +61,7 @@
   <!-- Status summary (click to filter) -->
   {% set dispatched_total = status_counts.get('dispatched', 0) + status_counts.get('partial', 0) %}
   {% set stat_cards = [
-    {'value': '',           'key': 'all',        'title': 'All Requests', 'count': total_count,                          'icon': 'fa-layer-group',  'label': 'matching filters'},
+    {'value': 'all',        'key': 'all',        'title': 'All Requests', 'count': total_count,                          'icon': 'fa-layer-group',  'label': 'matching filters'},
     {'value': 'Pending',    'key': 'pending',    'title': 'Pending',      'count': status_counts.get('pending', 0),      'icon': 'fa-clock',        'label': 'awaiting approval'},
     {'value': 'approved',   'key': 'approved',   'title': 'Approved',     'count': status_counts.get('approved', 0),     'icon': 'fa-check',        'label': 'ready to dispatch'},
     {'value': 'Dispatched', 'key': 'dispatched', 'title': 'Dispatched',   'count': dispatched_total,                     'icon': 'fa-truck-fast',   'label': 'in transit'},
@@ -75,8 +70,8 @@
   ] %}
   <nav class="req-stats" aria-label="Filter requisitions by status">
     {% for card in stat_cards %}
-      {% set is_active = (card.key == 'all' and not active_status) or (active_status and active_status == card.value|lower) %}
-      {% set href = url_for('requisitions.view_requisitions', **(dict(base_filters, status=card.value) if card.value else base_filters)) %}
+      {% set is_active = active_status and active_status == card.value|lower %}
+      {% set href = url_for('requisitions.view_requisitions', **dict(base_filters, status=card.value)) %}
       <a href="{{ href }}" class="req-stat req-stat--{{ card.key }} {{ 'is-active' if is_active }}" {% if is_active %}aria-current="true"{% endif %} id="reqStat-{{ card.key }}">
         <span class="req-stat-icon" aria-hidden="true"><i class="fas {{ card.icon }}"></i></span>
         <span class="req-stat-body">
@@ -103,13 +98,13 @@
         <div>
           <label class="visually-hidden" for="reqStatusFilter">Filter by status</label>
           <select id="reqStatusFilter" name="status" class="form-select">
-            <option value="">All statuses</option>
-            <option value="Pending" {{ 'selected' if request.args.get('status') == 'Pending' }}>Pending</option>
-            <option value="approved" {{ 'selected' if request.args.get('status') == 'approved' }}>Approved</option>
-            <option value="Dispatched" {{ 'selected' if request.args.get('status') == 'Dispatched' }}>Dispatched</option>
-            <option value="Partial" {{ 'selected' if request.args.get('status') == 'Partial' }}>Partial</option>
-            <option value="Delivered" {{ 'selected' if request.args.get('status') == 'Delivered' }}>Delivered</option>
-            <option value="rejected" {{ 'selected' if request.args.get('status') == 'rejected' }}>Rejected</option>
+            <option value="all" {{ 'selected' if active_status == 'all' }}>All statuses</option>
+            <option value="Pending" {{ 'selected' if active_status == 'pending' }}>Pending</option>
+            <option value="approved" {{ 'selected' if active_status == 'approved' }}>Approved</option>
+            <option value="Dispatched" {{ 'selected' if active_status == 'dispatched' }}>Dispatched</option>
+            <option value="Partial" {{ 'selected' if active_status == 'partial' }}>Partial</option>
+            <option value="Delivered" {{ 'selected' if active_status == 'delivered' }}>Delivered</option>
+            <option value="rejected" {{ 'selected' if active_status == 'rejected' }}>Rejected</option>
           </select>
         </div>
         <div>
@@ -152,7 +147,6 @@
           {% for requisition in requisitions %}
             {% set row_status = requisition.status.lower() %}
             {% set row_status = 'rejected' if row_status == 'declined' else row_status %}
-            {% set can_validate = current_user.role in validator_roles and not requisition.validated %}
             {% set can_print = row_status in ['approved', 'dispatched', 'partial', 'delivered'] %}
             {% set name_parts = (requisition.requested_by or '?').split() %}
             {% set item_count = requisition.items|length %}
@@ -193,26 +187,14 @@
               <td data-label="Status">
                 <div class="req-status-stack">
                   {{ status_chip(requisition.status) }}
-                  {% if row_status == 'pending' %}
-                    {% if requisition.validated %}
-                      <span class="req-chip req-chip--validated"><span class="req-chip-dot" aria-hidden="true"></span>Validated</span>
-                    {% else %}
-                      <span class="req-chip req-chip--muted"><span class="req-chip-dot" aria-hidden="true"></span>Not validated</span>
-                    {% endif %}
-                  {% endif %}
                 </div>
               </td>
               <td class="col-actions req-actions-cell">
                 <div class="req-actions">
                   {# Contextual next step #}
-                  {% if row_status == 'pending' and can_validate %}
-                    <a href="{{ url_for('scanner.mobile_requisition_fulfillment', requisition_id=requisition.id) }}" class="btn btn-sm btn-outline-secondary req-next" title="Validate by scanning">
-                      <i class="fas fa-shield-halved" aria-hidden="true"></i> Validate
-                    </a>
-                  {% elif row_status == 'pending' %}
-                    <button type="button" class="btn btn-sm btn-primary req-next" onclick="showDeliveryDateModal({{ requisition.id }})"
-                            {% if not requisition.validated %}disabled title="Requires validation before approval"{% endif %}>
-                      <i class="fas fa-check" aria-hidden="true"></i> Approve
+                  {% if row_status == 'pending' %}
+                    <button type="button" class="btn btn-sm btn-primary req-next" data-bs-toggle="modal" data-bs-target="#viewRequisitionModal{{ requisition.id }}">
+                      <i class="fas fa-eye" aria-hidden="true"></i> View details
                     </button>
                   {% elif row_status == 'approved' %}
                     <form method="post" action="{{ url_for('requisitions.dispatch_requisition', requisition_id=requisition.id) }}" data-req-action="dispatch">
@@ -240,17 +222,8 @@
                     </button>
 
                     {% if row_status == 'pending' %}
-                      {% if can_validate %}
-                        <a class="product-action-item" role="menuitem" href="{{ url_for('scanner.mobile_requisition_fulfillment', requisition_id=requisition.id) }}">
-                          <i class="fas fa-shield-halved" aria-hidden="true"></i>Validate by scanning
-                        </a>
-                        <button type="button" class="product-action-item" role="menuitem" onclick="manualValidate({{ requisition.id }})">
-                          <i class="fas fa-check-double" aria-hidden="true"></i>Validate manually
-                        </button>
-                      {% endif %}
-                      <button type="button" class="product-action-item" role="menuitem" onclick="showDeliveryDateModal({{ requisition.id }})"
-                              {% if not requisition.validated %}disabled title="Requires validation before approval"{% endif %}>
-                        <i class="fas fa-check" aria-hidden="true"></i>Approve{% if not requisition.validated %} (validate first){% endif %}
+                      <button type="button" class="product-action-item" role="menuitem" onclick="showDeliveryDateModal({{ requisition.id }})">
+                        <i class="fas fa-check" aria-hidden="true"></i>Approve
                       </button>
                       <div class="product-action-divider" role="separator"></div>
                       <form method="post" action="{{ url_for('requisitions.update_status', requisition_id=requisition.id) }}" data-req-action="reject"
@@ -352,13 +325,6 @@
             <h5 class="modal-title" id="viewRequisitionTitle{{ requisition.id }}">
               Requisition #{{ requisition.id }}
               {{ status_chip(requisition.status) }}
-              {% if modal_status == 'pending' %}
-                {% if requisition.validated %}
-                  <span class="req-chip req-chip--validated"><span class="req-chip-dot"></span>Validated</span>
-                {% else %}
-                  <span class="req-chip req-chip--muted"><span class="req-chip-dot"></span>Not validated</span>
-                {% endif %}
-              {% endif %}
             </h5>
             <div class="req-modal-sub">
               <span><i class="fas fa-user" aria-hidden="true"></i>{{ requisition.requested_by }}</span>
@@ -392,8 +358,8 @@
           </div>
 
           <div class="req-section-title">
-            Requested items
-            <span>{% if modal_status == 'pending' %}FEFO batch allocation preview{% elif modal_status == 'approved' %}Stock deductions{% endif %}</span>
+            <span class="req-section-heading">Requested items</span>
+            <span>{% if modal_status == 'pending' %}Allocation by production date{% elif modal_status == 'approved' %}Stock deductions{% endif %}</span>
           </div>
           <div class="req-items-wrap">
             {% if modal_status == 'approved' %}
@@ -434,42 +400,51 @@
                 </tbody>
               </table>
             {% else %}
-              <table class="table align-middle req-items-table">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th class="text-center">Requested</th>
-                    <th class="text-center">UOM</th>
-                    <th>Batches</th>
-                    <th class="text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <div class="req-allocation-list">
                   {% for item in requisition.items %}
                     {% set available = item.product.quantity %}
                     {% set requested = item.quantity %}
-                    {% set sorted_batches = item.product.batches|sort(attribute='exp_date') %}
-                    <tr>
-                      <td class="fw-semibold" title="{{ item.product.name }}">{{ item.product.name }}</td>
-                      <td class="text-center fw-semibold">{{ requested }}</td>
-                      <td class="text-center text-muted">{{ item.uom }}</td>
-                      <td style="min-width: 160px;">
+                    {% set sorted_batches = (item.product.warehouse_batches or item.product.batches)|sort(attribute='exp_date') %}
+                    <section class="req-allocation-item" aria-labelledby="req-product-{{ requisition.id }}-{{ loop.index }}">
+                      <div class="req-allocation-summary">
+                        <div class="req-product-name" id="req-product-{{ requisition.id }}-{{ loop.index }}">{{ item.product.name }}</div>
+                        <div class="req-product-request">Requested <strong>{{ requested }} {{ item.uom }}</strong></div>
+                      </div>
+                      <div class="req-allocation-batches">
                         {% if sorted_batches %}
                           {% set ns = namespace(remaining=requested, shown=0) %}
                           {% for batch in sorted_batches %}
                             {% if batch.quantity > 0 and (modal_status != 'pending' or ns.remaining > 0) %}
                               {% set days_until = (batch.exp_date - now.date()).days if now is defined else 0 %}
-                              <div class="req-batch">
-                                <span><i class="fas fa-box-open" aria-hidden="true"></i>{{ batch.quantity }} {{ item.uom }}</span>
-                                {% if days_until <= 0 %}
-                                  <span class="req-tone-bad">Expired</span>
-                                {% elif days_until <= 30 %}
-                                  <span class="req-tone-bad">{{ days_until }}d</span>
-                                {% elif days_until <= 60 %}
-                                  <span class="req-tone-warn">{{ days_until }}d</span>
-                                {% else %}
-                                  <span class="req-tone-ok">{{ days_until }}d</span>
-                                {% endif %}
+                              {% set theoretical_deduction = [batch.quantity, ns.remaining]|min if modal_status == 'pending' else 0 %}
+                              {% set theoretical_remaining = batch.quantity - theoretical_deduction %}
+                              {% set batch_total = batch.int_quantity or batch.quantity %}
+                              <div class="req-batch req-batch-card">
+                                <div class="req-batch-quantity">
+                                  <i class="fas fa-box-open" aria-hidden="true"></i>
+                                  <strong>{{ '%.1f'|format(theoretical_remaining) }}/{{ '%.1f'|format(batch_total) }} {{ item.uom }}</strong>
+                                  <div class="req-batch-progress" role="progressbar"
+                                       aria-label="{{ '%.1f'|format(theoretical_remaining) }} of {{ '%.1f'|format(batch_total) }} {{ item.uom }} available"
+                                       aria-valuemin="0" aria-valuemax="{{ batch_total }}" aria-valuenow="{{ theoretical_remaining }}">
+                                    <span style="width: {{ ((theoretical_remaining / batch_total) * 100)|round(1) if batch_total else 0 }}%"></span>
+                                  </div>
+                                </div>
+                                <div class="req-production-date">
+                                  <span class="req-batch-label">Production date</span>
+                                  <strong>{% if batch.production_date %}{{ batch.production_date.strftime('%b %d, %Y') }}{% else %}Not recorded{% endif %}</strong>
+                                </div>
+                                <div class="req-days-left text-end">
+                                  <span class="req-batch-label">Days left</span>
+                                  {% if days_until <= 0 %}
+                                    <span class="req-tone-bad fw-semibold">Expired</span>
+                                  {% elif days_until <= 30 %}
+                                    <span class="req-tone-bad fw-semibold">{{ days_until }}d</span>
+                                  {% elif days_until <= 60 %}
+                                    <span class="req-tone-warn fw-semibold">{{ days_until }}d</span>
+                                  {% else %}
+                                    <span class="req-tone-ok fw-semibold">{{ days_until }}d</span>
+                                  {% endif %}
+                                </div>
                               </div>
                               {% if modal_status == 'pending' %}
                                 {% set ns.remaining = ns.remaining - [batch.quantity, ns.remaining]|min %}
@@ -481,8 +456,8 @@
                         {% else %}
                           <span class="text-muted">No batches</span>
                         {% endif %}
-                      </td>
-                      <td class="text-center">
+                      </div>
+                      <div class="req-allocation-status">
                         {% if available < requested %}
                           <span class="req-chip req-chip--danger"><span class="req-chip-dot"></span>Not enough stock</span>
                         {% else %}
@@ -500,11 +475,10 @@
                             <span class="req-chip req-chip--muted"><span class="req-chip-dot"></span>Available</span>
                           {% endif %}
                         {% endif %}
-                      </td>
-                    </tr>
+                      </div>
+                    </section>
                   {% endfor %}
-                </tbody>
-              </table>
+              </div>
             {% endif %}
           </div>
         </div>
@@ -515,7 +489,7 @@
               <i class="fas fa-print" aria-hidden="true"></i> Print
             </a>
           {% endif %}
-          {% if modal_status == 'pending' and requisition.validated %}
+          {% if modal_status == 'pending' %}
             <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="showDeliveryDateModal({{ requisition.id }})">
               <i class="fas fa-check" aria-hidden="true"></i> Approve
             </button>
@@ -538,8 +512,13 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <div class="req-section-title">Requisition items</div>
-        <div class="req-hint">Lower the <strong>Released</strong> quantity if you are shipping less than requested.</div>
+        <div class="req-approval-heading">
+          <div>
+            <div class="req-section-title">Requisition items</div>
+            <div class="req-hint">Confirm how much stock will leave the warehouse. You can release less than requested.</div>
+          </div>
+          <span class="req-approval-step">01 / 02</span>
+        </div>
         <div class="req-items-wrap">
           <table class="table align-middle req-items-table" id="approveItemsTable">
             <thead>
@@ -586,20 +565,25 @@
           </div>
         </div>
 
-        <div class="req-delivery-grid">
-          <div>
-            <label class="form-label" for="dateOfDelivery">Date of delivery</label>
-            <input type="date" class="form-control" id="dateOfDelivery" required>
-          </div>
-          <div>
-            <label class="form-label" for="timeOfDelivery">Time of delivery</label>
-            <input type="time" class="form-control" id="timeOfDelivery" required>
-          </div>
-        </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="approveSubmitBtn" onclick="submitApproval()"><i class="fas fa-check"></i> Approve requisition</button>
+        <div class="req-sticky-schedule">
+          <div class="req-sticky-schedule-label"><i class="fas fa-calendar-check" aria-hidden="true"></i><span>Delivery schedule</span></div>
+          <div class="req-sticky-schedule-fields">
+            <div>
+              <label class="form-label" for="dateOfDelivery">Date</label>
+              <input type="date" class="form-control" id="dateOfDelivery" required>
+            </div>
+            <div>
+              <label class="form-label" for="timeOfDelivery">Time</label>
+              <input type="time" class="form-control" id="timeOfDelivery" required>
+            </div>
+          </div>
+        </div>
+        <div class="req-modal-actions">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="approveSubmitBtn" onclick="submitApproval()"><i class="fas fa-check"></i> Approve requisition</button>
+        </div>
       </div>
     </div>
   </div>
@@ -631,12 +615,15 @@
       const short = Number(it.stock) < Number(it.qty);
       return `<tr>
         <td><div class="fw-semibold">${escHtml(it.name)}</div><div class="text-muted small">${escHtml(it.uom)}</div></td>
-        <td class="text-center">${escHtml(it.qty)}</td>
+        <td class="text-center"><span class="req-approval-number">${escHtml(it.qty)}</span><span class="req-approval-unit">${escHtml(it.uom)}</span></td>
         <td class="text-center">
-          <input type="number" class="form-control form-control-sm req-qty-input" id="appRel_${it.id}"
-                 value="${short ? it.stock : it.qty}" min="0" max="${it.stock}" step="any" aria-label="Released quantity for ${escHtml(it.name)}">
+          <div class="req-release-control">
+            <input type="number" class="form-control form-control-sm req-qty-input" id="appRel_${it.id}"
+                   value="${short ? it.stock : it.qty}" min="0" max="${it.stock}" step="any" aria-label="Released quantity for ${escHtml(it.name)}">
+            <span>${escHtml(it.uom)}</span>
+          </div>
         </td>
-        <td class="text-center ${short ? 'req-tone-bad fw-semibold' : ''}">${escHtml(it.stock)}</td>
+        <td class="text-center ${short ? 'req-tone-bad fw-semibold' : ''}"><span class="req-approval-number">${escHtml(it.stock)}</span><span class="req-approval-unit">available</span></td>
       </tr>`;
     }).join('');
 
@@ -777,26 +764,7 @@
       .catch(() => window.location.reload());
   }
 
-  // Manual validate (Plan B — no scanner needed)
-  function manualValidate(requisitionId) {
-    if (!confirm(`Mark requisition #${requisitionId} as validated without scanning?`)) return;
-    showSpinner();
-    fetch('/scanner/api/update-requisition-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requisition_id: requisitionId, action: 'validate' })
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          location.reload();
-        } else {
-          hideSpinner();
-          alert('Validation failed: ' + (data.message || 'Unknown error'));
-        }
-      })
-      .catch(err => { hideSpinner(); alert('Error: ' + err.message); });
-  }
+
 
   function deleteRequisition(requisitionId, requestedBy) {
     if (!confirm(`Are you sure you want to delete requisition #${requisitionId} requested by ${requestedBy}?`)) return;

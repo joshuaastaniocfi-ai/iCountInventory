@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Requisition Fulfillment</title>
@@ -48,7 +49,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       background: var(--wh-bg);
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
       color: var(--wh-text);
       min-height: 100vh;
     }
@@ -270,7 +271,7 @@
                 <tbody>
                   {% for batch in item_batch.recommended_batches %}
                     <tr>
-                      <td>{{ batch.sub_barcode }}</td>
+                      <td>{{ batch.sub_barcode or ('Batch #' ~ batch.id) }}</td>
                       <td>{{ batch.exp_date if batch.exp_date else 'N/A' }}</td>
                       <td>{{ batch.quantity }}</td>
                       <td>{{ batch.qty_needed }}</td>

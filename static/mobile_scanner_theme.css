@@ -1,0 +1,63 @@
+/* Shared scanner-page visual system. Loaded after each page's legacy styles. */
+.scanner-mobile-page {
+  --wh-primary: #6366f1;
+  --wh-primary-light: #818cf8;
+  --wh-primary-dark: #4f46e5;
+  --wh-bg: #f0f0ff;
+  --wh-card-bg: #ffffff;
+  --wh-text: #1e1b4b;
+  --wh-text-muted: #6b7280;
+  --wh-border: rgba(99,102,241,.12);
+  --wh-shadow: rgba(99,102,241,.08);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  background: var(--wh-bg);
+}
+.scanner-mobile-page.dark-mode {
+  --wh-bg: #09090b;
+  --wh-card-bg: #18181b;
+  --wh-text: #f4f4f5;
+  --wh-text-muted: #a1a1aa;
+  --wh-border: rgba(255,255,255,.1);
+  --wh-shadow: rgba(0,0,0,.25);
+}
+.scanner-mobile-page .audit-wrapper,
+.scanner-mobile-page .requisitions-wrapper {
+  max-width: 1120px;
+  padding: 1.25rem clamp(.85rem, 3vw, 2rem) 2.5rem;
+}
+.scanner-mobile-page .audit-wrapper > .card,
+.scanner-mobile-page .requisitions-wrapper > .card {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+.scanner-mobile-page .audit-wrapper > .card > .card-body,
+.scanner-mobile-page .requisitions-wrapper > .card > .card-body { padding: 0 !important; }
+.scanner-mobile-page .page-header { text-align: left; padding: .25rem 0 1rem; }
+.scanner-mobile-page .page-header h4 { color: var(--wh-text); font-size: clamp(1.25rem, 2.2vw, 1.55rem); letter-spacing: -.02em; }
+.scanner-mobile-page .page-header h4 i { color: var(--wh-primary); }
+.scanner-mobile-page .page-header small { color: var(--wh-text-muted); font-size: .9rem; }
+.scanner-mobile-page .audit-card,
+.scanner-mobile-page .requisition-card { border: 1px solid var(--wh-border); border-radius: 12px; box-shadow: 0 4px 16px var(--wh-shadow); background: var(--wh-card-bg); }
+.scanner-mobile-page .audit-header,
+.scanner-mobile-page .requisition-header,
+.scanner-mobile-page .product-header { background: rgba(99,102,241,.05); border-color: var(--wh-border); }
+.scanner-mobile-page .manual-barcode-box,
+.scanner-mobile-page .camera-notice-card,
+.scanner-mobile-page .stats-container { border-color: var(--wh-border); background: rgba(99,102,241,.04); }
+.scanner-mobile-page .form-control,
+.scanner-mobile-page .form-select { background: var(--wh-card-bg); color: var(--wh-text); border-color: var(--wh-border); }
+.scanner-mobile-page .form-control::placeholder { color: var(--wh-text-muted); }
+.scanner-mobile-page .btn-outline-secondary { border-color: var(--wh-border) !important; }
+.scanner-mobile-page .scanner-container { height: clamp(240px, 62vw, 320px); min-height: 0; margin-top: 0; }
+.scanner-mobile-page #reader { height: 100% !important; min-height: 0 !important; aspect-ratio: auto !important; overflow: hidden; }
+.scanner-mobile-page #reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
+.scanner-mobile-page #reader__scan_region,
+.scanner-mobile-page #reader__scan_region * { display: none !important; visibility: hidden !important; height: 0 !important; min-height: 0 !important; }
+.scanner-mobile-page .scanner-frame { width: min(86%, 250px); height: min(48%, 100px); border: 2px solid rgba(255,255,255,.55); }
+.scanner-mobile-page .scan-line { display: none !important; }
+@media (max-width: 767px) {
+  .scanner-mobile-page .audit-wrapper,
+  .scanner-mobile-page .requisitions-wrapper { padding-top: .8rem; }
+}

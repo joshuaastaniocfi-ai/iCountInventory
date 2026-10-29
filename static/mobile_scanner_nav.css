@@ -1,0 +1,53 @@
+.scanner-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  min-height: 60px;
+  padding: 0.65rem clamp(0.85rem, 3vw, 2rem);
+  background: color-mix(in srgb, var(--scanner-surface, #fff) 94%, transparent);
+  border-bottom: 1px solid var(--scanner-border, rgba(99,102,241,.12));
+  box-shadow: 0 2px 12px rgba(99,102,241,.05);
+  backdrop-filter: blur(12px);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+.dark-mode .scanner-sticky-header {
+  --scanner-surface: #18181b;
+  --scanner-text: #f4f4f5;
+  --scanner-muted: #a1a1aa;
+  --scanner-border: rgba(255,255,255,.1);
+  --scanner-soft: rgba(255,255,255,.06);
+  --scanner-accent: #818cf8;
+  --scanner-accent-strong: #a5b4fc;
+}
+.scanner-brand { order: 1; display: inline-flex; align-items: center; gap: .5rem; flex: 0 0 auto; color: var(--scanner-text, #1e1b4b); text-decoration: none; font-size: 1.05rem; font-weight: 700; letter-spacing: -.03em; }
+.scanner-brand:hover { color: var(--scanner-accent-strong, #4f46e5); }
+.scanner-brand-mark { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background: var(--scanner-accent, #6366f1); color: #fff; font-size: .75rem; }
+.scanner-nav { order: 3; display: flex; align-items: center; gap: .2rem; width: 100%; min-width: 0; flex: 0 0 100%; padding-top: .45rem; border-top: 1px solid var(--scanner-border, rgba(99,102,241,.12)); overflow-x: auto; scrollbar-width: none; }
+.scanner-nav::-webkit-scrollbar { display: none; }
+.scanner-nav-link { display: inline-flex; align-items: center; gap: .4rem; min-height: 36px; padding: .45rem .7rem; border-radius: 8px; color: var(--scanner-muted, #6b7280); font-size: .82rem; font-weight: 600; text-decoration: none; white-space: nowrap; transition: background .15s ease, color .15s ease; }
+.scanner-nav-link:hover, .scanner-nav-link:focus-visible { color: var(--scanner-text, #1e1b4b); background: var(--scanner-soft, rgba(99,102,241,.04)); }
+.scanner-nav-link.active { color: var(--scanner-accent-strong, #4f46e5); background: var(--scanner-soft, rgba(99,102,241,.04)); }
+.scanner-nav-link i { font-size: .8rem; }
+.scanner-nav-count { min-width: 18px; padding: .1rem .35rem; border-radius: 999px; background: #f59e0b; color: #1e1b4b; font-size: .62rem; text-align: center; }
+.scanner-theme-toggle, .scanner-user-badge { order: 2; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 36px; height: 36px; border: 1px solid var(--scanner-border, rgba(99,102,241,.12)); border-radius: 8px; background: var(--scanner-surface, #fff); color: var(--scanner-muted, #6b7280); cursor: pointer; }
+.scanner-theme-toggle { margin-left: auto; }
+.scanner-theme-toggle:hover, .scanner-theme-toggle:focus-visible, .scanner-user-badge:hover, .scanner-user-badge:focus-visible { color: var(--scanner-text, #1e1b4b); background: var(--scanner-soft, rgba(99,102,241,.04)); }
+.scanner-account { order: 2; position: relative; flex: 0 0 auto; }
+.scanner-account-menu { position: absolute; top: calc(100% + .55rem); right: 0; z-index: 1040; width: 220px; padding: .35rem; border: 1px solid var(--scanner-border, rgba(99,102,241,.12)); border-radius: 10px; background: var(--scanner-surface, #fff); box-shadow: 0 12px 30px rgba(9,9,11,.12); }
+.scanner-account-menu[hidden] { display: none; }
+.scanner-account-summary { display: flex; flex-direction: column; gap: .1rem; padding: .65rem .7rem; border-bottom: 1px solid var(--scanner-border, rgba(99,102,241,.12)); }
+.scanner-account-summary strong { overflow: hidden; color: var(--scanner-text, #1e1b4b); font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+.scanner-account-summary span { color: var(--scanner-muted, #6b7280); font-size: .7rem; }
+.scanner-account-menu a { display: flex; align-items: center; gap: .55rem; padding: .65rem .7rem; border-radius: 7px; color: var(--scanner-text, #1e1b4b); font-size: .8rem; text-decoration: none; }
+.scanner-account-menu a:hover, .scanner-account-menu a:focus-visible { background: var(--scanner-soft, rgba(99,102,241,.04)); color: var(--scanner-text, #1e1b4b); }
+.scanner-account-menu a i { width: 1rem; color: var(--scanner-accent, #6366f1); text-align: center; }
+.scanner-account-menu .scanner-account-logout, .scanner-account-menu .scanner-account-logout i { color: #dc3545; }
+@media (max-width: 767px) {
+  .scanner-sticky-header { gap: .5rem; padding-inline: .7rem; }
+  .scanner-brand-name { font-size: .9rem; }
+  .scanner-nav-link { padding-inline: .55rem; }
+}

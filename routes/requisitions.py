@@ -70,7 +70,7 @@ def store_inventory():
     pending_receiving_count = Requisition.query.filter(
         (Requisition.company_id == current_user.company_id) |
         (Requisition.destination_company_id == current_user.company_id),
-        Requisition.status.in_(['approved', 'Approved', 'Dispatched', 'dispatched', 'Partial', 'partial'])
+        Requisition.status.in_(['Dispatched', 'dispatched', 'Partial', 'partial'])
     ).count()
 
     return render_template('user/requisition_form.html', products=products, now=now, 
@@ -212,23 +212,29 @@ def submit_requisition():
 def view_requisitions():
     """Display all requisitions with pagination and filters"""
     page = request.args.get('page', 1, type=int)
-    status = request.args.get('status', '').strip()
+    # Show all statuses by default; a specific status can still be selected
+    # through the filter controls.
+    status = request.args.get('status', 'all').strip() or 'all'
+
     search = request.args.get('q', '').strip()
     date_str = request.args.get('date', '').strip()
     per_page = current_app.config.get('REQUISITIONS_PER_PAGE', 10)
     
-    # Base query - modified to allow SYS-Admin and WH-Admin to see all requisitions
+    # Base query: SYS-Admin can see all companies. Warehouse and company
+    # admins are limited to their company, including transfer requests where
+    # their company is the destination.
     if current_user.role == 'User':
         # Regular users can only see their own requisitions
         query = Requisition.query.filter_by(
             requested_by=current_user.full_name,
             company_id=current_user.company_id
         )
-    elif current_user.role in ['SYS-Admin', 'WH-Admin']:
-        # SYS-Admin and WH-Admin can see all requisitions across all companies
+    elif current_user.role == 'SYS-Admin' and current_user.company_id is None:
+        # Unassigned SYS-Admin can see all requisitions across all companies.
         query = Requisition.query
     else:
-        # Other admins (Company-Admin) can see all requisitions in their company or destined to their company
+        # Company-scoped admins only see requests belonging to or destined for
+        # their assigned company.
         query = Requisition.query.filter(
             db.or_(
                 Requisition.company_id == current_user.company_id,
@@ -265,8 +271,8 @@ def view_requisitions():
         status_counts[key] = status_counts.get(key, 0) + cnt
     total_count = sum(status_counts.values())
 
-    # Apply status filter if provided
-    if status:
+    # Apply status filter if provided.
+    if status and status.lower() != 'all':
         query = query.filter_by(status=status)
     
     # Order by date created (newest first)
@@ -336,10 +342,9 @@ def update_status(requisition_id):
     new_status = request.form['status']
     requisition = Requisition.query.get_or_404(requisition_id)
 
-    # If trying to approve and requisition is not validated, prevent approval
-    if new_status == 'approved' and not requisition.validated:
-        flash(f'Error: Requisition #{requisition.id} must be validated through scanning before approval.', 'error')
-        return redirect(url_for('requisitions.view_requisitions'))
+    # If approving, mark requisition as validated
+    if new_status == 'approved':
+        requisition.validated = True
 
     # Handle stock deduction only if approving and currently pending
     if requisition.status == 'Pending' and new_status == 'approved':
@@ -573,11 +578,15 @@ def update_status(requisition_id):
 
     # Send email notification to the requester about status update
     try:
-        # Find the user who submitted the requisition
-        # Since we only have the name, we'll try to find by name and company
-        user = User.query.join(Company).filter(
-            User.full_name == requisition.requested_by,
-            Company.name == requisition.branch  # branch now contains franchise name
+        # Find the requester by the requisition's company context. The branch
+        # field is a branch/franchise label and is not guaranteed to match the
+        # related company's name.
+        user = User.query.filter(
+            User.company_id == requisition.company_id,
+            db.or_(
+                User.full_name == requisition.requested_by,
+                User.username == requisition.requested_by
+            )
         ).first()
         
         if user and user.email:
@@ -653,9 +662,12 @@ iCount Inventory System
 
     # Send in-app notification to the requester
     try:
-        notif_user = User.query.join(Company).filter(
-            User.full_name == requisition.requested_by,
-            Company.name == requisition.branch
+        notif_user = User.query.filter(
+            User.company_id == requisition.company_id,
+            db.or_(
+                User.full_name == requisition.requested_by,
+                User.username == requisition.requested_by
+            )
         ).first()
         if notif_user:
             if new_status == 'approved':

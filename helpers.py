@@ -150,85 +150,9 @@ def generate_barcode():
     return code
 
 
-def generate_sub_barcode(product_barcode, exp_date, db_connection=None, company_id=None):
-    """Generate a unique sub-barcode for a batch based on the expiry date"""
-    import os
-    import time
-    from datetime import datetime
-    import traceback
-    
-    # Format expiry date as YYYYMMDD (8 digits) instead of MMDDYYYY
-    exp_date_str = exp_date.strftime("%Y%m%d")
-    
-    # Use expiry date as base (8 digits)
-    base = exp_date_str
-    
-    # Get the highest existing sub-barcode number for this expiry date
-    max_number = 0
-    
-    # Look through all batches with sub-barcodes that start with our base
-    if db_connection:
-        # Direct database connection (no Flask context)
-        cursor = db_connection.cursor()
-        cursor.execute('SELECT sub_barcode FROM warehouse_product_batch WHERE sub_barcode LIKE ?', (f"{base}%",))
-        batches = cursor.fetchall()
-        
-        for (sub_barcode,) in batches:
-            try:
-                # Extract the numeric part from existing sub-barcodes (last 4 digits)
-                if sub_barcode and len(sub_barcode) >= 12:
-                    number_part = sub_barcode[-4:]  # Last 4 digits
-                    if number_part.isdigit():
-                        max_number = max(max_number, int(number_part))
-            except (ValueError, AttributeError):
-                continue
-    else:
-        # Flask context (original implementation)
-        batches = WarehouseProductBatch.query.filter(WarehouseProductBatch.sub_barcode.like(f"{base}%")).all()
-        
-        for batch in batches:
-            try:
-                # Extract the numeric part from existing sub-barcodes (last 4 digits)
-                if batch.sub_barcode and len(batch.sub_barcode) >= 12:
-                    number_part = batch.sub_barcode[-4:]  # Last 4 digits
-                    if number_part.isdigit():
-                        max_number = max(max_number, int(number_part))
-            except (ValueError, AttributeError):
-                continue
-    
-    # Generate next unique number (4 digits)
-    next_number = max_number + 1
-    
-    # Create sub-barcode with base + 4-digit sequence (12 characters total)
-    sub_barcode = f"{base}{str(next_number).zfill(4)}"
-    
-    # Generate the actual barcode image if we're in Flask context
-    if not db_connection:
-        try:
-            # Create company-specific path to static/batch_barcodes directory
-            if company_id:
-                static_dir = os.path.join(current_app.root_path, 'static', 'batch_barcodes', f'company_{company_id}')
-            elif hasattr(current_user, 'company_id') and current_user.company_id:
-                static_dir = os.path.join(current_app.root_path, 'static', 'batch_barcodes', f'company_{current_user.company_id}')
-            else:
-                static_dir = os.path.join(current_app.root_path, 'static', 'batch_barcodes')
-            
-            # Ensure the directory exists
-            os.makedirs(static_dir, exist_ok=True)
-            
-            # Generate the barcode image (13th character will be checksum)
-            EAN = barcode.get_barcode_class('ean13')
-            ean = EAN(sub_barcode, writer=ImageWriter())
-            filename = os.path.join(static_dir, sub_barcode)
-            ean.save(filename)
-        except Exception as e:
-            # If there's an error generating the image, we still return the barcode
-            print(f"Warning: Could not generate barcode image for sub-barcode {sub_barcode}: {e}")
-            print(f"Full traceback: {traceback.format_exc()}")
-    
-    # Return only the 12-character barcode (without checksum)
-    return sub_barcode
-
+def generate_sub_barcode(product_barcode=None, exp_date=None, db_connection=None, company_id=None):
+    """Sub-barcode and batch barcode image generation have been disabled."""
+    return None
 
 def log_activity(action, details=None):
     """Log an activity to the database"""

@@ -1134,7 +1134,7 @@ function loadReceivingList(){
 
 function updateRecvStats(list){
   const total = list.length;
-  const pending = list.filter(r => r.status.toLowerCase() !== 'delivered' && r.status !== 'Discrepancy - Pending Approval').length;
+  const pending = list.filter(r => ['dispatched', 'partial'].includes((r.db_status || r.status || '').toLowerCase())).length;
   const delivered = list.filter(r => r.status.toLowerCase() === 'delivered').length;
   const discrepancy = list.filter(r => r.status === 'Discrepancy - Pending Approval' || r.has_discrepancy).length;
 
@@ -1191,14 +1191,18 @@ function handleRecvError(){
 
 function filterRecvList(q){
   const lq = (q || '').toLowerCase().trim();
-  const f = document.getElementById('recvStatusFilter')?.value || 'all';
+  const f = document.getElementById('recvStatusFilter')?.value || 'pending';
   const filtered = RECEIVING_DATA.filter(r => {
+    const dbStatus = (r.db_status || r.status || '').toLowerCase();
+    // Approved requisitions are not receiving shipments until dispatched.
+    if (dbStatus === 'approved' || dbStatus === 'pending') return false;
+
     const matchRef = (r.ref || '').toLowerCase().includes(lq);
     const matchBranch = (r.branch || '').toLowerCase().includes(lq);
     const matchItem = (r.items || []).some(i => (i.name || '').toLowerCase().includes(lq));
     const isDiscrepancy = r.status === 'Discrepancy - Pending Approval' || r.has_discrepancy;
     const isDelivered = r.status.toLowerCase() === 'delivered';
-    const isPending = !isDelivered && !isDiscrepancy;
+    const isPending = ['dispatched', 'partial'].includes(dbStatus);
 
     let matchStatus = true;
     if(f === 'pending') matchStatus = isPending;
@@ -1223,7 +1227,8 @@ function renderRecvList(list){
   tbody.innerHTML = list.map((r) => {
     const isDiscrepancy = r.status === 'Discrepancy - Pending Approval' || r.has_discrepancy;
     const isDelivered = r.status.toLowerCase() === 'delivered';
-    const canReceive = (!isDelivered && r.status.toLowerCase() !== 'rejected' && !isDiscrepancy);
+    const receivingStatus = (r.db_status || r.status || '').toLowerCase();
+    const canReceive = ['dispatched', 'partial'].includes(receivingStatus) && !isDelivered && !isDiscrepancy;
 
     const sCls = isDiscrepancy ? 'pill-bad' : isDelivered ? 'pill-ok' : 'pill-warn';
     const sText = isDiscrepancy ? 'Discrepancy' : isDelivered ? 'Delivered' : 'Ready to Receive';
@@ -1274,9 +1279,10 @@ function openRecvDetail(e, reqId){
 }
 
 function renderRecvDetail(req){
-  document.getElementById('recvFilters').style.display = 'none';
-  document.getElementById('recvListWrap').style.display = 'none';
-  document.getElementById('recvDetailWrap').style.display = 'block';
+  const detailWrap = document.getElementById('recvDetailWrap');
+  detailWrap.style.display = 'block';
+  detailWrap.classList.add('receiving-detail-modal');
+  document.body.classList.add('receiving-modal-open');
   document.getElementById('recvDetailTitle').textContent = req.ref;
   
   const elRequester = document.getElementById('recvDetailRequester');
@@ -1393,9 +1399,10 @@ function matchAllPortalRecv(){
 
 function closeRecvDetail(){
   currentRecvReqId = null;
-  document.getElementById('recvFilters').style.display = 'flex';
-  document.getElementById('recvListWrap').style.display = 'block';
-  document.getElementById('recvDetailWrap').style.display = 'none';
+  const detailWrap = document.getElementById('recvDetailWrap');
+  detailWrap.classList.remove('receiving-detail-modal');
+  detailWrap.style.display = 'none';
+  document.body.classList.remove('receiving-modal-open');
 }
 
 /* ── Optional product lookup & add ── */
@@ -1569,8 +1576,15 @@ function viewHistDetail(ref){
 function updateHistBadge(){
   const pending = HISTORY_DATA.filter(h => h.status === 'pending').length;
   const badge = document.getElementById('histBadge');
-  badge.textContent = pending;
-  badge.style.display = pending ? '' : 'none';
+  if (badge) {
+    badge.textContent = pending;
+    badge.style.display = pending ? '' : 'none';
+  }
+  const moreBadge = document.getElementById('moreHistBadge');
+  if (moreBadge) {
+    moreBadge.textContent = pending;
+    moreBadge.style.display = pending ? '' : 'none';
+  }
 }
 
 /* ══════════════════════════════════════════════════════

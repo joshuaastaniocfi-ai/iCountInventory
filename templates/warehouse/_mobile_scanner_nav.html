@@ -1,0 +1,70 @@
+<header class="scanner-sticky-header">
+  <a class="scanner-brand" href="{{ url_for('scanner.mobile_scanner') }}" aria-label="iCount Scanner home">
+    <span class="scanner-brand-mark"><i class="fas fa-cube"></i></span>
+    <span class="scanner-brand-name">iCount Scanner</span>
+  </a>
+  <nav class="scanner-nav" aria-label="Scanner navigation">
+    <a href="{{ url_for('scanner.mobile_scanner') }}" class="scanner-nav-link {{ 'active' if request.endpoint == 'scanner.mobile_scanner' else '' }}" {% if request.endpoint == 'scanner.mobile_scanner' %}aria-current="page"{% endif %}><i class="fas fa-barcode"></i><span>Stock</span></a>
+    <a href="{{ url_for('scanner.mobile_audit') }}" class="scanner-nav-link {{ 'active' if request.endpoint == 'scanner.mobile_audit' else '' }}" {% if request.endpoint == 'scanner.mobile_audit' %}aria-current="page"{% endif %}><i class="fas fa-clipboard-check"></i><span>Audit</span></a>
+    <a href="{{ url_for('scanner.mobile_pending_requisitions') }}" class="scanner-nav-link {{ 'active' if request.endpoint == 'scanner.mobile_pending_requisitions' else '' }}" {% if request.endpoint == 'scanner.mobile_pending_requisitions' %}aria-current="page"{% endif %}><i class="fas fa-file-invoice"></i><span>Pending</span><span class="scanner-nav-count" id="pendingCount">0</span></a>
+    <a href="{{ url_for('scanner.mobile_batch_sub_audit') }}" class="scanner-nav-link {{ 'active' if request.endpoint == 'scanner.mobile_batch_sub_audit' else '' }}" {% if request.endpoint == 'scanner.mobile_batch_sub_audit' %}aria-current="page"{% endif %}><i class="fas fa-boxes"></i><span>Batch audit</span></a>
+  </nav>
+  <button type="button" class="scanner-theme-toggle" id="scannerThemeToggle" aria-label="Toggle dark mode" title="Toggle dark mode"><i class="fas fa-moon"></i></button>
+  <div class="scanner-account">
+    <button type="button" class="scanner-user-badge" id="scannerAccountToggle" aria-label="Open account menu" aria-expanded="false" title="Account menu"><i class="fas fa-user"></i></button>
+    <div class="scanner-account-menu" id="scannerAccountMenu" hidden>
+      <div class="scanner-account-summary"><strong>{{ current_user.full_name }}</strong><span>{{ current_user.role }}</span></div>
+      <a href="{{ url_for('auth.profile') }}"><i class="fas fa-user-circle"></i> View profile</a>
+      <a href="{{ url_for('auth.logout') }}" class="scanner-account-logout"><i class="fas fa-right-from-bracket"></i> Logout</a>
+    </div>
+  </div>
+</header>
+<script>
+(function() {
+  const root = document.documentElement;
+  const storedDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+  if (storedDark) root.classList.add('dark-mode');
+  const toggle = document.getElementById('scannerThemeToggle');
+  const icon = toggle && toggle.querySelector('i');
+  const accountToggle = document.getElementById('scannerAccountToggle');
+  const accountMenu = document.getElementById('scannerAccountMenu');
+  const applyTheme = () => {
+    const dark = root.classList.contains('dark-mode');
+    document.body.classList.toggle('dark-mode', dark);
+    if (icon) icon.className = dark ? 'fas fa-sun' : 'fas fa-moon';
+    if (toggle) toggle.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+  };
+  if (toggle) toggle.addEventListener('click', () => {
+    const dark = !root.classList.contains('dark-mode');
+    root.classList.toggle('dark-mode', dark);
+    localStorage.setItem('darkMode', dark ? 'enabled' : 'disabled');
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+    applyTheme();
+  });
+  if (accountToggle && accountMenu) {
+    accountToggle.addEventListener('click', (event) => { event.stopPropagation(); accountMenu.hidden = !accountMenu.hidden; accountToggle.setAttribute('aria-expanded', String(!accountMenu.hidden)); });
+    document.addEventListener('click', (event) => { if (!event.target.closest('.scanner-account')) { accountMenu.hidden = true; accountToggle.setAttribute('aria-expanded', 'false'); } });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { accountMenu.hidden = true; accountToggle.setAttribute('aria-expanded', 'false'); } });
+  }
+  const removeNativeScanRegion = () => {
+    document.querySelectorAll('#reader__scan_region').forEach((region) => region.remove());
+  };
+  removeNativeScanRegion();
+  new MutationObserver(removeNativeScanRegion).observe(document.body, { childList: true, subtree: true });
+  applyTheme();
+
+  // Fetch pending requisitions count for the nav badge
+  fetch('/scanner/api/pending-requisitions')
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.success) {
+        const badge = document.getElementById('pendingCount');
+        if (badge) {
+          badge.textContent = data.count || 0;
+          badge.style.display = (data.count && data.count > 0) ? 'inline-flex' : 'none';
+        }
+      }
+    })
+    .catch(() => {});
+})();
+</script>

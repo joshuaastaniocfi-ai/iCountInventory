@@ -2,6 +2,10 @@
 
 {% block title %}Products - iCount{% endblock %}
 
+{% block styles %}
+<link href="{{ url_for('static', filename='css/products-page.css') }}?v=20261029-harmonized-v9" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 {% set account_codes = {
   "COS-Beverages": 201, "COS-Ice Cream": 202, "COS-Desserts": 203, "COS-Food": 204,
@@ -11,29 +15,34 @@
 } %}
 
 <div class="container-fluid py-3 products-page">
-  <!-- Header & Actions -->
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-3 gap-2">
+  <!-- Header & Executive Actions -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 gap-3">
     <div class="d-flex align-items-center gap-3">
-      <div class="d-flex align-items-center justify-content-center rounded-3 shadow-sm products-page-icon" style="width:42px;height:42px;background:linear-gradient(135deg,var(--accent),#818cf8);color:#fff">
-        <i class="fas fa-cubes"></i>
+      <div class="products-page-icon" style="width:46px;height:46px;">
+        <i class="fas fa-cubes fa-lg"></i>
       </div>
       <div>
-        <h5 class="fw-bold mb-0" style="letter-spacing:-0.02em">Inventory</h5>
-        <small class="text-muted">{{ pagination.total if pagination and pagination.total else products|length }} products</small>
+        <div class="d-flex align-items-center gap-2">
+          <h4 class="products-page-title mb-0">Inventory Catalog</h4>
+          <span id="productsCountBadge" class="badge products-count-badge rounded-pill px-2.5 py-1 font-monospace">
+            {{ pagination.total if pagination and pagination.total else products|length }} items
+          </span>
+        </div>
+        <div class="text-muted small mt-0.5" style="font-size:0.8rem">Manage stock levels, multi-branch allocations, and expiry monitoring</div>
       </div>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
+    <div class="d-flex gap-2 flex-wrap align-items-center">
       {% if current_user.role != 'Purchaser' %}
-      <button class="btn btn-success btn-sm shadow-sm" onclick="openDailyCount()" title="Open today's inventory count form for all products">
-        <i class="fas fa-clipboard-check me-1"></i> Count for Today
+      <button class="btn btn-emerald-action btn-sm shadow-sm d-flex align-items-center gap-2" onclick="openDailyCount()" title="Open today's inventory count form">
+        <i class="fas fa-clipboard-check"></i> <span>Count for Today</span>
       </button>
       {% endif %}
-      <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true">
-        <i class="fas fa-filter me-1"></i> Filters
+      <button class="btn btn-filter-toggle btn-sm shadow-sm d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true">
+        <i class="fas fa-sliders"></i> <span>Filters</span>
       </button>
       {% if current_user.role != 'Purchaser' %}
-      <button class="btn btn-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#addProductModal">
-        <i class="fas fa-plus me-1"></i>Add Product
+      <button class="btn btn-primary-action btn-sm shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#addProductModal">
+        <i class="fas fa-plus"></i> <span>Add Product</span>
       </button>
       {% endif %}
     </div>
@@ -43,7 +52,7 @@
   <div class="collapse show" id="filterCollapse">
     <div class="card border-0 shadow-sm mb-3 products-filter-card">
       <div class="card-body">
-        <form method="get" action="{{ url_for('products.view_products') }}" class="row g-2 align-items-center products-filter-form {{ 'has-company-filter' if current_user.role == 'SYS-Admin' and current_user.company_id is none and companies }}">
+        <form method="get" action="{{ url_for('products.view_products') }}" id="productsFilterForm" class="row g-2 align-items-center products-filter-form {{ 'has-company-filter' if current_user.role == 'SYS-Admin' and current_user.company_id is none and companies }}">
           <div class="col-md-4 products-filter-search">
             <div class="input-group input-group-sm">
               <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
@@ -52,11 +61,11 @@
             </div>
           </div>
           <div class="col-md-2">
-            <label class="visually-hidden" for="productAccountFilter">Filter by account</label>
-            <select id="productAccountFilter" name="account_type" class="form-select form-select-sm">
-              <option value="">All Accounts</option>
-              {% for title in account_titles %}
-                <option value="{{ title }}" {{ 'selected' if request.args.get('account_type') == title }}>{{ title }}</option>
+            <label class="visually-hidden" for="productStationFilter">Filter by station</label>
+            <select id="productStationFilter" name="station" class="form-select form-select-sm">
+              <option value="">All Stations</option>
+              {% for st in stations %}
+                <option value="{{ st }}" {{ 'selected' if request.args.get('station') == st }}>{{ st }}</option>
               {% endfor %}
             </select>
           </div>
@@ -74,7 +83,7 @@
           {% if current_user.role == 'SYS-Admin' and current_user.company_id is none and companies %}
           <div class="col-md-2">
             <label class="visually-hidden" for="productCompanyFilter">Filter by company</label>
-            <select id="productCompanyFilter" name="company_id" class="form-select form-select-sm" onchange="this.form.submit()">
+            <select id="productCompanyFilter" name="company_id" class="form-select form-select-sm">
               <option value="">All Companies</option>
               {% for company in companies %}
                 <option value="{{ company.id }}" {{ 'selected' if request.args.get('company_id') == company.id|string }}>{{ company.name }}</option>
@@ -82,29 +91,31 @@
             </select>
           </div>
           {% endif %}
-          <div class="col-md-auto d-flex gap-1 products-filter-actions">
-            <button type="submit" class="btn btn-primary btn-sm" aria-label="Apply filters" title="Apply filters"><i class="fas fa-filter"></i></button>
-            <a href="{{ url_for('products.view_products') }}" class="btn btn-outline-secondary btn-sm" aria-label="Reset filters" title="Reset filters"><i class="fas fa-rotate-left"></i></a>
-            <a href="{{ url_for('products.export_inventory_xlsx') }}" class="btn btn-outline-secondary btn-sm" aria-label="Export products" title="Export to Excel" onclick="exportInventoryExcel(); return false;"><i class="fas fa-file-excel"></i></a>
+          <div class="col-md-auto d-flex gap-2 products-filter-actions">
+            <button type="submit" class="btn btn-filter-submit" aria-label="Apply filters" title="Apply filters"><i class="fas fa-filter"></i></button>
+            <a href="{{ url_for('products.view_products') }}" class="btn btn-filter-reset" aria-label="Reset filters" title="Reset filters"><i class="fas fa-rotate-left"></i></a>
+            <button type="button" class="btn btn-filter-excel" id="exportExcelBtn" aria-label="Export products" title="Export to Excel" onclick="exportInventoryExcel()"><i class="fas fa-file-excel"></i></button>
           </div>
         </form>
       </div>
     </div>
   </div>
-  <div class="card border-0 shadow-sm products-table-card" style="border-radius:0;overflow:hidden">
+  <div id="productsDynamicContent">
+  <div class="card border-0 shadow-sm products-table-card position-relative">
+    <div class="filter-loading-indicator"></div>
     <div class="table-responsive" id="productsTableScroll" role="region" tabindex="0" aria-label="Products table. Scroll horizontally to view all columns.">
-      <table class="table align-middle mb-0" id="productTable" style="border-collapse:separate;border-spacing:0">
+      <table class="table align-middle mb-0" id="productTable">
         <thead>
-            <tr style="background:var(--card-bg);border-bottom:2px solid var(--border)">
-            <th class="text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Product Info</th>
-            <th class="text-center text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Account Title</th>
-            <th class="text-center text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Warehouse</th>
-            <th class="text-center text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Store</th>
-            <th class="text-center text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Total</th>
-            <th class="text-center text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Stock Health</th>
-            <th class="text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Nearest Expiry</th>
-            <th class="text-center text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Status</th>
-            <th class="text-end text-uppercase small text-muted fw-semibold px-3 py-3" style="letter-spacing:0.04em">Actions</th>
+          <tr>
+            <th class="px-3 py-3">Product Info</th>
+            <th class="text-center px-3 py-3">Station</th>
+            <th class="text-center px-3 py-3">Warehouse</th>
+            <th class="text-center px-3 py-3">Store</th>
+            <th class="text-center px-3 py-3">Total</th>
+            <th class="text-center px-3 py-3">Stock Health</th>
+            <th class="px-3 py-3">Nearest Expiry</th>
+            <th class="text-center px-3 py-3">Status</th>
+            <th class="text-center px-2 py-3">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -113,124 +124,132 @@
             {% set init_qty = product.initial_quantity if product.initial_quantity is defined else qty %}
             {% set threshold = product.low_stock_threshold if product.low_stock_threshold is defined else 10 %}
             {% set is_low = product.is_low_stock %}
+            {% set nearest_batch = product.warehouse_batches|sort(attribute='exp_date')|first if product.warehouse_batches else none %}
+            {% if nearest_batch and nearest_batch.exp_date.year < 2099 %}
+              {% set days_until = (nearest_batch.exp_date - now.date()).days if now is defined else 0 %}
+            {% else %}
+              {% set days_until = none %}
+            {% endif %}
 
-            <tr class="product-row" data-product-id="{{ product.id }}" style="border-bottom:1px solid var(--border);transition:background 0.15s">
+            <tr class="product-row" data-product-id="{{ product.id }}">
               <td>
-                <div class="d-flex align-items-center px-1">
-                  <div class="product-info">
-                    <h6 class="mb-0" style="font-size:0.9rem">{{ product.name }}</h6>
+                <div class="d-flex align-items-center gap-2 px-1">
+                  {% if product.is_favorite %}
+                  <span title="Favorite product"><i class="fas fa-star text-warning" style="font-size:0.75rem"></i></span>
+                  {% endif %}
+                  <div class="product-info min-w-0">
+                    <div class="product-title" title="{{ product.name }}">{{ product.name }}</div>
+                    {% if product.barcode %}
+                      <div class="product-code"><i class="fas fa-barcode me-1 opacity-75"></i>{{ product.barcode }}</div>
+                    {% elif product.item_uom_desc %}
+                      <div class="product-code">{{ product.item_uom_desc }}</div>
+                    {% endif %}
                   </div>
                 </div>
               </td>
-              <td>
-                <div class="text-center">
-                  <div style="font-size:0.8rem;font-weight:500;color:var(--text-primary);line-height:1.3">{{ product.account_title }}</div>
-                  <div style="display:inline-block;font-size:0.6rem;color:var(--text-muted);background:var(--light-bg);border:1px solid var(--border);border-radius:3px;padding:0.1em 0.5em;margin-top:2px;line-height:1.5">FS{{ account_codes.get(product.account_title, '-') }}</div>
-                </div>
+              <td class="text-center">
+                {% if product.station %}
+                  <span class="station-badge" title="{{ product.station }}">
+                    <i class="fas fa-layer-group me-1 opacity-75"></i>{{ product.station }}
+                  </span>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
               </td>
               <td class="text-center">
-                <span class="fw-bold text-info" style="font-size:0.95rem">
-                  {{ product.warehouse_qty|default(0)|decimal_format(2) }}
-                </span>
-                <small class="text-muted d-block" style="font-size:0.7rem">
-                  {{ product.warehouse_initial_qty|default(0)|decimal_format(2) }} {{ product.uom }}
-                </small>
+                <span class="stock-num stock-wh">{{ product.warehouse_qty|default(0)|decimal_format(2) }}</span>
+                <span class="stock-uom">{{ product.warehouse_initial_qty|default(0)|decimal_format(2) }} {{ product.uom }}</span>
               </td>
               <td class="text-center">
-                <span class="fw-bold text-success" style="font-size:0.95rem">
-                  {{ product.store_qty|default(0)|decimal_format(2) }}
-                </span>
-                <small class="text-muted d-block" style="font-size:0.7rem">
-                  {{ product.store_initial_qty|default(0)|decimal_format(2) }} {{ product.uom }}
-                </small>
+                <span class="stock-num stock-store">{{ product.store_qty|default(0)|decimal_format(2) }}</span>
+                <span class="stock-uom">{{ product.store_initial_qty|default(0)|decimal_format(2) }} {{ product.uom }}</span>
               </td>
               <td class="text-center">
-                <span class="fw-bold {% if qty == 0 %}text-danger{% elif is_low %}text-warning{% else %}text-success{% endif %}" style="font-size:0.95rem">
+                <span class="stock-num {% if qty == 0 %}text-danger{% elif is_low %}text-warning{% else %}text-emerald{% endif %}">
                   {{ qty|decimal_format(2) }}
                 </span>
-                <small class="text-muted d-block" style="font-size:0.7rem">{{ product.uom }}</small>
+                <span class="stock-uom">{{ product.uom }}</span>
               </td>
               <td class="text-center">
                 {% set stock_percentage = (qty / init_qty * 100) if init_qty > 0 else 0 %}
-                {% set progress_color = 'bg-danger' if qty == 0 else ('bg-warning' if is_low else 'bg-success') %}
+                {% set health_class = 'health-bar-danger' if (qty == 0 or stock_percentage <= 20) else ('health-bar-warning' if (is_low or stock_percentage <= 50) else 'health-bar-good') %}
                 {% set progress_width = 100 if qty == 0 else (stock_percentage if stock_percentage <= 100 else 100) %}
 
-                <div class="d-flex flex-column align-items-center" style="min-width:80px"
+                <div class="d-flex flex-column align-items-center mx-auto" style="max-width:90px"
                      data-bs-toggle="tooltip"
                      data-bs-placement="top"
                      title="Stock Level: {{ qty }}/{{ init_qty }} {{ product.uom }} ({{ stock_percentage|round(1) }}%)">
-                  <div class="progress w-100" style="height:6px;border-radius:3px;background:var(--border)">
-                    <div class="progress-bar {{ progress_color }}"
+                  <div class="health-track">
+                    <div class="health-bar {{ health_class }}"
                          role="progressbar"
-                         style="width:{{ progress_width }}%;border-radius:3px"
+                         style="width:{{ progress_width }}%;"
                          aria-valuenow="{{ stock_percentage|round(1) }}"
                          aria-valuemin="0"
                          aria-valuemax="100">
                     </div>
                   </div>
-                  <small class="{% if qty == 0 %}text-danger fw-semibold{% else %}text-muted{% endif %} d-block mt-1" style="font-size:0.7rem">{{ stock_percentage|round(1) }}%</small>
+                  <span class="health-text {% if qty == 0 %}text-danger{% elif is_low %}text-warning{% else %}text-muted{% endif %}">
+                    {{ stock_percentage|round(1) }}%
+                  </span>
                 </div>
               </td>
               <td>
-                {% set nearest_batch = product.warehouse_batches|sort(attribute='exp_date')|first %}
                 {% if nearest_batch %}
                   {% if nearest_batch.exp_date.year >= 2099 %}
-                    <span class="text-muted" style="font-size:0.85rem">—</span>
-                    <small class="d-block text-muted" style="font-size:0.7rem">Non-expiring</small>
+                    <span class="badge-expiry badge-expiry-neutral">— Non-expiring</span>
                   {% else %}
-                    {% if now is defined %}
-                      {% set days_until = (nearest_batch.exp_date - now.date()).days %}
+                    {% if days_until is not none and days_until <= 0 %}
+                      <span class="badge-expiry badge-expiry-expired"><i class="fas fa-circle-exclamation me-1"></i>{{ nearest_batch.exp_date.strftime('%b %d') }}</span>
+                      <small class="stock-uom text-danger fw-semibold">Expired</small>
+                    {% elif days_until is not none and days_until <= 30 %}
+                      <span class="badge-expiry badge-expiry-soon"><i class="fas fa-clock me-1"></i>{{ nearest_batch.exp_date.strftime('%b %d') }}</span>
+                      <small class="stock-uom text-warning fw-semibold">{{ days_until }}d left</small>
                     {% else %}
-                      {% set days_until = 0 %}
+                      <span class="badge-expiry badge-expiry-good"><i class="fas fa-calendar-check me-1"></i>{{ nearest_batch.exp_date.strftime('%b %d') }}</span>
+                      <small class="stock-uom">{% if days_until is not none %}{{ days_until }}d left{% endif %}</small>
                     {% endif %}
-                    <span class="fw-semibold {% if days_until <= 0 %}text-danger{% elif days_until <= 30 %}text-warning{% else %}text-success{% endif %}" style="font-size:0.85rem">
-                      {{ nearest_batch.exp_date.strftime('%b %d') }}
-                    </span>
-                    <small class="d-block text-muted" style="font-size:0.7rem">
-                      {% if days_until <= 0 %}
-                        <i class="fas fa-exclamation-circle text-danger"></i> Expired
-                      {% else %}
-                        <i class="fas fa-clock text-{% if days_until <= 30 %}warning{% else %}success{% endif %}"></i> {{ days_until }}d
-                      {% endif %}
-                    </small>
                   {% endif %}
                 {% else %}
-                  <span class="text-muted" style="font-size:0.85rem">—</span>
+                  <span class="badge-expiry badge-expiry-neutral">—</span>
                 {% endif %}
               </td>
               <td class="text-center">
-                {% set nearest_batch = product.warehouse_batches|sort(attribute='exp_date')|first %}
-                {% if nearest_batch %}
-                  {% if now is defined %}
-                    {% set days_until = (nearest_batch.exp_date - now.date()).days %}
-                  {% else %}
-                    {% set days_until = 0 %}
-                  {% endif %}
-                  {% if days_until <= 0 %}
-                    <span class="badge rounded-pill bg-danger">Expired</span>
-                  {% elif qty == 0 %}
-                    <span class="badge rounded-pill bg-danger">Out of Stock</span>
-                  {% elif is_low %}
-                    <span class="badge rounded-pill bg-warning text-dark">Low Stock</span>
-                  {% else %}
-                    <span class="badge rounded-pill bg-success">In Stock</span>
-                  {% endif %}
+                {% if nearest_batch and nearest_batch.exp_date.year < 2099 and days_until is not none and days_until <= 0 %}
+                  <span class="status-pill status-expired"><span class="chip-dot dot-expired"></span>Expired</span>
+                {% elif qty == 0 %}
+                  <span class="status-pill status-out-of-stock"><span class="chip-dot dot-danger"></span>Out of Stock</span>
+                {% elif is_low %}
+                  <span class="status-pill status-low-stock"><span class="chip-dot dot-warning"></span>Low Stock</span>
                 {% else %}
-                  {% if qty == 0 %}
-                    <span class="badge rounded-pill bg-danger">Out of Stock</span>
-                  {% elif is_low %}
-                    <span class="badge rounded-pill bg-warning text-dark">Low Stock</span>
-                  {% else %}
-                    <span class="badge rounded-pill bg-success">In Stock</span>
-                  {% endif %}
+                  <span class="status-pill status-in-stock"><span class="chip-dot dot-success"></span>In Stock</span>
                 {% endif %}
               </td>
-              <td class="text-end product-actions-cell" style="white-space:nowrap">
+              <td class="text-center product-actions-cell" style="white-space:nowrap">
                 <button type="button" class="btn btn-sm btn-outline-secondary product-actions-toggle" aria-label="Actions for {{ product.name|e }}" aria-haspopup="menu" aria-expanded="false">
                   <i class="fas fa-ellipsis" aria-hidden="true"></i>
                 </button>
                 <div class="product-actions-menu" role="menu" hidden>
                   <button type="button" class="product-action-item" role="menuitem" data-bs-toggle="modal" data-bs-target="#viewProductModal{{ product.id }}"><i class="fas fa-eye" aria-hidden="true"></i>View details</button>
+                  {% if current_user.role in ['SYS-Admin', 'Company-Admin'] %}
+                  <button type="button" class="product-action-item" role="menuitem"
+                          data-product='{{ {
+                            "id": product.id,
+                            "name": product.name,
+                            "account_title": product.account_title,
+                            "item_uom_desc": product.item_uom_desc or "",
+                            "uom_conversion": product.uom_conversion or "",
+                            "uom": product.uom,
+                            "quantity": product.quantity or 0,
+                            "low_stock_threshold": product.low_stock_threshold or 10,
+                            "reorder_level": product.reorder_level or 0,
+                            "exp_date": product.exp_date or "",
+                            "purchase_order_place": product.purchase_order_place or ""
+                          }|tojson|forceescape }}'
+                          data-edit-url="{{ url_for('products.edit_product', product_id=product.id) }}"
+                          onclick="editProduct(this)">
+                    <i class="fas fa-pen" aria-hidden="true"></i>Edit product
+                  </button>
+                  {% endif %}
                   <a class="product-action-item" role="menuitem" href="{{ url_for('products.product_history', product_id=product.id) }}" data-product-history-url="{{ url_for('products.product_history', product_id=product.id) }}"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i>View transactions</a>
                   <button type="button" class="product-action-item" role="menuitem" onclick="addBatch({{ product.id }})"><i class="fas fa-circle-plus" aria-hidden="true"></i>Add stock</button>
                   <button type="button" class="product-action-item" role="menuitem" onclick="toggleFavorite({{ product.id }})" id="favoriteBtn{{ product.id }}" data-toggle-url="{{ url_for('products.toggle_product_favorite', product_id=0) }}" title="{{ 'Remove from favorites' if product.is_favorite else 'Add to favorites' }}"><i class="{{ 'fas' if product.is_favorite else 'far' }} fa-star" aria-hidden="true"></i>{{ 'Remove from favorites' if product.is_favorite else 'Add to favorites' }}</button>
@@ -444,16 +463,23 @@
 
 
                 <div class="table-responsive product-batches-scroll">
-                  <table class="table table-sm align-middle batch-table">
+                  <table class="table table-sm align-middle batch-table" style="table-layout: fixed; width: 100%; min-width: 820px;">
+                    <colgroup>
+                      <col style="width: 8%;">
+                      <col style="width: 18%;">
+                      <col style="width: 16%;">
+                      <col style="width: 28%;">
+                      <col style="width: 16%;">
+                      <col style="width: 14%;">
+                    </colgroup>
                     <thead>
                       <tr>
-                        <th class="text-muted small text-center" style="width: 60px;">Batch</th>
-                        <th class="text-muted small">Supplier Name</th>
-                        <th class="text-muted small">Location</th>
-                        <th class="text-muted small">Quantity</th>
-                        <th class="text-muted small">Sub-barcode</th>
-                        <th class="text-muted small">Expiry</th>
-                        <th class="text-end text-muted small">Actions</th>
+                        <th class="text-muted small text-center text-nowrap">Batch</th>
+                        <th class="text-muted small text-nowrap">Supplier Name</th>
+                        <th class="text-muted small text-nowrap">Production Date</th>
+                        <th class="text-muted small text-nowrap">Quantity</th>
+                        <th class="text-muted small text-nowrap">Expiry</th>
+                        <th class="text-end text-muted small text-nowrap">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -475,8 +501,8 @@
                             <span class="badge bg-light text-dark border" style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">{{ batch.supplier_name or '-' }}</span>
                           </td>
                           <td>
-                            {% if batch.location %}
-                              <span class="badge bg-secondary"><i class="fas fa-location-dot me-1"></i>{{ batch.location }}</span>
+                            {% if batch.production_date %}
+                              <span class="text-nowrap"><i class="fas fa-industry me-1 text-muted"></i>{{ batch.production_date.strftime('%b %d, %Y') }}</span>
                             {% else %}
                               <span class="text-muted">-</span>
                             {% endif %}
@@ -496,30 +522,14 @@
                               </div>
                             </div>
                           </td>
-                          <!-- Add new column for sub-barcode -->
-                          <td class="text-muted" style="min-width: 160px;">
-                            {% if batch.sub_barcode %}
-                              <div class="d-flex align-items-center">
-                                <i class="fas fa-barcode me-2"></i>
-                                <span>{{ batch.sub_barcode }}</span>
-                              </div>
-                              <!-- Display barcode image -->
-                              <div class="mt-2">
-                                <img src="{{ url_for('static', filename='batch_barcodes/company_' + product.company_id|string + '/' + batch.sub_barcode + '.png') }}"
-                                     alt="Batch barcode" class="img-fluid" style="max-height: 40px;" 
-                                     onerror="this.onerror=null;this.parentElement.innerHTML='<small class=text-muted>Barcode not generated</small>';">
-                              </div>
-                            {% else %}
-                              <span class="text-muted">No sub-barcode</span>
-                            {% endif %}
-                          </td>
+
                           <td style="min-width: 150px;">
                             <div class="d-flex flex-column">
                               {% if batch.exp_date.year >= 2099 %}
                                 <span class="text-muted">N/A</span>
                                 <small class="text-muted">Non-expiring</small>
                               {% else %}
-                                <span class="{% if days_until <= 0 %}text-danger{% elif days_until <= 30 %}text-warning{% else %}text-success{% endif %}">{{ batch.exp_date.strftime('%Y-%m-%d') }}</span>
+                                <span class="{% if days_until <= 0 %}text-danger{% elif days_until <= 30 %}text-warning{% else %}text-success{% endif %} fw-semibold">{{ batch.exp_date.strftime('%b %d, %Y') }}</span>
                                 <small class="text-muted">
                                   {% if days_until <= 0 %}
                                     <i class="fas fa-exclamation-circle text-danger"></i> Expired
@@ -530,23 +540,24 @@
                               {% endif %}
                             </div>
                           </td>
-                          <td class="text-end" style="width: 1%; white-space: nowrap;">
+                          <td class="text-end text-nowrap">
                             {% if current_user.role == 'SYS-Admin' or current_user.role == 'Company-Admin' %}
-                            <button class="btn btn-sm btn-outline-secondary me-1"
-                                    title="Edit batch"
-                                    onclick='openEditBatch({{ product.id }}, {{ batch.id }}, {{ (batch.supplier_name or "")|tojson }}, {{ batch.exp_date.strftime("%Y-%m-%d")|tojson }}, this)'
-                                    data-location="{{ batch.location or '' }}"
-                                    data-bs-toggle="tooltip"
-                                    data-bs-placement="top">
-                              <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger"
-                                    title="Delete batch"
-                                    onclick="deleteBatch('{{ product.id }}', '{{ batch.id }}')"
-                                    data-bs-toggle="tooltip"
-                                    data-bs-placement="top">
-                              <i class="fas fa-trash-alt"></i>
-                            </button>
+                            <div class="d-inline-flex align-items-center justify-content-end gap-1">
+                              <button class="btn btn-sm btn-outline-secondary"
+                                      title="Edit batch"
+                                      onclick='openEditBatch({{ product.id }}, {{ batch.id }}, {{ (batch.supplier_name or "")|tojson }}, {{ batch.exp_date.strftime("%Y-%m-%d")|tojson }}, this)'
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="top">
+                                <i class="fas fa-edit"></i>
+                              </button>
+                              <button class="btn btn-sm btn-outline-danger"
+                                      title="Delete batch"
+                                      onclick="deleteBatch('{{ product.id }}', '{{ batch.id }}')"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="top">
+                                <i class="fas fa-trash-alt"></i>
+                              </button>
+                            </div>
                             {% endif %}
                           </td>
                         </tr>
@@ -568,6 +579,7 @@
       </div>
     </div>
   {% endfor %}
+  </div><!-- /#productsDynamicContent -->
 
   <!-- Add Product Modal -->
   <div class="modal fade add-product-modal" id="addProductModal" tabindex="-1" aria-labelledby="addProductTitle" aria-hidden="true">
@@ -582,7 +594,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close add product dialog"></button>
         </div>
         <div class="modal-body">
-          <form method="POST" action="{{ url_for('products.add_product') }}" id="addProductForm">
+          <form method="POST" action="{{ url_for('products.add_product') }}" data-add-action="{{ url_for('products.add_product') }}" id="addProductForm">
             <div class="add-product-grid">
               <section class="add-product-section add-product-details">
                 <div class="add-product-section-heading"><span>01</span><div><h6>Product details</h6><p>Name it, categorize it, and define how it’s measured.</p></div></div>
@@ -619,7 +631,7 @@
               <section class="add-product-section add-product-stock">
                 <div class="add-product-section-heading"><span>02</span><div><h6>Opening stock</h6><p>Set the initial quantity and alert levels.</p></div></div>
                 <div class="add-product-field">
-                  <label for="newProductQuantity">Initial stock quantity <span class="required-mark">*</span></label>
+                  <label for="newProductQuantity" id="newProductQuantityLabel">Initial stock quantity <span class="required-mark">*</span></label>
                   <div class="add-product-quantity"><input id="newProductQuantity" class="form-control" type="number" name="quantity" min="0.01" step="0.01" required placeholder="0.00"><span data-product-uom-preview>unit</span></div>
                   <small>Enter the available opening quantity.</small>
                 </div>
@@ -737,25 +749,6 @@
                        style="padding-left:2.75rem;border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
                 <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" style="font-size:0.85rem;pointer-events:none">
                   <i class="fas fa-building"></i>
-                </span>
-              </div>
-            </div>
-
-            <!-- Warehouse Location -->
-            <div class="mb-0">
-              <label for="batchLocation" class="form-label fw-semibold" style="font-size:0.82rem;color:var(--text-primary)">
-                <i class="fas fa-location-dot me-1" style="color:var(--accent)"></i>Location
-                <span class="text-muted fw-normal" style="font-size:0.7rem">(optional)</span>
-              </label>
-              <div class="position-relative">
-                <input type="text"
-                       class="form-control form-control-lg"
-                       id="batchLocation"
-                       name="location"
-                       placeholder="e.g. Aisle 3, Shelf B2"
-                       style="padding-left:2.75rem;border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
-                <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" style="font-size:0.85rem;pointer-events:none">
-                  <i class="fas fa-warehouse"></i>
                 </span>
               </div>
             </div>
@@ -884,10 +877,6 @@
             <div class="mb-3">
               <label class="form-label fw-semibold"><i class="fas fa-truck me-1"></i>Supplier Name</label>
               <input type="text" class="form-control" id="editBatchSupplier" name="supplier_name" placeholder="Enter supplier name (Optional)">
-            </div>
-            <div class="mb-3">
-              <label class="form-label fw-semibold"><i class="fas fa-location-dot me-1"></i>Warehouse Location</label>
-              <input type="text" class="form-control" id="editBatchLocation" name="location" placeholder="e.g. Aisle 3, Shelf B2">
             </div>
             <div class="mb-0">
               <label class="form-label fw-semibold"><i class="fas fa-calendar-alt me-1"></i>Expiry Date</label>
@@ -1372,13 +1361,11 @@ function openEditBatch(productId, batchId, supplierName, expDate, btnEl) {
 
     // Set supplier, location, and date
     const supplierInput = document.getElementById('editBatchSupplier');
-    const locationInput = document.getElementById('editBatchLocation');
     const qtyInput = document.getElementById('editBatchQuantity');
     const expInput = document.getElementById('editBatchExpDate');
     const help = document.getElementById('editBatchExpHelp');
 
     supplierInput.value = supplierName || '';
-    locationInput.value = btnEl ? btnEl.getAttribute('data-location') || '' : '';
     expInput.value = expDate || '';
     
     // Prefill current quantity from table if available
@@ -1466,14 +1453,11 @@ function submitEditBatch() {
     }
   }
 
-  const location = document.getElementById('editBatchLocation').value;
-
   const payload = {
     product_id: productId,
     batch_id: batchId,
     quantity: quantity,
     supplier_name: supplierName,
-    location: location,
     exp_date: expDate
   };
 
@@ -1592,6 +1576,58 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
+// Reuse the add-product modal for editing product details.
+function editProduct(trigger) {
+  const product = JSON.parse(trigger.dataset.product || '{}');
+  const modalElement = document.getElementById('addProductModal');
+  const form = document.getElementById('addProductForm');
+  if (!modalElement || !form || !product.id) return;
+
+  form.action = trigger.dataset.editUrl;
+  modalElement.querySelector('.add-product-kicker').innerHTML = 'INVENTORY <span>/</span> EDIT ITEM';
+  modalElement.querySelector('#addProductTitle').textContent = 'Edit product';
+  modalElement.querySelector('.add-product-subtitle').textContent = 'Update product details and alert settings. Stock quantities are managed separately.';
+  modalElement.querySelector('#saveProductBtn').innerHTML = '<i class="fas fa-check me-2" aria-hidden="true"></i>Save changes';
+  modalElement.querySelector('#newProductQuantityLabel').innerHTML = 'Current stock quantity';
+  modalElement.querySelector('#newProductQuantity').readOnly = true;
+
+  document.getElementById('newProductName').value = product.name || '';
+  document.getElementById('newProductAccount').value = product.account_title || '';
+  document.getElementById('newProductDescription').value = product.item_uom_desc || '';
+  document.getElementById('newProductUom').value = product.uom || '';
+  document.getElementById('newProductConversion').value = product.uom_conversion || '';
+  document.getElementById('newProductQuantity').value = product.quantity ?? 0;
+  document.getElementById('newProductThreshold').value = product.low_stock_threshold ?? 10;
+  document.getElementById('newProductReorder').value = product.reorder_level ?? 0;
+  document.getElementById('expDate').value = product.exp_date || '';
+  document.getElementById('newProductPoPlace').value = product.purchase_order_place || '';
+  document.getElementById('newProductSupplier').value = '';
+  document.getElementById('newProductSupplier').disabled = true;
+  document.querySelector('[data-product-uom-preview]').textContent = product.uom || 'unit';
+
+  bootstrap.Modal.getOrCreateInstance(modalElement).show();
+}
+
+function resetProductModal() {
+  const modalElement = document.getElementById('addProductModal');
+  const form = document.getElementById('addProductForm');
+  if (!modalElement || !form) return;
+
+  form.action = form.dataset.addAction;
+  form.reset();
+  modalElement.querySelector('.add-product-kicker').innerHTML = 'INVENTORY <span>/</span> NEW ITEM';
+  modalElement.querySelector('#addProductTitle').textContent = 'Add new product';
+  modalElement.querySelector('.add-product-subtitle').textContent = 'Set up the product and its starting stock in one place.';
+  modalElement.querySelector('#saveProductBtn').innerHTML = '<i class="fas fa-plus me-2" aria-hidden="true"></i>Create product';
+  modalElement.querySelector('#newProductQuantityLabel').innerHTML = 'Initial stock quantity <span class="required-mark">*</span>';
+  modalElement.querySelector('#newProductQuantity').readOnly = false;
+  modalElement.querySelector('#newProductSupplier').disabled = false;
+  const preview = modalElement.querySelector('[data-product-uom-preview]');
+  if (preview) preview.textContent = 'unit';
+}
+
+document.getElementById('addProductModal')?.addEventListener('hidden.bs.modal', resetProductModal);
+
 // Add Product Form Validation
 document.addEventListener('DOMContentLoaded', function() {
   const addProductForm = document.getElementById('addProductForm');
@@ -1628,35 +1664,92 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <script>
-// Export Inventory Excel Function
-function exportInventoryExcel() {
-  const exportBtn = document.querySelector('a[href*="export_inventory_xlsx"]');
-  const originalText = exportBtn.innerHTML;
+// Export Inventory Excel Function (Reliable Asynchronous Blob Download)
+async function exportInventoryExcel() {
+  const exportBtn = document.getElementById('exportExcelBtn') || document.querySelector('.btn-filter-excel');
+  if (!exportBtn || exportBtn.classList.contains('disabled')) return;
 
-  // Show loading state
-  exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Exporting...';
+  const originalContent = exportBtn.innerHTML;
   exportBtn.classList.add('disabled');
+  exportBtn.style.pointerEvents = 'none';
+  exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-  // Create a temporary link to trigger download without page navigation
-  const link = document.createElement('a');
-  link.href = exportBtn.href;
-  link.download = 'inventory_export.xlsx';
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  try {
+    // Collect active search & filter params so exported Excel reflects user's current view
+    const q = document.getElementById('productSearch')?.value.trim() || '';
+    const station = document.getElementById('productStationFilter')?.value.trim() || '';
+    const status = document.getElementById('productStatusFilter')?.value.trim() || '';
+    const company = document.getElementById('productCompanyFilter')?.value.trim() || '';
 
-  // Show success message
-  setTimeout(() => {
-    showNotification('Excel export completed successfully!', 'success');
-  }, 1000);
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (station) params.set('station', station);
+    if (status) params.set('status', status);
+    if (company) params.set('company_id', company);
 
-  // Reset button after a short delay
-  setTimeout(() => {
-    exportBtn.innerHTML = originalText;
+    const baseUrl = "{{ url_for('products.export_inventory_xlsx') }}";
+    const queryString = params.toString();
+    const exportUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+
+    const response = await fetch(exportUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }
+    });
+
+    if (!response.ok) {
+      let errorMsg = `Server error (${response.status})`;
+      try {
+        const errorJson = await response.json();
+        if (errorJson && errorJson.message) errorMsg = errorJson.message;
+      } catch (_) {}
+      throw new Error(errorMsg);
+    }
+
+    const blob = await response.blob();
+    if (!blob || blob.size === 0) {
+      throw new Error('Received empty file from server');
+    }
+
+    // Read suggested filename from header
+    let filename = 'inventory_export.xlsx';
+    const disposition = response.headers.get('Content-Disposition');
+    if (disposition) {
+      const match = disposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?/i);
+      if (match && match[1]) {
+        filename = decodeURIComponent(match[1]);
+      }
+    }
+
+    // Create a temporary Blob URL and trigger reliable client download
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1500);
+
+    if (typeof showNotification === 'function') {
+      showNotification('Inventory exported to Excel successfully!', 'success');
+    }
+  } catch (error) {
+    console.error('Export Excel failed:', error);
+    if (typeof showNotification === 'function') {
+      showNotification('Failed to export Excel: ' + (error.message || 'Unknown error'), 'error');
+    } else {
+      alert('Failed to export Excel: ' + error.message);
+    }
+  } finally {
+    exportBtn.innerHTML = originalContent;
     exportBtn.classList.remove('disabled');
-  }, 2000);
+    exportBtn.style.pointerEvents = '';
+  }
 }
+
 
 // Handle modal show events
 document.addEventListener('DOMContentLoaded', function() {
@@ -2427,4 +2520,348 @@ function deleteProduct(productId, productName) {
   {% endif %}
 })();
 </script>
+
+<!-- Silent Instant Filter & Live Search (No Page Reload) -->
+<script>
+(() => {
+  let debounceTimer = null;
+  let activeAbortController = null;
+
+  function updateActiveChips(status) {
+    const chips = document.querySelectorAll('.quick-chip');
+    chips.forEach(chip => {
+      const chipStatus = chip.getAttribute('data-status') || '';
+      chip.classList.toggle('active', chipStatus === status);
+    });
+  }
+
+  function getSkeletonRowHtml() {
+    return `
+      <tr class="skeleton-row" aria-hidden="true">
+        <td>
+          <div class="d-flex align-items-center gap-2 px-1">
+            <div class="skeleton-pulse" style="width:14px;height:14px;border-radius:4px;flex-shrink:0;"></div>
+            <div class="w-100 min-w-0">
+              <div class="skeleton-pulse" style="width:68%;height:14px;border-radius:6px;margin-bottom:6px;"></div>
+              <div class="skeleton-pulse" style="width:36%;height:10px;border-radius:4px;"></div>
+            </div>
+          </div>
+        </td>
+        <td class="text-center">
+          <div class="skeleton-pulse mx-auto" style="width:80px;height:22px;border-radius:8px;"></div>
+        </td>
+        <td class="text-center">
+          <div class="skeleton-pulse mx-auto" style="width:52px;height:16px;border-radius:6px;margin-bottom:5px;"></div>
+          <div class="skeleton-pulse mx-auto" style="width:36px;height:10px;border-radius:4px;"></div>
+        </td>
+        <td class="text-center">
+          <div class="skeleton-pulse mx-auto" style="width:52px;height:16px;border-radius:6px;margin-bottom:5px;"></div>
+          <div class="skeleton-pulse mx-auto" style="width:36px;height:10px;border-radius:4px;"></div>
+        </td>
+        <td class="text-center">
+          <div class="skeleton-pulse mx-auto" style="width:52px;height:16px;border-radius:6px;margin-bottom:5px;"></div>
+          <div class="skeleton-pulse mx-auto" style="width:30px;height:10px;border-radius:4px;"></div>
+        </td>
+        <td class="text-center">
+          <div class="skeleton-pulse mx-auto" style="width:75px;height:6px;border-radius:9999px;margin-bottom:6px;"></div>
+          <div class="skeleton-pulse mx-auto" style="width:30px;height:10px;border-radius:4px;"></div>
+        </td>
+        <td>
+          <div class="skeleton-pulse" style="width:68px;height:20px;border-radius:6px;margin-bottom:5px;"></div>
+          <div class="skeleton-pulse" style="width:42px;height:10px;border-radius:4px;"></div>
+        </td>
+        <td class="text-center">
+          <div class="skeleton-pulse mx-auto" style="width:72px;height:22px;border-radius:9999px;"></div>
+        </td>
+        <td class="text-end">
+          <div class="skeleton-pulse ms-auto" style="width:32px;height:32px;border-radius:8px;"></div>
+        </td>
+      </tr>
+    `;
+  }
+
+  function showSkeletonLoader(rowsCount = 6) {
+    const tbody = document.querySelector('#productTable tbody');
+    if (tbody) {
+      let html = '';
+      for (let i = 0; i < rowsCount; i++) {
+        html += getSkeletonRowHtml();
+      }
+      tbody.innerHTML = html;
+    }
+  }
+
+  function setupPinnedActions() {
+    const scroller = document.getElementById('productsTableScroll');
+    const table = document.getElementById('productTable');
+    if (!scroller || !table) return;
+
+    const actionCells = table.querySelectorAll('thead th:last-child, tbody td:last-child');
+    if (!actionCells.length) return;
+
+    const syncActions = () => {
+      const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+      const offset = Math.max(0, maxScroll - scroller.scrollLeft);
+      const isPinned = offset > 0;
+      for (let i = 0; i < actionCells.length; i++) {
+        actionCells[i].style.transform = `translateX(${-offset}px)`;
+        if (isPinned) {
+          actionCells[i].classList.add('is-pinned');
+        } else {
+          actionCells[i].classList.remove('is-pinned');
+        }
+      }
+    };
+
+    if (scroller._pinnedActionsHandler) {
+      scroller.removeEventListener('scroll', scroller._pinnedActionsHandler);
+    }
+    scroller._pinnedActionsHandler = syncActions;
+    scroller.addEventListener('scroll', syncActions, { passive: true });
+
+    if (window._pinnedActionsResizeHandler) {
+      window.removeEventListener('resize', window._pinnedActionsResizeHandler);
+    }
+    window._pinnedActionsResizeHandler = syncActions;
+    window.addEventListener('resize', syncActions);
+
+    if (window._pinnedActionsObserver) {
+      window._pinnedActionsObserver.disconnect();
+    }
+    if ('ResizeObserver' in window) {
+      window._pinnedActionsObserver = new ResizeObserver(syncActions);
+      window._pinnedActionsObserver.observe(scroller);
+      window._pinnedActionsObserver.observe(table);
+    }
+
+    requestAnimationFrame(syncActions);
+  }
+  window.setupPinnedActions = setupPinnedActions;
+
+  async function fetchProducts(url, pushState = true) {
+    if (activeAbortController) {
+      activeAbortController.abort();
+    }
+    activeAbortController = new AbortController();
+    const { signal } = activeAbortController;
+
+    const dynamicContent = document.getElementById('productsDynamicContent');
+    if (dynamicContent) dynamicContent.classList.add('is-loading');
+    showSkeletonLoader(6);
+
+    try {
+      const res = await fetch(url, {
+        signal,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'text/html'
+        }
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const html = await res.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      // 1. Replace dynamic table, pagination, and view modals
+      const newDynamic = doc.getElementById('productsDynamicContent');
+      if (newDynamic && dynamicContent) {
+        dynamicContent.innerHTML = newDynamic.innerHTML;
+        setupPinnedActions();
+      }
+
+      // 2. Update count badge in header
+      const newBadge = doc.getElementById('productsCountBadge');
+      const badge = document.getElementById('productsCountBadge');
+      if (newBadge && badge) {
+        badge.textContent = newBadge.textContent;
+      }
+
+      // 3. Update total count in quick chip
+      const newChipTotal = doc.getElementById('quickChipTotalCount');
+      const chipTotal = document.getElementById('quickChipTotalCount');
+      if (newChipTotal && chipTotal) {
+        chipTotal.textContent = newChipTotal.textContent;
+      }
+
+      // 4. Sync inputs & chips with requested URL
+      const parsedUrl = new URL(url, window.location.origin);
+      const q = parsedUrl.searchParams.get('q') || '';
+      const station = parsedUrl.searchParams.get('station') || '';
+      const status = parsedUrl.searchParams.get('status') || '';
+      const companyId = parsedUrl.searchParams.get('company_id') || '';
+
+      const searchInput = document.getElementById('productSearch');
+      if (searchInput && document.activeElement !== searchInput) {
+        searchInput.value = q;
+      }
+      const stationSelect = document.getElementById('productStationFilter');
+      if (stationSelect) stationSelect.value = station;
+      const statusSelect = document.getElementById('productStatusFilter');
+      if (statusSelect) statusSelect.value = status;
+      const companySelect = document.getElementById('productCompanyFilter');
+      if (companySelect) companySelect.value = companyId;
+
+      updateActiveChips(status);
+
+      // 5. Update Excel export link with current filters
+      const excelBtn = document.querySelector('.btn-filter-excel');
+      if (excelBtn) {
+        const exportUrl = new URL(excelBtn.href, window.location.origin);
+        if (q) exportUrl.searchParams.set('q', q); else exportUrl.searchParams.delete('q');
+        if (station) exportUrl.searchParams.set('station', station); else exportUrl.searchParams.delete('station');
+        if (status) exportUrl.searchParams.set('status', status); else exportUrl.searchParams.delete('status');
+        if (companyId) exportUrl.searchParams.set('company_id', companyId); else exportUrl.searchParams.delete('company_id');
+        excelBtn.href = exportUrl.toString();
+      }
+
+      // 6. Update browser URL history without reload
+      if (pushState && window.location.href !== url) {
+        window.history.pushState({ url }, '', url);
+      }
+
+      // 7. Re-initialize tooltips in newly added DOM
+      if (window.bootstrap && bootstrap.Tooltip) {
+        dynamicContent.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+          new bootstrap.Tooltip(el);
+        });
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      console.error('Silent filter request failed:', err);
+    } finally {
+      if (dynamicContent) dynamicContent.classList.remove('is-loading');
+    }
+  }
+
+  function triggerFilter(page = 1) {
+    const form = document.getElementById('productsFilterForm');
+    const baseUrl = form ? form.getAttribute('action') : window.location.pathname;
+    const url = new URL(baseUrl, window.location.origin);
+
+    const q = document.getElementById('productSearch')?.value.trim() || '';
+    const station = document.getElementById('productStationFilter')?.value.trim() || '';
+    const status = document.getElementById('productStatusFilter')?.value.trim() || '';
+    const company = document.getElementById('productCompanyFilter')?.value.trim() || '';
+
+    if (q) url.searchParams.set('q', q);
+    if (station) url.searchParams.set('station', station);
+    if (status) url.searchParams.set('status', status);
+    if (company) url.searchParams.set('company_id', company);
+    if (page && page > 1) url.searchParams.set('page', page);
+
+    fetchProducts(url.toString(), true);
+  }
+
+  // Event Listeners:
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('productsFilterForm');
+    const searchInput = document.getElementById('productSearch');
+    const stationSelect = document.getElementById('productStationFilter');
+    const statusSelect = document.getElementById('productStatusFilter');
+    const companySelect = document.getElementById('productCompanyFilter');
+    const resetBtn = document.querySelector('.btn-filter-reset');
+
+    // Initialize pinned sticky actions
+    setupPinnedActions();
+
+    // 1. Live Instant Search (Debounced 260ms)
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          triggerFilter(1);
+        }, 260);
+      });
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          clearTimeout(debounceTimer);
+          triggerFilter(1);
+        }
+      });
+    }
+
+    // 2. Station Dropdown Change
+    if (stationSelect) {
+      stationSelect.addEventListener('change', () => triggerFilter(1));
+    }
+
+    // 3. Status Dropdown Change
+    if (statusSelect) {
+      statusSelect.addEventListener('change', () => {
+        updateActiveChips(statusSelect.value.trim());
+        triggerFilter(1);
+      });
+    }
+
+    // 4. Company Dropdown Change
+    if (companySelect) {
+      companySelect.removeAttribute('onchange');
+      companySelect.addEventListener('change', () => triggerFilter(1));
+    }
+
+    // 5. Form Submit (e.g. clicking filter button)
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        clearTimeout(debounceTimer);
+        triggerFilter(1);
+      });
+    }
+
+    // 6. Reset Button Click
+    if (resetBtn) {
+      resetBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (searchInput) searchInput.value = '';
+        if (stationSelect) stationSelect.value = '';
+        if (statusSelect) statusSelect.value = '';
+        if (companySelect) companySelect.value = '';
+        updateActiveChips('');
+        triggerFilter(1);
+      });
+    }
+
+    // 7. Quick Status Chips Click
+    document.addEventListener('click', (e) => {
+      const chip = e.target.closest('.quick-chip');
+      if (chip) {
+        e.preventDefault();
+        const targetStatus = chip.getAttribute('data-status') || '';
+        if (statusSelect) statusSelect.value = targetStatus;
+        updateActiveChips(targetStatus);
+        triggerFilter(1);
+      }
+    });
+
+    // 8. Pagination Links Click (delegated so dynamic pagination works smoothly)
+    document.addEventListener('click', (e) => {
+      const pageLink = e.target.closest('#productsDynamicContent .page-link');
+      if (pageLink && pageLink.href && !pageLink.closest('.disabled') && !pageLink.closest('.active')) {
+        e.preventDefault();
+        fetchProducts(pageLink.href, true);
+        const scroller = document.getElementById('productsTableScroll');
+        if (scroller && window.scrollY > scroller.offsetTop + 100) {
+          scroller.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    });
+
+    // 9. Delegated modal backdrop fix for dynamic modals
+    document.addEventListener('shown.bs.modal', (e) => {
+      if (e.target && e.target.id && e.target.id.startsWith('viewProductModal')) {
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) backdrop.style.opacity = '0.5';
+      }
+    });
+
+    // 10. Browser Back / Forward Button
+    window.addEventListener('popstate', () => {
+      fetchProducts(window.location.href, false);
+    });
+  });
+})();
+</script>
+
 {% endblock %}

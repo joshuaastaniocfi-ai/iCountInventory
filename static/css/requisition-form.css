@@ -2732,4 +2732,39 @@ textarea.finput {
   color: var(--text-primary);
   outline: none;
 }
+/* Receiving verification opens as an in-page modal instead of replacing the list. */
+body.receiving-modal-open {
+  overflow: hidden;
+}
+
+#recvDetailWrap.receiving-detail-modal {
+  position: fixed;
+  z-index: 1300;
+  top: 50%;
+  left: 50%;
+  display: block !important;
+  width: min(1000px, calc(100vw - 2rem));
+  max-height: min(88vh, 820px);
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+  padding: 1.25rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--card-bg);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .28), 0 0 0 100vmax rgba(9, 9, 11, .58);
+}
+
+@media (max-width: 640px) {
+  #recvDetailWrap.receiving-detail-modal {
+    top: 0;
+    left: 0;
+    width: 100vw;
+    max-height: 100dvh;
+    min-height: 100dvh;
+    transform: none;
+    border: 0;
+    border-radius: 0;
+    padding: .85rem;
+  }
+}
 

@@ -211,9 +211,20 @@ html.dark-mode .form-select option:checked {
 
 * {
   box-sizing: border-box;
-  font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+*:not(i):not([class*="fa-"]):not([class^="fa-"]):not(.fa):not(.fas):not(.far):not(.fal):not(.fab):not(.fad) {
+  font-family: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+html, body {
+  font-family: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+button, input, select, textarea, optgroup {
+  font-family: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
@@ -236,14 +247,20 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 1100;
+  position: relative;
+  top: auto;
+  left: var(--sidebar-width);
+  width: calc(100% - var(--sidebar-width));
+  z-index: 1050;
   color: var(--header-text);
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   transition: background 0.3s var(--ease-smooth), border-color 0.3s var(--ease-smooth);
+}
+
+body:has(#sidebar.close) .header,
+html.sidebar-closed .header {
+  left: var(--sidebar-collapsed-width);
+  width: calc(100% - var(--sidebar-collapsed-width));
 }
 
 .header .btn-transparent {
@@ -501,11 +518,11 @@ body {
 /* Sidebar */
 #sidebar {
   width: var(--sidebar-width);
-  height: calc(100vh - var(--header-height));
+  height: 100vh;
   background: var(--sidebar-bg);
   transition: width 0.35s var(--ease-smooth);
   position: fixed;
-  top: var(--header-height);
+  top: 0;
   left: 0;
   z-index: 1000;
   overflow-y: auto;
@@ -787,7 +804,7 @@ body {
   border: none;
   background: transparent;
   cursor: pointer;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
   font-size: 0.6rem;
   font-weight: 600;
   transition: all 0.15s ease;
@@ -937,7 +954,7 @@ body {
   }
 
   .mobile-sidebar-title {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
     font-size: 0.85rem;
     font-weight: 700;
     color: var(--text-primary);
@@ -1062,7 +1079,7 @@ body {
 .main-content {
   margin-left: var(--sidebar-width);
   padding: 32px;
-  padding-top: calc(var(--header-height) + 32px);
+  padding-top: 1.5rem;
   min-height: calc(100vh - var(--header-height));
   transition: margin-left 0.35s var(--ease-smooth);
   display: flex;
@@ -1075,12 +1092,12 @@ body {
 
 /* Animations */
 .fade-in {
-  animation: fadeIn 0.5s var(--ease-out);
+  animation: fadeIn 0.15s ease-out;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0.85; }
+  to { opacity: 1; }
 }
 
 /* Staggered card animations */

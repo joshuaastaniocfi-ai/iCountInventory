@@ -143,52 +143,6 @@
       </div>
     </div>
 
-    <!-- Download Batch Barcodes Card -->
-    <div class="col-lg-4 col-md-6">
-      <div class="card h-100 border-0" style="border-radius:10px;background:#121523;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
-        <div class="card-body p-3" style="color:#fff">
-          <div class="text-center mb-3">
-            <i class="fas fa-barcode" style="font-size:2rem;color:#f87171"></i>
-            <h6 class="mt-2 mb-1" style="color:#fff;font-weight:600;font-size:0.9rem">Download Batch Barcodes</h6>
-            <p style="color:rgba(255,255,255,0.5);font-size:0.75rem;margin-bottom:0">Generate PDF with batch barcodes and exp dates</p>
-          </div>
-          <div class="text-center mb-3">
-            <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:0.35rem 0.75rem;display:inline-block">
-              <span style="color:rgba(255,255,255,0.6);font-size:0.75rem"><i class="fas fa-info-circle me-1" style="color:#818cf8"></i><strong style="color:rgba(255,255,255,0.8)">Ready to Download!</strong></span>
-            </div>
-          </div>
-          <div class="d-grid">
-            <a href="{{ url_for('misc.download_batch_barcodes') }}" class="btn btn-sm" style="background:#f87171;border:none;color:#fff;border-radius:6px;padding:0.5rem;font-weight:500" id="downloadBatchBarcodesBtn">
-              <i class="fas fa-file-pdf me-1"></i>Download Batch PDF
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Print Batch Barcodes Card -->
-    <div class="col-lg-4 col-md-6">
-      <div class="card h-100 border-0" style="border-radius:10px;background:#121523;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
-        <div class="card-body p-3" style="color:#fff">
-          <div class="text-center mb-3">
-            <i class="fas fa-print" style="font-size:2rem;color:#9ca3af"></i>
-            <h6 class="mt-2 mb-1" style="color:#fff;font-weight:600;font-size:0.9rem">Print Batch Barcodes</h6>
-            <p style="color:rgba(255,255,255,0.5);font-size:0.75rem;margin-bottom:0">Search by barcode and print batch barcodes</p>
-          </div>
-          <div class="text-center mb-3">
-            <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:0.35rem 0.75rem;display:inline-block">
-              <span style="color:rgba(255,255,255,0.6);font-size:0.75rem"><i class="fas fa-search me-1" style="color:#fbbf24"></i><strong style="color:rgba(255,255,255,0.8)">Search by Barcode</strong></span>
-            </div>
-          </div>
-          <div class="d-grid">
-            <a href="{{ url_for('misc.print_batch_barcodes') }}" class="btn btn-sm" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);border-radius:6px;padding:0.5rem;font-weight:500" id="printBatchBarcodesBtn">
-              <i class="fas fa-print me-1"></i>Print Batch Barcodes
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-
   </div>
 </div>
 {% endblock %}

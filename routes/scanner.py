@@ -205,22 +205,6 @@ def delete_batch():
             product.warehouse_qty = 0
         product.quantity = product.warehouse_qty + product.store_qty
 
-        # Delete the batch barcode image file before deleting the batch
-        if batch.sub_barcode:
-            try:
-                # Determine the barcode image path
-                if product.company_id:
-                    barcode_image_path = os.path.join(current_app.root_path, 'static', 'batch_barcodes', f'company_{product.company_id}', f'{batch.sub_barcode}.png')
-                else:
-                    barcode_image_path = os.path.join(current_app.root_path, 'static', 'batch_barcodes', f'{batch.sub_barcode}.png')
-                
-                # Delete the barcode image file if it exists
-                if os.path.exists(barcode_image_path):
-                    os.remove(barcode_image_path)
-            except Exception as e:
-                # Log the error but don't stop the deletion process
-                print(f"Warning: Could not delete barcode image for batch {batch.id}: {e}")
-
         # Log before deleting
         log_activity(
             action="Delete Batch",
@@ -310,8 +294,11 @@ def lookup_batch_by_sub_barcode():
         if padded_barcode != sub_barcode:
             batch = WarehouseProductBatch.query.filter_by(sub_barcode=padded_barcode).first()
     
+    if not batch and sub_barcode.isdigit():
+        batch = WarehouseProductBatch.query.get(int(sub_barcode))
+
     if not batch:
-        return jsonify({'success': False, 'message': f'Batch not found for barcode: {sub_barcode}'})
+        return jsonify({'success': False, 'message': f'Batch not found: {sub_barcode}'})
     
     # Check if user has access to this batch (based on company)
     # Allow SYS-Admin to access all batches
@@ -322,7 +309,7 @@ def lookup_batch_by_sub_barcode():
         'success': True,
         'batch': {
             'id': batch.id,
-            'sub_barcode': batch.sub_barcode,  # Return the actual barcode as stored in DB
+            'sub_barcode': batch.sub_barcode or f'Batch #{batch.id}',  # Return the actual barcode as stored in DB
             'product_id': batch.product_id,
             'product_name': batch.product.name,
             'quantity': batch.quantity,
@@ -371,7 +358,7 @@ def mobile_requisition_fulfillment(requisition_id):
             qty_needed = min(batch.quantity, remaining_qty)
             recommended_batches.append({
                 'id': batch.id,
-                'sub_barcode': batch.sub_barcode,
+                'sub_barcode': batch.sub_barcode or f'Batch #{batch.id}',
                 'exp_date': batch.exp_date.strftime('%Y-%m-%d') if batch.exp_date else None,
                 'quantity': batch.quantity,
                 'qty_needed': qty_needed,
@@ -470,8 +457,11 @@ def scan_requisition_batch():
                 if padded_barcode != scanned_sub_barcode:
                     batch = WarehouseProductBatch.query.filter_by(sub_barcode=padded_barcode).first()
         
+        if not batch and str(scanned_sub_barcode).isdigit():
+            batch = WarehouseProductBatch.query.get(int(scanned_sub_barcode))
+
         if not batch:
-            return jsonify({'status': 'error', 'message': f'Batch not found for barcode: {scanned_sub_barcode}'}), 404
+            return jsonify({'status': 'error', 'message': f'Batch not found: {scanned_sub_barcode}'}), 404
         
         # Verify the batch belongs to the correct product
         if batch.product_id != product_id:
@@ -530,7 +520,7 @@ def scan_requisition_batch():
             'recommended_quantity': recommended_quantity,
             'batch_info': {
                 'id': batch.id,
-                'sub_barcode': batch.sub_barcode,
+                'sub_barcode': batch.sub_barcode or f'Batch #{batch.id}',
                 'exp_date': batch.exp_date.strftime('%Y-%m-%d') if batch.exp_date else None,
                 'quantity': batch.quantity,
                 'product_name': batch.product.name,
@@ -620,6 +610,9 @@ def fulfill_requisition_item():
                 stripped_barcode = sub_barcode[:12] if len(sub_barcode) > 12 else sub_barcode
                 batch = WarehouseProductBatch.query.filter_by(sub_barcode=stripped_barcode).first()
             
+            if not batch and str(sub_barcode).isdigit():
+                batch = WarehouseProductBatch.query.get(int(sub_barcode))
+
             if not batch:
                 return jsonify({'status': 'error', 'message': f'Batch {sub_barcode} not found'}), 404
             
@@ -670,7 +663,7 @@ def fulfill_requisition_item():
             
             validated_batches.append({
                 'batch_id': batch.id,
-                'sub_barcode': batch.sub_barcode,
+                'sub_barcode': batch.sub_barcode or f'Batch #{batch.id}',
                 'exp_date': batch.exp_date.strftime('%Y-%m-%d') if batch.exp_date else None,
                 'scanned_quantity': quantity,
                 'required_quantity': batch_required_quantity,  # Added required quantity for clarity
@@ -799,9 +792,8 @@ def api_update_requisition_status():
             return jsonify({'success': True, 'message': 'Requisition validated successfully'})
         
         elif action == 'approve':
-            # Check if requisition is validated
-            if not requisition.validated:
-                return jsonify({'success': False, 'message': 'Requisition must be validated before approval'}), 400
+            # Mark requisition as validated
+            requisition.validated = True
             
             # Handle stock deduction only if currently pending
             if requisition.status == 'Pending':
@@ -962,10 +954,8 @@ def mobile_pending_requisitions():
 @login_required
 @admin_required  # Only SYS-Admin, WH-Admin, and Company-Admin can access
 def mobile_batch_sub_audit():
-    """Mobile-optimized batch sub barcode audit route"""
-    response = make_response(render_template('warehouse/mobile_batch_sub_audit.html', current_user=current_user))
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    return response
+    """Redirect deprecated batch sub barcode audit to standard mobile audit"""
+    return redirect(url_for('scanner.mobile_audit'))
 
 
 @scanner.route('/batch-audit-pending')

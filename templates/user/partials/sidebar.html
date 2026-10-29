@@ -1,8 +1,14 @@
 <!-- ═══════ SIDEBAR ═══════ -->
 <nav class="sidebar" id="sidebar">
+  <div class="sidebar-brand-wrapper" style="padding:14px 16px 12px;display:flex;align-items:center;border-bottom:1px solid rgba(0,0,0,0.06);margin-bottom:8px;">
+    <a href="{{ url_for('main.dashboard') }}" class="sidebar-brand" style="display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;width:100%;">
+      <span class="brand-icon" style="width:36px;height:36px;border-radius:10px;background:#18181b;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 2px 6px rgba(0,0,0,0.12);"><i class="fas fa-cube"></i></span>
+      <span class="sidebar-brand-text" style="font-size:1.22rem;font-weight:700;letter-spacing:-0.025em;color:var(--text-primary, #0f172a);">iCount</span>
+    </a>
+  </div>
   <ul style="list-style:none;padding:0;margin:0">
     <li><span class="sb-section">Main</span></li>
-    <li class="sb-item"><button class="sb-link" id="navRequisition" onclick="showPanel('requisition')"><span class="ico"><i class="fas fa-file-alt"></i></span>New Requisition</button></li>
+    <li class="sb-item"><button class="sb-link" id="navRequisition" onclick="showPanel('requisition')"><span class="ico"><i class="fas fa-file-alt"></i></span>New Requisition{% if pending_requisition_count is defined and pending_requisition_count > 0 %}<span class="sb-badge" style="background:var(--tone-amber, #f59e0b);color:#fff">{{ pending_requisition_count }}</span>{% endif %}</button></li>
     <li class="sb-item"><button class="sb-link {% if not initial_panel or initial_panel == 'storeinv' %}act{% endif %}" id="navStoreinv" onclick="showPanel('storeinv')"><span class="ico"><i class="fas fa-clipboard-check"></i></span>Store Inventory</button></li>
     <li class="sb-item"><a href="{{ url_for('store.production') }}" class="sb-link" id="navProduction"><span class="ico" style="color:var(--tone-green)"><i class="fas fa-kitchen-set"></i></span><span>Production</span><span class="prod-badge-pill" style="margin-left:auto">NEW</span></a></li>
     <li class="sb-item"><button class="sb-link" id="navInventory" onclick="showPanel('inventory')"><span class="ico"><i class="fas fa-boxes"></i></span>Warehouse Stock</button></li>

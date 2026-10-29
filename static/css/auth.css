@@ -19,7 +19,7 @@
 * { box-sizing: border-box; }
 
 body.auth-page {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
     margin: 0;
     padding: 0;
     min-height: 100vh;
@@ -1873,4 +1873,11 @@ body.auth-system #signupForm .btn-auth {
         animation-duration: .01ms !important;
         animation-iteration-count: 1 !important;
     }
+}
+
+.auth-page input,
+.auth-page select,
+.auth-page textarea,
+.auth-page button {
+    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
 }

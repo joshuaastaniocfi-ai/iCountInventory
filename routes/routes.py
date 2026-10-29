@@ -46,9 +46,10 @@ def api_list_receiving():
             (Requisition.destination_company_id == current_user.company_id)
         )
 
-    # Show approved, dispatched, delivered, partial, and discrepancy requisitions
+    # Receiving is enabled only after warehouse dispatch. Delivered and
+    # discrepancy records remain visible for history/follow-up.
     valid_statuses = [
-        'approved', 'Approved', 'Dispatched', 'dispatched',
+        'Dispatched', 'dispatched',
         'Delivered', 'delivered', 'Partial', 'partial',
         'Discrepancy - Pending Approval', 'Variance - Pending Approval'
     ]
@@ -56,7 +57,7 @@ def api_list_receiving():
 
     if status_filter != 'all':
         if status_filter == 'pending':
-            query = query.filter(Requisition.status.in_(['approved', 'Approved', 'Dispatched', 'dispatched', 'Discrepancy - Pending Approval', 'Variance - Pending Approval']))
+            query = query.filter(Requisition.status.in_(['Dispatched', 'dispatched']))
         elif status_filter == 'delivered':
             query = query.filter(Requisition.status.in_(['Delivered', 'delivered']))
         elif status_filter == 'partial':
@@ -155,6 +156,9 @@ def api_receiving_detail(req_id):
     if not _company_guard(req):
         return jsonify({'success': False, 'message': 'Access denied.'}), 403
 
+    if req.status not in ('Dispatched', 'dispatched', 'Partial', 'partial', 'Delivered', 'delivered', 'Discrepancy - Pending Approval', 'Variance - Pending Approval'):
+        return jsonify({'success': False, 'message': 'Receiving is available only after the requisition is dispatched.'}), 400
+
     ref = f"REQ-{req.date_created.year}-{req.id:04d}"
 
     items = []
@@ -241,6 +245,9 @@ def api_confirm_receiving(req_id):
     req = Requisition.query.get_or_404(req_id)
     if not _company_guard(req):
         return jsonify({'success': False, 'message': 'Access denied.'}), 403
+
+    if req.status not in ('Dispatched', 'dispatched', 'Partial', 'partial'):
+        return jsonify({'success': False, 'message': 'This requisition cannot be received until it is dispatched.'}), 400
 
     if req.status.lower() == 'delivered':
         return jsonify({'success': False, 'message': 'Already fully received.'}), 400

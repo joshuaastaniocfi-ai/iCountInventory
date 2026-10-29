@@ -87,6 +87,10 @@ class Product(db.Model):
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
 
     @property
+    def batches(self):
+        return self.warehouse_batches
+
+    @property
     def is_low_stock(self):
         # Check if reorder_level is set and use it for low stock determination
         if self.reorder_level > 0:
@@ -105,11 +109,11 @@ class WarehouseProductBatch(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
     quantity = db.Column(db.Float, nullable=False, default=0.0)
     int_quantity = db.Column(db.Float, nullable=False, default=0.0)
+    production_date = db.Column(db.Date, nullable=True)
     exp_date = db.Column(db.Date, nullable=False)
     supplier_name = db.Column(db.String(100), nullable=True)
-    location = db.Column(db.String(100), nullable=True)  # Warehouse bin/shelf location
     added_on = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
-    sub_barcode = db.Column(db.String(30), unique=True, nullable=False)
+    sub_barcode = db.Column(db.String(30), nullable=True)
     product = db.relationship('Product', backref='warehouse_batches')
 
 
@@ -122,9 +126,8 @@ class StoreProductBatch(db.Model):
     int_quantity = db.Column(db.Float, nullable=False, default=0.0)
     exp_date = db.Column(db.Date, nullable=False)
     supplier_name = db.Column(db.String(100), nullable=True)
-    location = db.Column(db.String(100), nullable=True)
     added_on = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
-    sub_barcode = db.Column(db.String(30), unique=True, nullable=False)
+    sub_barcode = db.Column(db.String(30), nullable=True)
     product = db.relationship('Product', backref='store_batches')
 
 

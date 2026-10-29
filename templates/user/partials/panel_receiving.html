@@ -22,7 +22,7 @@
   </div>
 
   <!-- Metric Stat Row (Identical structure to Store Inventory) -->
-  <div class="stat-row" style="margin-bottom:0.75rem">
+  <div class="stat-row" style="display:none;margin-bottom:0.75rem">
     <div class="stat-chip act" id="chipRecvPending" onclick="quickFilterRecvStatus('pending')" style="cursor:pointer" title="View ready to receive">
       <div class="sc-lbl">Ready to Receive</div>
       <div class="sc-val" style="color:var(--amber)" id="recvStatPending">—</div>
@@ -47,13 +47,6 @@
       <i class="fas fa-search fsi"></i>
       <input class="finput" id="recvSearch" placeholder="Search reference code, branch, or items…" oninput="filterRecvList(this.value)">
     </div>
-    <select class="fselect" id="recvStatusFilter" onchange="syncFilterFromSelect(this.value)">
-      <option value="pending" selected>Ready to Receive</option>
-      <option value="delivered">Delivered</option>
-      <option value="discrepancy">Discrepancy</option>
-      <option value="partial">Partial</option>
-      <option value="all">All Shipments</option>
-    </select>
   </div>
 
   <!-- Main Shipments Table (Identical structure to Store Inventory Table) -->

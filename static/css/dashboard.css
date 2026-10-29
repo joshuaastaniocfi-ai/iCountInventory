@@ -16,7 +16,7 @@ body:has(.dashboard-page) *:not(i):not([class^="fa-"]):not([class*=" fa-"]):not(
   --dash-text: #f4f4f5;
   --dash-muted: #a1a1aa;
   --dash-subtle: #71717a;
-  padding: clamp(1rem, 2.2vw, 2rem) !important;
+  padding: 1rem clamp(1rem, 2.2vw, 2rem) clamp(1rem, 2.2vw, 2rem) !important;
   min-height: calc(100vh - var(--header-height));
   background: var(--dash-bg);
   color: var(--dash-text);
@@ -24,7 +24,7 @@ body:has(.dashboard-page) *:not(i):not([class^="fa-"]):not([class*=" fa-"]):not(
 
 .main-content:has(.dashboard-page) {
   background: #09090b;
-  padding: calc(var(--header-height) + 4px) 0 0 !important;
+  padding: 0 !important;
 }
 
 .dashboard-page,
@@ -86,7 +86,7 @@ body:has(.dashboard-page) *:not(i):not([class^="fa-"]):not([class*=" fa-"]):not(
   font-size: .78rem;
 }
 
-.dashboard-page .stock-status-item + .stock-status-item {
+.dashboard-page .stock-status-item+.stock-status-item {
   border-left: 1px solid var(--dash-line);
 }
 
@@ -279,8 +279,13 @@ body:has(.dashboard-page) *:not(i):not([class^="fa-"]):not([class*=" fa-"]):not(
   font-size: .95rem;
 }
 
-.dashboard-page .stat-card.low-stock .stat-icon { color: #fbbf24; }
-.dashboard-page .stat-card.expiring .stat-icon { color: #f87171; }
+.dashboard-page .stat-card.low-stock .stat-icon {
+  color: #fbbf24;
+}
+
+.dashboard-page .stat-card.expiring .stat-icon {
+  color: #f87171;
+}
 
 .dashboard-page .stat-title {
   margin-bottom: .4rem;
@@ -410,17 +415,30 @@ body:has(.dashboard-page) *:not(i):not([class^="fa-"]):not([class*=" fa-"]):not(
   color: var(--dash-muted) !important;
 }
 
-.dashboard-page .dashboard-card .text-success { color: #a3a3a3 !important; }
-.dashboard-page .dashboard-card .text-warning { color: #fbbf24 !important; }
-.dashboard-page .dashboard-card .text-danger { color: #f87171 !important; }
+.dashboard-page .dashboard-card .text-success {
+  color: #a3a3a3 !important;
+}
+
+.dashboard-page .dashboard-card .text-warning {
+  color: #fbbf24 !important;
+}
+
+.dashboard-page .dashboard-card .text-danger {
+  color: #f87171 !important;
+}
 
 .dashboard-page .dashboard-card .bg-warning {
   background: #fbbf24 !important;
   color: #18181b !important;
 }
 
-.dashboard-page .dashboard-card .bg-danger { background: #b91c1c !important; }
-.dashboard-page .dashboard-card .bg-success { background: #3f3f46 !important; }
+.dashboard-page .dashboard-card .bg-danger {
+  background: #b91c1c !important;
+}
+
+.dashboard-page .dashboard-card .bg-success {
+  background: #3f3f46 !important;
+}
 
 .dashboard-page .chart-actions .btn-primary,
 .dashboard-page .btn-group .btn-warning {
@@ -525,7 +543,7 @@ body:has(.dashboard-page) *:not(i):not([class^="fa-"]):not([class*=" fa-"]):not(
     padding: .7rem .2rem;
   }
 
-  .dashboard-page .stock-status-item + .stock-status-item {
+  .dashboard-page .stock-status-item+.stock-status-item {
     border-top: 1px solid var(--dash-line);
     border-left: 0;
   }
@@ -535,7 +553,7 @@ body:has(.dashboard-page) *:not(i):not([class^="fa-"]):not([class*=" fa-"]):not(
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .dashboard-page .actions > *,
+  .dashboard-page .actions>*,
   .dashboard-page .actions form,
   .dashboard-page .actions .btn {
     width: 100%;
@@ -546,7 +564,7 @@ body:has(.dashboard-page) *:not(i):not([class^="fa-"]):not([class*=" fa-"]):not(
     padding: .8rem;
   }
 
-  .dashboard-page [data-widget="stats"] > .col-md-3 {
+  .dashboard-page [data-widget="stats"]>.col-md-3 {
     flex: 0 0 50%;
     width: 50%;
   }
@@ -591,6 +609,7 @@ body:has(.dashboard-page) *:not(i):not([class^="fa-"]):not([class*=" fa-"]):not(
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .dashboard-page *,
   .dashboard-page *::before,
   .dashboard-page *::after {
@@ -604,7 +623,7 @@ body:has(.dashboard-page) *:not(i):not([class^="fa-"]):not([class*=" fa-"]):not(
 html:not(.dark-mode) .dashboard-page {
   --dash-bg: #f4f4f5;
   --dash-surface: #ffffff;
-  --dash-surface-raised: #fafafa;
+  --dash-surface-raised: #ffffff;
   --dash-line: #e4e4e7;
   --dash-line-strong: #d4d4d8;
   --dash-text: #18181b;
@@ -616,7 +635,6 @@ html:not(.dark-mode) .dashboard-page {
 
 html:not(.dark-mode) .main-content:has(.dashboard-page) {
   background: #f4f4f5;
-  padding: calc(var(--header-height) + 4px) 0 0 !important;
 }
 
 html:not(.dark-mode) .dashboard-page .dashboard-header,
@@ -630,8 +648,8 @@ html:not(.dark-mode) .dashboard-page .stat-card {
 html:not(.dark-mode) .dashboard-page .dashboard-header:hover,
 html:not(.dark-mode) .dashboard-page .dashboard-card:hover,
 html:not(.dark-mode) .dashboard-page .stat-card:hover {
-  border-color: var(--dash-line-strong);
-  background: var(--dash-surface-raised);
+  border-color: var(--dash-line);
+  background: #ffffff;
   box-shadow: none;
 }
 
@@ -693,8 +711,70 @@ html:not(.dark-mode) .dashboard-page .stat-card.no-stocks .stat-icon {
   color: #3f3f46;
 }
 
-html:not(.dark-mode) .dashboard-page .stat-card.low-stock .stat-icon { color: #a16207; }
-html:not(.dark-mode) .dashboard-page .stat-card.expiring .stat-icon { color: #b91c1c; }
+html:not(.dark-mode) .dashboard-page .stat-card.low-stock .stat-icon {
+  color: #a16207;
+}
+
+html:not(.dark-mode) .dashboard-page .stat-card.expiring .stat-icon {
+  color: #b91c1c;
+}
+
+/* KPI accents only: keep the dashboard monochrome, use color to classify the number. */
+html:not(.dark-mode) .dashboard-page .stat-card.products {
+  border-left: 3px solid #6366f1;
+}
+
+html:not(.dark-mode) .dashboard-page .stat-card.products .stat-icon {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+html:not(.dark-mode) .dashboard-page .stat-card.products .stat-value {
+  color: #4338ca;
+}
+
+html:not(.dark-mode) .dashboard-page .stat-card.low-stock {
+  border-left: 3px solid #d97706;
+}
+
+html:not(.dark-mode) .dashboard-page .stat-card.low-stock .stat-icon {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #b45309;
+}
+
+html:not(.dark-mode) .dashboard-page .stat-card.low-stock .stat-value {
+  color: #b45309;
+}
+
+html:not(.dark-mode) .dashboard-page .stat-card.expiring {
+  border-left: 3px solid #e11d48;
+}
+
+html:not(.dark-mode) .dashboard-page .stat-card.expiring .stat-icon {
+  border-color: #fecdd3;
+  background: #fff1f2;
+  color: #be123c;
+}
+
+html:not(.dark-mode) .dashboard-page .stat-card.expiring .stat-value {
+  color: #be123c;
+}
+
+html:not(.dark-mode) .dashboard-page .stat-card.no-stocks {
+  border-left: 3px solid #dc2626;
+}
+
+html:not(.dark-mode) .dashboard-page .stat-card.no-stocks .stat-icon {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+html:not(.dark-mode) .dashboard-page .stat-card.no-stocks .stat-value {
+  color: #b91c1c;
+}
 
 html:not(.dark-mode) .dashboard-page .dashboard-card .table thead th {
   border-color: var(--dash-line);
@@ -706,7 +786,7 @@ html:not(.dark-mode) .dashboard-page .dashboard-card .table {
   --bs-table-bg: transparent;
   --bs-table-color: #3f3f46;
   --bs-table-hover-color: #18181b;
-  --bs-table-hover-bg: #f4f4f5;
+  --bs-table-hover-bg: transparent;
 }
 
 html:not(.dark-mode) .dashboard-page .dashboard-card .table tbody td {
@@ -714,15 +794,15 @@ html:not(.dark-mode) .dashboard-page .dashboard-card .table tbody td {
 }
 
 html:not(.dark-mode) .dashboard-page .dashboard-card .table tbody tr:hover td {
-  background: #f4f4f5;
+  background: transparent;
 }
 
 html:not(.dark-mode) .dashboard-page .dashboard-card .table tbody tr:nth-child(even) td {
-  background: #f4f4f5;
+  background: #fafafa;
 }
 
 html:not(.dark-mode) .dashboard-page .dashboard-card .table tbody tr:nth-child(even):hover td {
-  background: #e4e4e7;
+  background: #fafafa;
 }
 
 html:not(.dark-mode) .dashboard-page .dashboard-card .badge.bg-dark,
@@ -763,8 +843,8 @@ html:not(.dark-mode) .dashboard-page .actions .btn:hover,
 html:not(.dark-mode) .dashboard-page .chart-actions .btn:hover,
 html:not(.dark-mode) .dashboard-page .dashboard-card .btn:hover,
 html:not(.dark-mode) .dashboard-page .btn-group .btn:hover {
-  border-color: #a1a1aa;
-  background: #e4e4e7;
+  border-color: #71717a;
+  background: #ffffff;
   color: #18181b;
 }
 
@@ -856,7 +936,7 @@ html:not(.dark-mode) .dashboard-page .btn-group .btn-warning:hover {
   border-bottom: 0;
 }
 
-#widgetModal .widget-item > div:first-child {
+#widgetModal .widget-item>div:first-child {
   min-width: 0;
 }
 
@@ -910,16 +990,16 @@ html:not(.dark-mode) .dashboard-page .btn-group .btn-warning:hover {
   transition: transform .16s ease;
 }
 
-#widgetModal .widget-toggle input:checked + .slider {
+#widgetModal .widget-toggle input:checked+.slider {
   border-color: #18181b;
   background: #18181b;
 }
 
-#widgetModal .widget-toggle input:checked + .slider::before {
+#widgetModal .widget-toggle input:checked+.slider::before {
   transform: translateX(18px);
 }
 
-#widgetModal .widget-toggle input:focus-visible + .slider {
+#widgetModal .widget-toggle input:focus-visible+.slider {
   outline: 2px solid #71717a;
   outline-offset: 3px;
 }
@@ -991,12 +1071,12 @@ html.dark-mode #widgetModal .widget-toggle .slider {
   background: #27272a;
 }
 
-html.dark-mode #widgetModal .widget-toggle input:checked + .slider {
+html.dark-mode #widgetModal .widget-toggle input:checked+.slider {
   border-color: #e4e4e7;
   background: #e4e4e7;
 }
 
-html.dark-mode #widgetModal .widget-toggle input:checked + .slider::before {
+html.dark-mode #widgetModal .widget-toggle input:checked+.slider::before {
   background: #18181b;
 }
 

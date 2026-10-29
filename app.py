@@ -1,4 +1,5 @@
 # Standard library imports
+import os
 from urllib.parse import quote_plus
 
 # Third-party imports
@@ -32,7 +33,7 @@ from routes.oth import oth_bp
 
 # Import user loader function
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 
 def create_app(config_name='default'):
@@ -365,6 +366,20 @@ def create_app(config_name='default'):
                 db.session.rollback()
                 app.logger.warning(f"Warehouse batch migration note: {e}")
 
+            # Track the date a warehouse batch was produced. Existing batches remain valid
+            # with a null production date and continue using their stored expiration date.
+            try:
+                for batch_table in ('warehouse_product_batch', 'product_batch'):
+                    if batch_table in inspect(db.engine).get_table_names():
+                        batch_columns = [c['name'] for c in inspect(db.engine).get_columns(batch_table)]
+                        if 'production_date' not in batch_columns:
+                            db.session.execute(text(f'ALTER TABLE {batch_table} ADD COLUMN production_date DATE'))
+                            db.session.commit()
+                            app.logger.info(f"Added production_date column to {batch_table}")
+            except Exception as e:
+                db.session.rollback()
+                app.logger.warning(f"Warehouse batch production date migration note: {e}")
+
             # Ensure store_product_batch table exists (empty by default)
             try:
                 inspector3 = inspect(db.engine)
@@ -676,4 +691,11 @@ app = create_app()
 # Routes are already imported above for blueprint registration
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Development-only HTTPS using a temporary self-signed certificate.
+    app.run(
+        debug=True,
+        use_reloader=False,
+        host='0.0.0.0',
+        port=5000,
+        ssl_context='adhoc',
+    )
