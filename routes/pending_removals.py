@@ -41,7 +41,7 @@ def pending_removals_list():
 
 @pending_removals.route('/request-removal', methods=['POST'])
 @login_required
-@edit_delete_required
+@admin_required
 def request_removal():
     """Create a new pending removal request"""
     try:
@@ -81,7 +81,7 @@ def request_removal():
             quantity=quantity,
             reason=reason,
             remarks=remarks,
-            company_id=current_user.company_id  # Assign company_id from current user
+            company_id=product.company_id or current_user.company_id
         )
 
         db.session.add(pending_removal)
@@ -92,7 +92,7 @@ def request_removal():
             action="Request Stock Removal",
             details=(f"<strong>{quantity} {product.uom}</strong> removal requested for "
                     f"<strong>{product.name}</strong><br>"
-                    f"Batch #{batch.id} (Exp: {batch.exp_date.strftime('%Y-%m-%d')})<br>"
+                    f"Batch #{batch.id} (Exp: {batch.exp_date.strftime('%Y-%m-%d') if batch.exp_date else 'No Expiry'})<br>"
                     f"Reason: {reason}<br>"
                     f"Remarks: {remarks}<br>"
                     f"Status: <span class='badge bg-warning'>Pending Approval</span>")
@@ -178,8 +178,8 @@ def approve_removal(removal_id):
             action="Approve Stock Removal",
             details=(f"<strong>{pending_removal.quantity} {product.uom}</strong> removal approved for "
                     f"<strong>{product.name}</strong><br>"
-                    f"Requested by: {requester.full_name}<br>"
-                    f"Batch #{batch.id} (Exp: {batch.exp_date.strftime('%Y-%m-%d')})<br>"
+                    f"Requested by: {requester.full_name if requester else 'Unknown'}<br>"
+                    f"Batch #{batch.id} (Exp: {batch.exp_date.strftime('%Y-%m-%d') if batch.exp_date else 'No Expiry'})<br>"
                     f"Reason: {pending_removal.reason}<br>"
                     f"Review remarks: {review_remarks}<br>"
                     f"Remaining in batch: {batch.quantity} {product.uom}<br>"
@@ -236,7 +236,7 @@ def reject_removal(removal_id):
         log_activity(
             action="Reject Stock Removal",
             details=(f"Removal request rejected for <strong>{pending_removal.product.name}</strong><br>"
-                    f"Requested by: {pending_removal.requester.full_name}<br>"
+                    f"Requested by: {pending_removal.requester.full_name if pending_removal.requester else 'Unknown'}<br>"
                     f"Quantity: {pending_removal.quantity} {pending_removal.product.uom}<br>"
                     f"Reason: {pending_removal.reason}<br>"
                     f"Rejection remarks: {review_remarks}")

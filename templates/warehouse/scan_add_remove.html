@@ -1472,6 +1472,7 @@
       if (addIdEl) addIdEl.value = data.id;
       const removeIdEl = document.getElementById('remove_product_id');
       if (removeIdEl) removeIdEl.value = data.id;
+      selectedBatchId = null;
 
       // Fetch batches
       fetchProductBatches(data.id);
@@ -1836,6 +1837,12 @@
           renderBatchItems(allBatches, batchesModalList, true, data.product_uom);
           if (availableBatches.length) {
             renderBatchItems(availableBatches, batchList, false, data.product_uom);
+            if (availableBatches.length === 1) {
+              const firstBatchItem = batchList.querySelector('.batch-item');
+              if (firstBatchItem) {
+                selectBatch(availableBatches[0].id, firstBatchItem);
+              }
+            }
           } else {
             batchList.innerHTML = '<div class="batch-state"><i class="fas fa-box-open"></i><span>All batches are currently out of stock.</span></div>';
           }
@@ -1897,10 +1904,12 @@
     function selectBatch(batchId, element) {
       console.log('selectBatch called with batchId:', batchId);
       selectedBatchId = batchId;
-      document.querySelectorAll('.batch-item').forEach(item => {
+      document.querySelectorAll('#batchList .batch-item').forEach(item => {
         item.classList.remove('selected');
       });
-      element.classList.add('selected');
+      if (element) {
+        element.classList.add('selected');
+      }
     }
 
     function handleAddStock(event) {
@@ -1973,13 +1982,32 @@
     function handleRemoveStock(event) {
       console.log('handleRemoveStock called');
       event.preventDefault();
-      if (!selectedBatchId) {
-        alert('Please select a batch first');
+      const form = event.target;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
+
+      const formData = new FormData(form);
+      const productId = (currentProduct && currentProduct.id) || formData.get('product_id') || document.getElementById('remove_product_id')?.value;
+      if (!productId) {
+        showFlashAlert('Please scan or select a product first.', 'error');
+        if (submitBtn) submitBtn.disabled = false;
         return;
       }
 
-      const form = event.target;
-      const formData = new FormData(form);
+      // If user hasn't selected a batch, auto-select if only one available
+      if (!selectedBatchId) {
+        const batchButtons = document.querySelectorAll('#batchList .batch-item');
+        if (batchButtons.length === 1) {
+          batchButtons[0].click();
+        }
+      }
+
+      if (!selectedBatchId) {
+        showFlashAlert('Please select a batch from the list first.', 'warning');
+        if (submitBtn) submitBtn.disabled = false;
+        return;
+      }
+
       const quantity = formData.get('quantity');
       const reason = formData.get('reason');
       const remarks = formData.get('remarks', '');
@@ -1989,9 +2017,11 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({
-          product_id: currentProduct.id,
+          product_id: Number(productId),
           batch_id: selectedBatchId,
           quantity: parseFloat(quantity),
           reason: reason,
@@ -1999,26 +2029,41 @@
         })
       })
       .then(async res => {
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(errText || "Unknown error");
+        const raw = await res.text();
+        let data = null;
+        try { data = JSON.parse(raw); } catch (e) {}
+
+        if (!res.ok || res.redirected) {
+          let msg = (data && data.message) || 'Could not request removal.';
+          if (res.redirected) {
+            msg = 'Session expired or access denied. Please log in again.';
+          } else if (!data && res.status) {
+            msg = `Server error (${res.status}).`;
+          }
+          throw new Error(msg);
         }
-        return res.json();
+
+        if (!data || data.status !== 'success') {
+          throw new Error((data && data.message) || 'Unknown error requesting removal.');
+        }
+        return data;
       })
       .then(data => {
-        if (data.status === 'success') {
-          showFlashAlert('✅ ' + data.message, 'success');
-          bootstrap.Modal.getInstance(document.getElementById('removeStockModal')).hide();
-          form.reset();
-          // Hide status message on successful operation
-          document.getElementById('status').classList.add('d-none');
-          window.location.reload();
-        } else {
-          throw new Error(data.message || "Unknown error");
-        }
+        showFlashAlert('✅ ' + (data.message || 'Removal request submitted successfully.'), 'success');
+        const modalEl = document.getElementById('removeStockModal');
+        const inst = (typeof bootstrap !== 'undefined' && bootstrap.Modal) ? (bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl)) : null;
+        if (inst) inst.hide();
+        form.reset();
+        selectedBatchId = null;
+        document.getElementById('status')?.classList.add('d-none');
+        setTimeout(() => window.location.reload(), 700);
       })
       .catch(err => {
-        showStatus(`❌ Error requesting removal: ${err.message}`, 'danger');
+        console.error('Remove stock failed:', err);
+        showFlashAlert(`❌ ${err.message}`, 'error');
+      })
+      .finally(() => {
+        if (submitBtn) submitBtn.disabled = false;
       });
     }
 

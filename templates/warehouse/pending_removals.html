@@ -60,7 +60,7 @@
                 <td>
                   <div>
                     <span class="fw-semibold">#{{ removal.batch.id }}</span>
-                    <small class="text-muted d-block">Exp: {{ removal.batch.exp_date.strftime('%Y-%m-%d') }}</small>
+                    <small class="text-muted d-block">Exp: {{ removal.batch.exp_date.strftime('%Y-%m-%d') if removal.batch.exp_date else 'No Expiry' }}</small>
                     <small class="text-muted d-block">Available: {{ removal.batch.quantity }} {{ removal.product.uom }}</small>
                   </div>
                 </td>
@@ -72,7 +72,7 @@
                 </td>
                 <td>
                   <div>
-                    <span class="fw-semibold">{{ removal.requester.full_name }}</span>
+                    <span class="fw-semibold">{{ removal.requester.full_name if removal.requester else 'Unknown' }}</span>
                     <small class="text-muted d-block">{{ removal.requester.role }}</small>
                   </div>
                 </td>
