@@ -334,11 +334,11 @@ function updateStoreStats(){
   if(lowEl) lowEl.textContent = low;
 }
 
-function filterStoreInv(q){
-  const lq = q.toLowerCase();
+function filterStoreInv(q = ''){
+  const lq = String(q ?? '').trim().toLocaleLowerCase();
   let total = 0, inStock = 0, low = 0, out = 0;
   products.forEach(p => {
-    const visible = p.name.toLowerCase().includes(lq);
+    const visible = String(p.name || '').toLocaleLowerCase().includes(lq);
     const row = document.getElementById(`storeInvRow_${p.id}`);
     if(row) row.style.display = visible ? '' : 'none';
     if(!visible) return;
@@ -357,6 +357,15 @@ function filterStoreInv(q){
   const lowEl = document.getElementById('siStatLow');
   if(lowEl) lowEl.textContent = low;
 }
+
+// Bind directly as well as through the inline handler so the search keeps working
+// when the panel is switched dynamically or restored from a deep link.
+document.addEventListener('DOMContentLoaded', () => {
+  const storeSearch = document.getElementById('storeInvSearch');
+  if(storeSearch) {
+    storeSearch.addEventListener('input', (event) => filterStoreInv(event.target.value));
+  }
+});
 
 function getLatestStoreInv(productId){
   const p = products.find(x => x.id === productId);

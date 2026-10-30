@@ -2653,6 +2653,16 @@ textarea.finput {
   color: var(--bg);
   border-color: var(--text-primary);
 }
+.btn-production-hdr.is-disabled,
+.btn-production-hdr.is-disabled:hover {
+  opacity: .55;
+  color: var(--text-muted) !important;
+  background: var(--surface);
+  border-color: var(--border-strong);
+  cursor: not-allowed;
+  transform: none;
+  pointer-events: none;
+}
 .prod-badge-pill {
   display: inline-block;
   font-size: 0.68rem;

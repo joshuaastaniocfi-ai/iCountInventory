@@ -8,7 +8,7 @@
       <div class="ph-sub">Current store stock levels</div>
     </div>
     <div class="ph-actions" style="display:flex;gap:0.55rem;align-items:center;flex-wrap:wrap">
-      <a href="{{ url_for('store.production') }}" class="btn-production-hdr" id="btnStoreProduction">
+      <a href="#" class="btn-production-hdr is-disabled" id="btnStoreProduction" aria-disabled="true" tabindex="-1" title="Store Production is temporarily unavailable" onclick="return false;">
         <i class="fas fa-kitchen-set"></i>
         <span>Store Production</span>
         <span class="prod-badge-pill">21 Recipes</span>
