@@ -1473,6 +1473,7 @@
       const nextYear = new Date();
       nextYear.setFullYear(nextYear.getFullYear() + 1);
       syncExpDateToDropdowns(nextYear);
+      onExpDropdownChanged();
 
       // Restore saved picker style preferences
       try {
@@ -1510,13 +1511,15 @@
           else {
             prodFlatpickr.setDate(new Date(), false);
             syncProdDateToDropdowns(new Date());
-            updateAddStockExpiryPreview();
+            const nextYear = new Date();
+            nextYear.setFullYear(nextYear.getFullYear() + 1);
+            syncExpDateToDropdowns(nextYear);
+            onExpDropdownChanged();
           }
         });
 
         addStockModalEl.addEventListener('hidden.bs.modal', function() {
           toggleProductionMode(false);
-          toggleDryGoodsMode(false);
           const shelfLifeInput = document.getElementById('add_shelf_life');
           if (shelfLifeInput && shelfLifeInput.value === '0') {
             shelfLifeInput.value = '3';
