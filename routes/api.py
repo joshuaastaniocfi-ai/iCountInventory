@@ -1477,28 +1477,50 @@ def delete_audit_batch(batch_label):
 @api.route('/search_products')
 @login_required
 def search_products():
-    """Search products by name for optional product lookup"""
+    """Search products by name, barcode, station, or account title for scanner product lookup"""
     q = request.args.get('q', '').strip()
-    if not q:
-        return jsonify({'success': False, 'message': 'Search query required'}), 400
+    limit = min(request.args.get('limit', 25, type=int), 50)
 
     try:
         if current_user.role == 'SYS-Admin' and current_user.company_id is None:
-            products = Product.query.filter(Product.name.ilike(f'%{q}%')).order_by(Product.name).limit(10).all()
+            base_query = Product.query
         else:
-            products = Product.query.filter(
-                Product.name.ilike(f'%{q}%'),
-                Product.company_id == current_user.company_id
-            ).order_by(Product.name).limit(10).all()
+            allowed_comp_ids = current_user.all_company_ids if hasattr(current_user, 'all_company_ids') and current_user.all_company_ids else ([current_user.company_id] if current_user.company_id else [])
+            if allowed_comp_ids:
+                base_query = Product.query.filter(Product.company_id.in_(allowed_comp_ids))
+            else:
+                base_query = Product.query
+
+        if q:
+            search_pattern = f'%{q}%'
+            query = base_query.filter(
+                or_(
+                    Product.name.ilike(search_pattern),
+                    Product.barcode.ilike(search_pattern),
+                    Product.station.ilike(search_pattern),
+                    Product.account_title.ilike(search_pattern)
+                )
+            )
+        else:
+            query = base_query
+
+        products = query.order_by(Product.name.asc()).limit(limit).all()
 
         return jsonify({
             'success': True,
+            'count': len(products),
             'products': [{
                 'id': p.id,
                 'name': p.name,
-                'uom': p.uom,
-                'barcode': p.barcode,
-                'stock': p.quantity
+                'uom': p.uom or 'unit',
+                'barcode': p.barcode or '',
+                'station': p.station or '',
+                'stock': p.quantity or 0,
+                'warehouse_qty': getattr(p, 'warehouse_qty', 0) or 0,
+                'store_qty': getattr(p, 'store_qty', 0) or 0,
+                'reorder_level': getattr(p, 'reorder_level', 0) or 0,
+                'is_low_stock': getattr(p, 'is_low_stock', False),
+                'company_name': (p.company.franchise_name or p.company.name) if p.company else ''
             } for p in products]
         })
     except Exception as e:

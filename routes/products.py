@@ -990,11 +990,18 @@ def lookup_product(barcode):
     if current_user.role == 'SYS-Admin':
         product = Product.query.filter(Product.barcode.in_(barcode_candidates)).first()
     else:
-        # For other users, check only in their company
-        product = Product.query.filter(
-            Product.barcode.in_(barcode_candidates),
-            Product.company_id == current_user.company_id
-        ).first()
+        # For other users, check in their assigned companies
+        allowed_comp_ids = current_user.all_company_ids if hasattr(current_user, 'all_company_ids') and current_user.all_company_ids else ([current_user.company_id] if current_user.company_id else [])
+        if allowed_comp_ids:
+            product = Product.query.filter(
+                Product.barcode.in_(barcode_candidates),
+                Product.company_id.in_(allowed_comp_ids)
+            ).first()
+        else:
+            product = Product.query.filter(
+                Product.barcode.in_(barcode_candidates),
+                Product.company_id == current_user.company_id
+            ).first()
 
     if product:
         return jsonify({

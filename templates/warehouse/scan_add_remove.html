@@ -475,17 +475,23 @@
           </div>
         </div>
 
-        <!-- Manual Barcode / SKU Entry -->
+        <!-- Manual Barcode / SKU Entry & Product Lookup -->
         <div class="manual-input-card mt-3 shadow-sm">
           <form id="manualBarcodeForm" onsubmit="handleManualBarcode(event)" class="d-flex gap-2">
             <div class="input-group">
-              <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-keyboard"></i></span>
+              <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-barcode"></i></span>
               <input type="text" id="manualBarcodeInput" class="form-control border-start-0" placeholder="Type or scan barcode..." autocomplete="off">
             </div>
             <button type="submit" class="btn btn-primary px-3 fw-bold" style="white-space: nowrap;">
               <i class="fas fa-search me-1"></i> Look Up
             </button>
           </form>
+          <div class="mt-2 pt-2 border-top border-secondary-subtle">
+            <button type="button" class="btn btn-sm btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2 py-2" onclick="openProductLookupModal()">
+              <i class="fas fa-boxes-stacked"></i>
+              <span class="fw-semibold">Search Product Directory</span>
+            </button>
+          </div>
         </div>
 
           </div>
@@ -662,6 +668,67 @@
             <button type="submit" class="btn btn-danger"><i class="fas fa-minus me-1"></i>Remove stock</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Lookup Modal -->
+  <div class="modal fade" id="productLookupModal" tabindex="-1" aria-labelledby="productLookupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width: 580px;">
+      <div class="modal-content" style="border-radius: 16px; border: 1px solid var(--scanner-border); background: var(--scanner-surface); color: var(--scanner-text);">
+        <div class="modal-header border-bottom border-secondary-subtle py-3 px-3 px-sm-4">
+          <div class="d-flex align-items-center gap-2">
+            <div class="rounded-circle d-flex align-items-center justify-content-center bg-primary-subtle text-primary" style="width: 36px; height: 36px;">
+              <i class="fas fa-boxes-stacked"></i>
+            </div>
+            <div>
+              <h6 class="modal-title fw-bold mb-0" id="productLookupModalLabel">Product Directory &amp; Lookup</h6>
+              <small class="text-muted" style="font-size: 0.75rem;">Select any item to load directly into the scanner workbench</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-3 p-sm-4">
+          <!-- Search input -->
+          <div class="input-group mb-3">
+            <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="fas fa-search"></i></span>
+            <input type="text" id="productLookupInput" class="form-control border-start-0" placeholder="Type product name, barcode, or station..." autocomplete="off">
+            <button class="btn btn-outline-secondary" type="button" id="clearLookupSearchBtn" onclick="clearLookupSearch()" style="display: none;">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+
+          <!-- Station filter chips -->
+          <div class="d-flex align-items-center gap-1 flex-wrap mb-3" id="lookupStationFilters">
+            <button type="button" class="badge rounded-pill border btn-sm lookup-filter-btn active" onclick="filterLookupByStation('')">All</button>
+            <button type="button" class="badge rounded-pill border btn-sm lookup-filter-btn" onclick="filterLookupByStation('Sandwich')">Sandwich</button>
+            <button type="button" class="badge rounded-pill border btn-sm lookup-filter-btn" onclick="filterLookupByStation('Counter')">Counter</button>
+            <button type="button" class="badge rounded-pill border btn-sm lookup-filter-btn" onclick="filterLookupByStation('Soda')">Soda</button>
+            <button type="button" class="badge rounded-pill border btn-sm lookup-filter-btn" onclick="filterLookupByStation('Maincourse')">Maincourse</button>
+            <button type="button" class="badge rounded-pill border btn-sm lookup-filter-btn" onclick="filterLookupByStation('Coffee Bar')">Coffee Bar</button>
+            <button type="button" class="badge rounded-pill border btn-sm lookup-filter-btn" onclick="filterLookupByStation('Warehouse')">Warehouse</button>
+          </div>
+
+          <!-- Loading state -->
+          <div id="productLookupLoading" class="text-center py-4 d-none">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <div class="small text-muted mt-2">Searching products...</div>
+          </div>
+
+          <!-- Results container -->
+          <div id="productLookupResults" class="d-flex flex-column gap-2" style="max-height: 380px; overflow-y: auto;">
+          </div>
+
+          <!-- Empty state -->
+          <div id="productLookupEmpty" class="text-center py-4 text-muted d-none">
+            <i class="fas fa-box-open fa-2x mb-2 opacity-50"></i>
+            <p class="mb-0 small">No matching products found.</p>
+          </div>
+        </div>
+        <div class="modal-footer border-top border-secondary-subtle py-2 px-3 justify-content-between">
+          <span class="text-muted small" id="lookupResultCount">0 products</span>
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1068,21 +1135,10 @@
       console.log('Looking up product barcode:', barcode);
       if (!barcode) return;
 
-      // Update manual input field so user sees what was scanned
       const manualInput = document.getElementById('manualBarcodeInput');
       if (manualInput) manualInput.value = barcode;
 
-      // Stop camera temporarily to free screen and CPU
-      if (html5QrCode && isCameraRunning) {
-        try {
-          await html5QrCode.stop();
-          isCameraRunning = false;
-        } catch (e) {
-          console.warn('Error pausing scanner:', e);
-        }
-      }
-      document.getElementById('reader').classList.add('d-none');
-      document.getElementById('status').classList.add('d-none');
+      showStatus(`Looking up barcode: ${barcode}...`, 'info');
 
       try {
         const res = await fetch(`/products/lookup_product/${encodeURIComponent(barcode)}`);
@@ -1092,7 +1148,18 @@
         if (data.success) {
           currentProduct = data;
 
-          // Once a product is found, give the result panel the full focus.
+          // Once product is found, stop camera and switch view to product workbench
+          if (html5QrCode && isCameraRunning) {
+            try {
+              await html5QrCode.stop();
+              isCameraRunning = false;
+            } catch (e) {
+              console.warn('Error pausing scanner:', e);
+            }
+          }
+          document.getElementById('reader').classList.add('d-none');
+          document.getElementById('status').classList.add('d-none');
+
           const scannerSurface = document.querySelector('.scanner-container');
           if (scannerSurface) scannerSurface.classList.add('is-hidden');
 
@@ -1133,22 +1200,242 @@
           // Fetch batches
           fetchProductBatches(data.id);
           showFlashAlert(`Found: ${data.name}`, 'success');
+          isProcessingScan = false;
         } else {
-          // Error or mismatch
+          // Product not found: DO NOT disable camera! Keep scanning view active
           const msg = data.message || `Product not found for barcode: ${barcode}`;
-          showFlashAlert(msg, 'error');
+          showFlashAlert(msg, 'warning');
           showStatus(msg, 'warning');
-          document.getElementById('retryBtn').classList.remove('d-none');
+
+          // Ensure reader elements are visible
+          document.getElementById('reader').classList.remove('d-none');
+          document.getElementById('status').classList.remove('d-none');
+          const scannerSurface = document.querySelector('.scanner-container');
+          if (scannerSurface) scannerSurface.classList.remove('is-hidden');
+
+          // If camera had somehow stopped, restart it
+          if (!isCameraRunning) {
+            initializeCamera();
+          }
+
+          // Flash scan frame border red for quick visual alert
+          const frame = document.querySelector('.scanner-frame');
+          if (frame) {
+            frame.style.borderColor = '#ef4444';
+            frame.style.boxShadow = '0 0 16px rgba(239, 68, 68, 0.7)';
+            setTimeout(() => {
+              frame.style.borderColor = '';
+              frame.style.boxShadow = '';
+            }, 1200);
+          }
+
+          // Reset processing lock after brief cooldown so user can scan next barcode
+          setTimeout(() => {
+            isProcessingScan = false;
+            showStatus('Scanner ready. Position next barcode in view.', 'info');
+          }, 1400);
         }
       } catch (err) {
         console.error('Lookup fetch error:', err);
         showFlashAlert('Failed to connect to server for lookup', 'error');
         showStatus('Error looking up product', 'danger');
-        document.getElementById('retryBtn').classList.remove('d-none');
-      } finally {
-        isProcessingScan = false;
+
+        // Restore camera view
+        document.getElementById('reader').classList.remove('d-none');
+        document.getElementById('status').classList.remove('d-none');
+        const scannerSurface = document.querySelector('.scanner-container');
+        if (scannerSurface) scannerSurface.classList.remove('is-hidden');
+        if (!isCameraRunning) {
+          initializeCamera();
+        }
+        setTimeout(() => {
+          isProcessingScan = false;
+        }, 1400);
       }
     }
+
+    // ── Product Directory Lookup Logic ──
+    let lookupDebounceTimer = null;
+    let currentLookupStationFilter = '';
+    let cachedLookupProducts = [];
+
+    function openProductLookupModal() {
+      const modalEl = document.getElementById('productLookupModal');
+      if (!modalEl) return;
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+
+      setTimeout(() => {
+        const input = document.getElementById('productLookupInput');
+        if (input) {
+          input.focus();
+          fetchLookupProducts(input.value.trim());
+        }
+      }, 300);
+    }
+    window.openProductLookupModal = openProductLookupModal;
+
+    async function fetchLookupProducts(query) {
+      const loading = document.getElementById('productLookupLoading');
+      const resultsContainer = document.getElementById('productLookupResults');
+      const emptyEl = document.getElementById('productLookupEmpty');
+      const countEl = document.getElementById('lookupResultCount');
+      const clearBtn = document.getElementById('clearLookupSearchBtn');
+
+      if (clearBtn) clearBtn.style.display = query ? 'block' : 'none';
+      if (loading) loading.classList.remove('d-none');
+      if (emptyEl) emptyEl.classList.add('d-none');
+
+      try {
+        const res = await fetch(`/api/search_products?q=${encodeURIComponent(query)}&limit=30`);
+        const data = await res.json();
+
+        if (loading) loading.classList.add('d-none');
+
+        if (data.success && data.products && data.products.length > 0) {
+          cachedLookupProducts = data.products;
+          renderLookupResults();
+        } else {
+          cachedLookupProducts = [];
+          if (resultsContainer) resultsContainer.innerHTML = '';
+          if (emptyEl) emptyEl.classList.remove('d-none');
+          if (countEl) countEl.textContent = '0 products';
+        }
+      } catch (err) {
+        if (loading) loading.classList.add('d-none');
+        if (emptyEl) emptyEl.classList.remove('d-none');
+        console.error('Error fetching lookup products:', err);
+      }
+    }
+
+    function renderLookupResults() {
+      const resultsContainer = document.getElementById('productLookupResults');
+      const emptyEl = document.getElementById('productLookupEmpty');
+      const countEl = document.getElementById('lookupResultCount');
+
+      let filtered = cachedLookupProducts;
+      if (currentLookupStationFilter) {
+        filtered = filtered.filter(p => (p.station || '').toLowerCase() === currentLookupStationFilter.toLowerCase());
+      }
+
+      if (countEl) countEl.textContent = `${filtered.length} product${filtered.length === 1 ? '' : 's'}`;
+
+      if (filtered.length === 0) {
+        if (resultsContainer) resultsContainer.innerHTML = '';
+        if (emptyEl) emptyEl.classList.remove('d-none');
+        return;
+      }
+
+      if (emptyEl) emptyEl.classList.add('d-none');
+      if (resultsContainer) {
+        resultsContainer.innerHTML = filtered.map(p => `
+          <div class="lookup-item-card p-2 p-sm-3 rounded-3 border d-flex align-items-center justify-content-between gap-2" 
+               style="cursor: pointer; background: var(--scanner-soft); border-color: var(--scanner-border) !important; transition: all 0.15s ease;"
+               onclick="selectLookupProduct('${escapeAttr(p.barcode || '')}', ${p.id})"
+               onmouseenter="this.style.borderColor='var(--scanner-accent)'"
+               onmouseleave="this.style.borderColor='var(--scanner-border)'">
+            <div class="min-w-0 flex-grow-1">
+              <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                <span class="fw-bold text-truncate" style="font-size: 0.92rem; color: var(--scanner-text);">${escapeHtml(p.name)}</span>
+                ${p.station ? `<span class="badge bg-primary-subtle text-primary border" style="font-size: 0.7rem;">${escapeHtml(p.station)}</span>` : ''}
+              </div>
+              <div class="d-flex align-items-center gap-2 flex-wrap" style="font-size: 0.75rem; color: var(--scanner-muted);">
+                <span class="badge bg-dark-subtle text-secondary border font-monospace" style="font-size: 0.7rem;">
+                  <i class="fas fa-barcode me-1"></i>${escapeHtml(p.barcode || 'No barcode')}
+                </span>
+                <span>Whse: <strong>${p.warehouse_qty ?? p.stock ?? 0}</strong> ${escapeHtml(p.uom || '')}</span>
+                <span>&bull; Store: <strong>${p.store_qty ?? 0}</strong></span>
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1 flex-shrink-0" style="font-size: 0.8rem;">
+              Select <i class="fas fa-chevron-right ms-1"></i>
+            </button>
+          </div>
+        `).join('');
+      }
+    }
+
+    function filterLookupByStation(station) {
+      currentLookupStationFilter = station;
+      document.querySelectorAll('.lookup-filter-btn').forEach(btn => {
+        const text = btn.textContent.trim();
+        if ((!station && text === 'All') || (station && text.toLowerCase() === station.toLowerCase())) {
+          btn.classList.add('active', 'bg-primary', 'text-white');
+          btn.classList.remove('bg-secondary-subtle', 'text-secondary');
+        } else {
+          btn.classList.remove('active', 'bg-primary', 'text-white');
+          btn.classList.add('bg-secondary-subtle', 'text-secondary');
+        }
+      });
+      renderLookupResults();
+    }
+    window.filterLookupByStation = filterLookupByStation;
+
+    function clearLookupSearch() {
+      const input = document.getElementById('productLookupInput');
+      if (input) {
+        input.value = '';
+        input.focus();
+        fetchLookupProducts('');
+      }
+    }
+    window.clearLookupSearch = clearLookupSearch;
+
+    function selectLookupProduct(barcode, productId) {
+      const modalEl = document.getElementById('productLookupModal');
+      if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+      }
+      if (barcode) {
+        const input = document.getElementById('manualBarcodeInput');
+        if (input) input.value = barcode;
+        lookupProductByBarcode(barcode);
+      } else {
+        showFlashAlert('Selected product has no barcode. Loading directly...', 'info');
+        fetchProductByIdDirectly(productId);
+      }
+    }
+    window.selectLookupProduct = selectLookupProduct;
+
+    async function fetchProductByIdDirectly(productId) {
+      if (!productId) return;
+      try {
+        const res = await fetch(`/api/search_products?q=&limit=50`);
+        const data = await res.json();
+        if (data.success) {
+          const item = data.products.find(p => p.id === productId);
+          if (item && item.barcode) {
+            lookupProductByBarcode(item.barcode);
+            return;
+          }
+        }
+      } catch (e) {}
+      showFlashAlert('Please assign a barcode to this product in Product Management.', 'warning');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function escapeAttr(str) {
+      if (!str) return '';
+      return String(str).replace(/'/g, "\'");
+    }
+
+    // Attach search input event listener
+    document.addEventListener('DOMContentLoaded', function() {
+      const lookupInput = document.getElementById('productLookupInput');
+      if (lookupInput) {
+        lookupInput.addEventListener('input', function() {
+          clearTimeout(lookupDebounceTimer);
+          const q = this.value.trim();
+          lookupDebounceTimer = setTimeout(() => {
+            fetchLookupProducts(q);
+          }, 250);
+        });
+      }
+    });
 
     // Reset view to scan next product
     function retryScan() {

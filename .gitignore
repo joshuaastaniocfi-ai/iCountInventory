@@ -1,2 +1,4 @@
 instance/*backup*.db
 *.pyc
+*.pyo
+__pycache__/
