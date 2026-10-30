@@ -761,14 +761,6 @@
                   </div>
                 </div>
 
-                <!-- Quick Date / Year Jump Chips -->
-                <div class="quick-date-chips d-flex flex-wrap gap-1 mt-1 pt-1 align-items-center">
-                  <span class="text-muted small me-1" style="font-size: 0.65rem;"><i class="fas fa-bolt text-warning me-1"></i>Quick:</span>
-                  <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="quickSetProductionDate(0)" style="font-size: 0.68rem;">Today</button>
-                  <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="quickSetProductionDate(-1)" style="font-size: 0.68rem;">Yesterday</button>
-                  <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="quickShiftProductionMonths(-1)" style="font-size: 0.68rem;">-1 Mo</button>
-                  <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="quickShiftProductionYears(-1)" style="font-size: 0.68rem;">-1 Yr</button>
-                </div>
                 <div class="form-text">Date this batch was produced <span class="text-primary fw-semibold">(MM/DD/YYYY)</span></div>
               </div>
               <div class="col-12" id="add_shelf_life_container">
@@ -788,73 +780,7 @@
                 </div>
               </div>
 
-              <!-- Expiration date is the default input; Production mode keeps it alongside production details. -->
-              <div class="col-12" id="add_direct_expiry_container">
-                <div class="p-3 rounded-3 border border-warning-subtle" style="background: rgba(245, 158, 11, 0.08);">
-                  <div class="d-flex align-items-center justify-content-between mb-2">
-                    <div>
-                      <label class="form-label mb-0 fw-bold text-warning-emphasis" for="add_direct_exp_date">
-                        <i class="fas fa-box me-1"></i> Expiration date
-                      </label>
-                      <span class="badge bg-warning-subtle text-warning border border-warning-subtle ms-1" style="font-size: 0.65rem;">MM/DD/YYYY</span>
-                    </div>
-                  </div>
-
-                  <!-- Format 1: Calendar Input (Flatpickr) -->
-                  <div id="exp_calendar_view" class="d-none">
-                    <div class="input-group">
-                      <span class="input-group-text bg-white border-end-0 border-warning text-warning"><i class="fas fa-calendar-check"></i></span>
-                      <input type="text" name="direct_exp_date" id="add_direct_exp_date" class="form-control border-warning fw-semibold border-start-0" placeholder="MM/DD/YYYY" autocomplete="off">
-                    </div>
-                  </div>
-
-                  <!-- Format 2: 3-Dropdown Selectors (Month / Day / Year) -->
-                  <div id="exp_dropdowns_view" class="date-dropdowns">
-                    <div class="row g-1">
-                      <div class="col-5">
-                        <select id="exp_sel_month" class="form-select form-select-sm border-warning" onchange="onExpDropdownChanged()" aria-label="Expiry Month">
-                          <option value="01">01 - Jan</option>
-                          <option value="02">02 - Feb</option>
-                          <option value="03">03 - Mar</option>
-                          <option value="04">04 - Apr</option>
-                          <option value="05">05 - May</option>
-                          <option value="06">06 - Jun</option>
-                          <option value="07">07 - Jul</option>
-                          <option value="08">08 - Aug</option>
-                          <option value="09">09 - Sep</option>
-                          <option value="10">10 - Oct</option>
-                          <option value="11">11 - Nov</option>
-                          <option value="12">12 - Dec</option>
-                        </select>
-                      </div>
-                      <div class="col-3">
-                        <select id="exp_sel_day" class="form-select form-select-sm border-warning" onchange="onExpDropdownChanged()" aria-label="Expiry Day">
-                        </select>
-                      </div>
-                      <div class="col-4">
-                        <select id="exp_sel_year" class="form-select form-select-sm border-warning" onchange="onExpDropdownChanged()" aria-label="Expiry Year">
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Quick Year & Expiry Jump Chips -->
-                  <div class="quick-date-chips d-flex flex-wrap gap-1 mt-2 align-items-center">
-                    <span class="text-warning-emphasis small me-1 fw-semibold" style="font-size: 0.65rem;"><i class="fas fa-bolt text-warning me-1"></i>Quick Expiry:</span>
-                    <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2 fw-semibold" onclick="quickShiftExpiryMonths(6)" style="font-size: 0.68rem;">+6 Mos</button>
-                    <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2 fw-semibold" onclick="quickShiftExpiryYears(1)" style="font-size: 0.68rem;">+1 Yr</button>
-                    <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2 fw-semibold" onclick="quickShiftExpiryYears(2)" style="font-size: 0.68rem;">+2 Yrs</button>
-                    <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2 fw-semibold" onclick="quickShiftExpiryYears(3)" style="font-size: 0.68rem;">+3 Yrs</button>
-                    <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2 fw-semibold" onclick="quickShiftExpiryYears(5)" style="font-size: 0.68rem;">+5 Yrs</button>
-                  </div>
-
-                  <div class="form-text text-warning-emphasis small mt-1">
-                    <i class="fas fa-info-circle me-1"></i> Select the printed expiration date <span class="fw-bold">(MM/DD/YYYY)</span>.
-                  </div>
-                </div>
-              </div>
-
-              <input type="hidden" name="is_dry_goods" id="is_dry_goods" value="true">
+              <input type="hidden" name="is_dry_goods" id="is_dry_goods" value="false">
               <div class="col-12">
               <label class="form-label">
                 <i class="fas fa-truck me-1"></i>Supplier Name
@@ -1335,41 +1261,15 @@
       const formatTag = document.getElementById('add_expiry_format_tag');
       const shelfLifeInput = document.getElementById('add_shelf_life');
       const prodContainer = document.getElementById('add_production_date_container');
-      const badge = document.getElementById('dry_goods_badge');
 
-      // Check if "No Expiry" option is selected
-      if (shelfLifeInput && shelfLifeInput.value === '0') {
-        if (isDryGoodsMode) {
-          toggleDryGoodsMode(false);
-        }
-        if (prodContainer) prodContainer.classList.add('opacity-50');
-        if (preview) {
-          preview.innerHTML = '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0" style="font-size: 0.8rem;"><i class="fas fa-infinity me-1"></i>No Expiry</span>';
-        }
+      if (!isProductionMode) {
+        if (preview) preview.textContent = 'Enable Production to calculate';
         if (formatTag) formatTag.classList.add('d-none');
-        if (badge) {
-          badge.className = 'badge bg-success-subtle text-success ms-auto small';
-          badge.innerHTML = '<i class="fas fa-ban me-1"></i>No Expiration';
-        }
         return;
       }
 
       if (formatTag) formatTag.classList.remove('d-none');
-
-      // Restore fields if returning from No Expiry
       if (prodContainer && !isDryGoodsMode) prodContainer.classList.remove('opacity-50');
-      if (badge && !isDryGoodsMode) {
-        badge.className = 'badge bg-secondary-subtle text-secondary ms-auto small';
-        badge.innerHTML = '<i class="fas fa-hand-pointer me-1"></i>Double-click for Dry Goods';
-      }
-
-      if (isDryGoodsMode) {
-        const directDateVal = getDirectExpDateValue();
-        if (preview) {
-          preview.textContent = directDateVal ? formatDateMMDDYYYY(directDateVal) : 'Select date below';
-        }
-        return;
-      }
 
       const prodDate = getProductionDateObj();
       if (!prodDate || !shelfLifeInput || !preview) {
@@ -1378,7 +1278,9 @@
       }
 
       const expiryDate = addCalendarMonths(prodDate, Number(shelfLifeInput.value || 3));
-      preview.textContent = formatDateMMDDYYYY(expiryDate);
+      preview.innerHTML = shelfLifeInput.value === '0'
+        ? '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0" style="font-size: 0.8rem;"><i class="fas fa-infinity me-1"></i>No Expiry</span>'
+        : formatDateMMDDYYYY(expiryDate);
     }
 
     function toggleDryGoodsMode(forceState) {
@@ -2537,17 +2439,9 @@
       const isNoExpiry = (shelfLifeSelect && shelfLifeSelect.value === '0');
 
       if (!isProductionMode) {
-        // Default scanner flow: quantity + direct expiration date.
-        formData.set('is_dry_goods', 'true');
-        const directDateVal = getDirectExpDateValue();
-        if (directDateVal) {
-          formData.set('direct_exp_date', directDateVal);
-          formData.set('exp_date', directDateVal);
-        } else {
-          showFlashAlert('Please select the expiration date.', 'warning');
-          if (submitBtn) submitBtn.disabled = false;
-          return;
-        }
+        showFlashAlert('Turn on Production to calculate the expiration date.', 'warning');
+        if (submitBtn) submitBtn.disabled = false;
+        return;
       } else if (isNoExpiry) {
         formData.set('shelf_life_months', '0');
         formData.set('no_expiry', 'true');
