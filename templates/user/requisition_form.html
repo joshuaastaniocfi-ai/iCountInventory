@@ -433,12 +433,36 @@ function pickStation(el){
   document.querySelectorAll('#stationGrid .uom-card').forEach(c => c.classList.remove('sel'));
   el.classList.add('sel');
   selectedStation = el.dataset.station;
-  document.getElementById('stationInput').value = selectedStation;
+  document.getElementById('stationInput').value = isUncategorizedStation() ? 'Uncategorized' : selectedStation;
   document.getElementById('toItemsBtn').disabled = false;
 }
 
 /* ── Quantities Store for Requisition Flow ── */
 let reqQuantities = {};
+const UNCATEGORIZED_STATION = '__uncategorized';
+
+function isUncategorizedStation(){
+  return selectedStation === UNCATEGORIZED_STATION;
+}
+
+function productMatchesSelectedStation(product){
+  if(isUncategorizedStation()) return !String(product.station || '').trim();
+  return !selectedStation || String(product.station || '').trim() === selectedStation;
+}
+
+function configureStationOptions(){
+  const stationCards = document.querySelectorAll('#stationGrid .station-card');
+  const hasUncategorized = products.some(p => !String(p.station || '').trim());
+  stationCards.forEach(card => {
+    const station = card.dataset.station;
+    const visible = station === UNCATEGORIZED_STATION
+      ? hasUncategorized
+      : products.some(p => String(p.station || '').trim() === station);
+    card.classList.toggle('d-none', !visible);
+    card.disabled = !visible;
+  });
+}
+
 try {
   const savedData = JSON.parse(localStorage.getItem('reqStoreData') || '{}');
   for(const pid in savedData){
@@ -450,32 +474,13 @@ try {
 } catch(e) { reqQuantities = {}; }
 
 function resetRequisitionWizard(){
-  const hasDetectedStations = products.some(p => String(p.station || '').trim() !== '');
+  configureStationOptions();
   const panel = document.getElementById('panel-requisition');
   const stationPane = document.getElementById('wp0');
 
-  // If product data has no station values, skip station selection and open items.
-  if(hasDetectedStations){
-    setStep(0);
-    if(panel) panel.classList.remove('no-station-detected');
-    if(stationPane) stationPane.classList.remove('d-none');
-    document.querySelector('#ws0 .wstep-circle').textContent = '1';
-    document.querySelector('#ws0 .wstep-label').textContent = 'Station';
-    document.querySelector('#ws1 .wstep-circle').textContent = '2';
-    document.querySelector('#ws1 .wstep-label').textContent = 'Items';
-    document.querySelector('#ws2 .wstep-circle').textContent = '3';
-    document.querySelector('#ws2 .wstep-label').textContent = 'Review';
-  } else {
-    setStep(1);
-    if(panel) panel.classList.add('no-station-detected');
-    if(stationPane) stationPane.classList.add('d-none');
-    document.querySelector('#ws1 .wstep-circle').textContent = '1';
-    document.querySelector('#ws1 .wstep-label').textContent = 'Items';
-    document.querySelector('#ws2 .wstep-circle').textContent = '2';
-    document.querySelector('#ws2 .wstep-label').textContent = 'Review';
-    const subtitle = document.getElementById('reqHeaderSubtitle');
-    if(subtitle) subtitle.textContent = 'Step 1 of 2 · Request Items';
-  }
+  setStep(0);
+  if(panel) panel.classList.remove('no-station-detected');
+  if(stationPane) stationPane.classList.remove('d-none');
   // Clear station selection
   selectedStation = '';
   reqQuantities = {};
@@ -483,7 +488,6 @@ function resetRequisitionWizard(){
   document.getElementById('stationInput').value = '';
   document.getElementById('toItemsBtn').disabled = true;
   document.querySelectorAll('#stationGrid .uom-card').forEach(c => c.classList.remove('sel'));
-  if(!hasDetectedStations) buildReqTable();
 }
 
 function validateStep1(){
@@ -491,7 +495,7 @@ function validateStep1(){
   let isValid = true;
 
   for(const p of products){
-    if(selectedStation && p.station !== selectedStation) continue;
+    if(!productMatchesSelectedStation(p)) continue;
     const oq = parseFloat(reqQuantities[p.id] || 0);
     if(oq > 0){
       hasItems = true;
@@ -593,12 +597,12 @@ function renderProductCardHtml(p){
 }
 
 function buildReqTable(){
-  reqStationProducts = selectedStation ? products.filter(p => p.station === selectedStation) : products.slice();
+  reqStationProducts = products.filter(productMatchesSelectedStation);
 
   // Update station pill and count
   const pill = document.getElementById('stationPill');
   const countEl = document.getElementById('stationProductCount');
-  if(pill) pill.textContent = selectedStation || 'All items';
+  if(pill) pill.textContent = isUncategorizedStation() ? 'Uncategorized' : selectedStation;
   if(countEl) countEl.textContent = reqStationProducts.length + ' product' + (reqStationProducts.length !== 1 ? 's' : '');
 
   // Reset search and tab
@@ -648,7 +652,7 @@ function clearReqSearch(){
 }
 
 function updateReqFilterCounts(){
-  const stationItems = selectedStation ? products.filter(p => p.station === selectedStation) : products.slice();
+  const stationItems = products.filter(productMatchesSelectedStation);
   const orderedItems = stationItems.filter(p => parseFloat(reqQuantities[p.id] || 0) > 0);
   const lowItems = stationItems.filter(p => {
     const storeStock = p.store_qty !== undefined ? p.store_qty : 0;
@@ -684,7 +688,7 @@ function applyReqFilterAndRender(){
   listEl.innerHTML = '';
   reqRenderedCount = 0;
 
-  let list = selectedStation ? products.filter(p => p.station === selectedStation) : products.slice();
+  let list = products.filter(productMatchesSelectedStation);
 
   if(reqCurrentTab === 'ordered'){
     list = list.filter(p => parseFloat(reqQuantities[p.id] || 0) > 0);
@@ -703,7 +707,7 @@ function applyReqFilterAndRender(){
   reqFilteredProducts = list;
 
   if(!reqFilteredProducts.length){
-    let emptyMsg = selectedStation ? 'No products found for this station.' : 'No products found.';
+    let emptyMsg = isUncategorizedStation() ? 'No uncategorized products found.' : 'No products found for this station.';
     if(reqCurrentTab === 'ordered') emptyMsg = 'No products ordered yet in this station.';
     else if(reqCurrentTab === 'low') emptyMsg = 'No low-stock products in this station.';
     else if(reqSearchQuery) emptyMsg = `No products match "${escapeHtml(reqSearchQuery)}".`;
@@ -962,7 +966,7 @@ function buildReview(){
   let totalUnitsCount = 0;
 
   products.forEach(p => {
-    if(selectedStation && p.station !== selectedStation) return;
+    if(!productMatchesSelectedStation(p)) return;
     const oq = parseFloat(reqQuantities[p.id] || 0);
     if(oq > 0){
       totalProductsCount++;
@@ -1000,7 +1004,7 @@ function handleSubmit(e){
 
   const arr = [];
   products.forEach(p => {
-    if(selectedStation && p.station !== selectedStation) return;
+    if(!productMatchesSelectedStation(p)) return;
     const oq = parseFloat(reqQuantities[p.id] || 0);
     if(oq > 0){
       arr.push({product_id:p.id,product_name:p.name,quantity:oq,uom:p.uom});

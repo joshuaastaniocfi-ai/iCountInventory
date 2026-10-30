@@ -857,6 +857,13 @@ textarea.finput {
   --st-glow: rgba(217, 119, 6, 0.22);
 }
 
+.station-card.st-uncategorized {
+  --st-color: #64748b;
+  --st-bg: rgba(100, 116, 139, 0.12);
+  --st-border: rgba(100, 116, 139, 0.32);
+  --st-glow: rgba(100, 116, 139, 0.22);
+}
+
 .station-card {
   position: relative;
   display: flex;
@@ -950,22 +957,6 @@ textarea.finput {
 
 .wizard-pane.act {
   display: block;
-}
-
-/* When products have no station metadata, start directly on item selection. */
-#panel-requisition.no-station-detected #wp0,
-#panel-requisition.no-station-detected #ws0 {
-  display: none !important;
-}
-#panel-requisition.no-station-detected .steps-track {
-  left: 25%;
-  right: 25%;
-}
-#panel-requisition.no-station-detected #wp1 .wizard-nav {
-  justify-content: flex-end;
-}
-#panel-requisition.no-station-detected #wp1 .wizard-nav .btn-ghost {
-  display: none;
 }
 
 .wizard-body {
