@@ -1094,6 +1094,35 @@ def lookup_product(barcode):
         return jsonify({'success': False, 'message': 'Product not found'})
 
 
+@products.route('/lookup_product_by_id/<int:product_id>')
+@login_required
+def lookup_product_by_id(product_id):
+    """Lookup product by primary key for scanner workbench (including barcode-less products)"""
+    product = Product.query.get(product_id)
+    if not product:
+        return jsonify({'success': False, 'message': 'Product not found'}), 404
+
+    if current_user.role != 'SYS-Admin':
+        allowed_comp_ids = current_user.all_company_ids if hasattr(current_user, 'all_company_ids') and current_user.all_company_ids else ([current_user.company_id] if current_user.company_id else [])
+        if allowed_comp_ids and product.company_id not in allowed_comp_ids:
+            return jsonify({'success': False, 'message': 'Access denied to this product.'}), 403
+
+    return jsonify({
+        'success': True,
+        'id': product.id,
+        'name': product.name,
+        'quantity': product.quantity,
+        'account_title': product.account_title,
+        'uom': product.uom,
+        'barcode': product.barcode or '',
+        'initial_quantity': product.initial_quantity,
+        'low_stock_threshold': product.low_stock_threshold,
+        'company_id': product.company_id,
+        'reorder_level': product.reorder_level,
+        'is_low_stock': product.is_low_stock
+    })
+
+
 @products.route('/get_product_batches/<int:product_id>')
 @login_required
 @admin_required

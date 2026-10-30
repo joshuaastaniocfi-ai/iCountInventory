@@ -743,7 +743,13 @@
           </div>
 
           <!-- Results container -->
-          <div id="productLookupResults" class="d-flex flex-column gap-2" style="max-height: 380px; overflow-y: auto;">
+          <div id="productLookupResults" class="d-flex flex-column gap-2" style="max-height: 380px; overflow-y: auto; padding-right: 2px;">
+          </div>
+
+          <!-- Lazy loading spinner at bottom of list -->
+          <div id="productLookupScrollLoading" class="text-center py-2 d-none">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <span class="small text-muted ms-2" style="font-size: 0.78rem;">Loading more products...</span>
           </div>
 
           <!-- Empty state -->
@@ -1359,61 +1365,7 @@
         console.log('Lookup result:', data);
 
         if (data.success) {
-          currentProduct = data;
-
-          // Once product is found, stop camera and switch view to product workbench
-          if (html5QrCode && isCameraRunning) {
-            try {
-              await html5QrCode.stop();
-              isCameraRunning = false;
-            } catch (e) {
-              console.warn('Error pausing scanner:', e);
-            }
-          }
-          document.getElementById('reader').classList.add('d-none');
-          document.getElementById('status').classList.add('d-none');
-
-          const scannerSurface = document.querySelector('.scanner-container');
-          if (scannerSurface) scannerSurface.classList.add('is-hidden');
-
-          // Populate product card fields safely
-          document.getElementById('product-name').textContent = data.name || 'Unnamed Product';
-          document.getElementById('product-barcode').textContent = `Barcode: ${data.barcode || barcode}`;
-          document.getElementById('product-stock-display').textContent = `${data.quantity ?? 0} / ${data.initial_quantity ?? 0}`;
-          document.getElementById('product-uom').textContent = data.uom || 'pcs';
-          document.getElementById('product-account').textContent = data.account_title || 'General';
-
-          const reorderEl = document.getElementById('product-reorder-level');
-          if (reorderEl) {
-            reorderEl.textContent = (data.reorder_level !== null && data.reorder_level !== undefined) ? data.reorder_level : 'N/A';
-          }
-
-          // Stock status badge
-          const stockStatus = document.getElementById('stock-status');
-          if (stockStatus) {
-            if ((data.quantity ?? 0) <= 0) {
-              stockStatus.innerHTML = '<span class="badge bg-danger"><i class="fas fa-exclamation-circle me-1"></i> Out of Stock</span>';
-            } else if (data.is_low_stock) {
-              stockStatus.innerHTML = '<span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i> Low Stock</span>';
-            } else {
-              stockStatus.innerHTML = '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i> In Stock</span>';
-            }
-          }
-
-          // Show product card and retry button
-          document.getElementById('product-info').classList.remove('d-none');
-          document.getElementById('retryBtn').classList.remove('d-none');
-
-          // Set product IDs for modals
-          const addIdEl = document.getElementById('add_product_id');
-          if (addIdEl) addIdEl.value = data.id;
-          const removeIdEl = document.getElementById('remove_product_id');
-          if (removeIdEl) removeIdEl.value = data.id;
-
-          // Fetch batches
-          fetchProductBatches(data.id);
-          showFlashAlert(`Found: ${data.name}`, 'success');
-          isProcessingScan = false;
+          populateProductWorkbench(data, barcode);
         } else {
           // Product not found: DO NOT disable camera! Keep scanning view active
           const msg = data.message || `Product not found for barcode: ${barcode}`;
@@ -1467,10 +1419,75 @@
       }
     }
 
-    // ── Product Directory Lookup Logic ──
+    // ── Shared Workbench Loader (Used by Barcode Lookup & Modal Selection) ──
+    async function populateProductWorkbench(data, scannedBarcode = '') {
+      currentProduct = data;
+
+      // Stop camera if running and switch view to product workbench
+      if (html5QrCode && isCameraRunning) {
+        try {
+          await html5QrCode.stop();
+          isCameraRunning = false;
+        } catch (e) {
+          console.warn('Error pausing scanner:', e);
+        }
+      }
+      document.getElementById('reader').classList.add('d-none');
+      document.getElementById('status').classList.add('d-none');
+
+      const scannerSurface = document.querySelector('.scanner-container');
+      if (scannerSurface) scannerSurface.classList.add('is-hidden');
+
+      // Populate product card fields safely
+      document.getElementById('product-name').textContent = data.name || 'Unnamed Product';
+      document.getElementById('product-barcode').textContent = `Barcode: ${data.barcode || scannedBarcode || 'No Barcode'}`;
+      document.getElementById('product-stock-display').textContent = `${data.quantity ?? 0} / ${data.initial_quantity ?? 0}`;
+      document.getElementById('product-uom').textContent = data.uom || 'pcs';
+      document.getElementById('product-account').textContent = data.account_title || 'General';
+
+      const reorderEl = document.getElementById('product-reorder-level');
+      if (reorderEl) {
+        reorderEl.textContent = (data.reorder_level !== null && data.reorder_level !== undefined) ? data.reorder_level : 'N/A';
+      }
+
+      // Stock status badge
+      const stockStatus = document.getElementById('stock-status');
+      if (stockStatus) {
+        if ((data.quantity ?? 0) <= 0) {
+          stockStatus.innerHTML = '<span class="badge bg-danger"><i class="fas fa-exclamation-circle me-1"></i> Out of Stock</span>';
+        } else if (data.is_low_stock) {
+          stockStatus.innerHTML = '<span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i> Low Stock</span>';
+        } else {
+          stockStatus.innerHTML = '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i> In Stock</span>';
+        }
+      }
+
+      // Show product card and retry button
+      document.getElementById('product-info').classList.remove('d-none');
+      document.getElementById('retryBtn').classList.remove('d-none');
+
+      // Set product IDs for modals
+      const addIdEl = document.getElementById('add_product_id');
+      if (addIdEl) addIdEl.value = data.id;
+      const removeIdEl = document.getElementById('remove_product_id');
+      if (removeIdEl) removeIdEl.value = data.id;
+
+      // Fetch batches
+      fetchProductBatches(data.id);
+      showFlashAlert(`Loaded: ${data.name}`, 'success');
+      isProcessingScan = false;
+    }
+
+    // ── Product Directory Lookup & Lazy Loading Logic ──
     let lookupDebounceTimer = null;
     let currentLookupStationFilter = '';
+    let currentLookupQuery = '';
+    let currentLookupPage = 1;
+    let lookupHasMore = false;
+    let lookupIsLoading = false;
+    let lookupTotalCount = 0;
     let cachedLookupProducts = [];
+    const lookupQueryCache = new Map(); // cacheKey -> { products, hasMore, totalCount, page }
 
     function openProductLookupModal() {
       const modalEl = document.getElementById('productLookupModal');
@@ -1482,89 +1499,161 @@
         const input = document.getElementById('productLookupInput');
         if (input) {
           input.focus();
-          fetchLookupProducts(input.value.trim());
+          // If results already loaded, do not re-fetch; otherwise perform fast initial fetch
+          if (cachedLookupProducts.length === 0) {
+            fetchLookupProducts(input.value.trim(), currentLookupStationFilter, 1, false);
+          }
         }
-      }, 300);
+      }, 250);
     }
     window.openProductLookupModal = openProductLookupModal;
 
-    async function fetchLookupProducts(query) {
+    async function fetchLookupProducts(query = '', station = '', page = 1, append = false) {
+      if (lookupIsLoading) return;
+
+      currentLookupQuery = query;
+      currentLookupStationFilter = station;
+      currentLookupPage = page;
+
       const loading = document.getElementById('productLookupLoading');
+      const scrollLoading = document.getElementById('productLookupScrollLoading');
       const resultsContainer = document.getElementById('productLookupResults');
       const emptyEl = document.getElementById('productLookupEmpty');
       const countEl = document.getElementById('lookupResultCount');
       const clearBtn = document.getElementById('clearLookupSearchBtn');
 
       if (clearBtn) clearBtn.style.display = query ? 'block' : 'none';
-      if (loading) loading.classList.remove('d-none');
-      if (emptyEl) emptyEl.classList.add('d-none');
+
+      // Check in-memory query cache for instant zero-latency loading
+      const cacheKey = `${query}::${station}::${page}`;
+      if (!append && page === 1 && lookupQueryCache.has(cacheKey)) {
+        const cached = lookupQueryCache.get(cacheKey);
+        cachedLookupProducts = cached.products;
+        lookupHasMore = cached.hasMore;
+        lookupTotalCount = cached.totalCount;
+        renderLookupResults(false);
+        updateLookupCountDisplay();
+        return;
+      }
+
+      lookupIsLoading = true;
+      if (!append) {
+        if (loading) loading.classList.remove('d-none');
+        if (emptyEl) emptyEl.classList.add('d-none');
+      } else {
+        if (scrollLoading) scrollLoading.classList.remove('d-none');
+      }
 
       try {
-        const res = await fetch(`/api/search_products?q=${encodeURIComponent(query)}&limit=30`);
+        const url = `/api/search_products?q=${encodeURIComponent(query)}&station=${encodeURIComponent(station)}&page=${page}&limit=20`;
+        const res = await fetch(url);
         const data = await res.json();
 
         if (loading) loading.classList.add('d-none');
+        if (scrollLoading) scrollLoading.classList.add('d-none');
+        lookupIsLoading = false;
 
-        if (data.success && data.products && data.products.length > 0) {
-          cachedLookupProducts = data.products;
-          renderLookupResults();
+        if (data.success && data.products) {
+          lookupHasMore = !!data.has_more;
+          lookupTotalCount = data.total_count ?? data.products.length;
+
+          if (append) {
+            cachedLookupProducts = cachedLookupProducts.concat(data.products);
+            renderLookupResults(true, data.products);
+          } else {
+            cachedLookupProducts = data.products;
+            // Cache page 1 results in memory
+            lookupQueryCache.set(cacheKey, {
+              products: data.products,
+              hasMore: lookupHasMore,
+              totalCount: lookupTotalCount,
+              page: 1
+            });
+            renderLookupResults(false);
+          }
+          updateLookupCountDisplay();
         } else {
-          cachedLookupProducts = [];
-          if (resultsContainer) resultsContainer.innerHTML = '';
-          if (emptyEl) emptyEl.classList.remove('d-none');
-          if (countEl) countEl.textContent = '0 products';
+          if (!append) {
+            cachedLookupProducts = [];
+            lookupHasMore = false;
+            lookupTotalCount = 0;
+            if (resultsContainer) resultsContainer.innerHTML = '';
+            if (emptyEl) emptyEl.classList.remove('d-none');
+            if (countEl) countEl.textContent = '0 products';
+          }
         }
       } catch (err) {
+        lookupIsLoading = false;
         if (loading) loading.classList.add('d-none');
-        if (emptyEl) emptyEl.classList.remove('d-none');
+        if (scrollLoading) scrollLoading.classList.add('d-none');
+        if (!append && emptyEl) emptyEl.classList.remove('d-none');
         console.error('Error fetching lookup products:', err);
       }
     }
 
-    function renderLookupResults() {
+    function updateLookupCountDisplay() {
+      const countEl = document.getElementById('lookupResultCount');
+      if (!countEl) return;
+      if (lookupTotalCount === 0) {
+        countEl.textContent = '0 products';
+      } else if (cachedLookupProducts.length < lookupTotalCount) {
+        countEl.textContent = `Showing ${cachedLookupProducts.length} of ${lookupTotalCount} products`;
+      } else {
+        countEl.textContent = `${cachedLookupProducts.length} product${cachedLookupProducts.length === 1 ? '' : 's'}`;
+      }
+    }
+
+    function renderLookupCard(p) {
+      return `
+        <div class="lookup-item-card p-2 p-sm-25 rounded-3 border d-flex align-items-center justify-content-between gap-2" 
+             style="cursor: pointer; background: var(--scanner-soft); border-color: var(--scanner-border) !important; transition: all 0.15s ease;"
+             onclick="selectLookupProduct('${escapeAttr(p.barcode || '')}', ${p.id})"
+             onmouseenter="this.style.borderColor='var(--scanner-accent)'"
+             onmouseleave="this.style.borderColor='var(--scanner-border)'">
+          <div style="min-width: 0; flex: 1 1 auto; overflow: hidden;">
+            <div class="d-flex align-items-center gap-1 gap-sm-2 mb-1" style="min-width: 0; width: 100%;">
+              <span class="fw-bold" style="font-size: 0.88rem; color: var(--scanner-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; flex: 1 1 auto; min-width: 0;" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
+              ${p.station ? `<span class="badge bg-primary-subtle text-primary border flex-shrink-0" style="font-size: 0.65rem; padding: 2px 6px;">${escapeHtml(p.station)}</span>` : ''}
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap" style="font-size: 0.75rem; color: var(--scanner-muted); min-width: 0;">
+              <span class="badge bg-dark-subtle text-secondary border font-monospace text-truncate flex-shrink-0" style="font-size: 0.68rem; max-width: 120px;">
+                <i class="fas fa-barcode me-1"></i>${escapeHtml(p.barcode || 'No barcode')}
+              </span>
+              <span class="text-nowrap" style="font-size: 0.72rem;">Whse: <strong>${p.warehouse_qty ?? p.stock ?? 0}</strong> ${escapeHtml(p.uom || '')}</span>
+              <span class="text-nowrap" style="font-size: 0.72rem;">&bull; Store: <strong>${p.store_qty ?? 0}</strong></span>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-primary rounded-pill px-2 px-sm-3 py-1 flex-shrink-0 d-inline-flex align-items-center justify-content-center" style="font-size: 0.78rem; min-width: 66px; height: 32px; white-space: nowrap;">
+            <span>Select</span> <i class="fas fa-chevron-right ms-1" style="font-size: 0.65rem;"></i>
+          </button>
+        </div>
+      `;
+    }
+
+    function renderLookupResults(append = false, newItems = null) {
       const resultsContainer = document.getElementById('productLookupResults');
       const emptyEl = document.getElementById('productLookupEmpty');
-      const countEl = document.getElementById('lookupResultCount');
 
-      let filtered = cachedLookupProducts;
-      if (currentLookupStationFilter) {
-        filtered = filtered.filter(p => (p.station || '').toLowerCase() === currentLookupStationFilter.toLowerCase());
-      }
-
-      if (countEl) countEl.textContent = `${filtered.length} product${filtered.length === 1 ? '' : 's'}`;
-
-      if (filtered.length === 0) {
-        if (resultsContainer) resultsContainer.innerHTML = '';
-        if (emptyEl) emptyEl.classList.remove('d-none');
-        return;
-      }
-
-      if (emptyEl) emptyEl.classList.add('d-none');
-      if (resultsContainer) {
-        resultsContainer.innerHTML = filtered.map(p => `
-          <div class="lookup-item-card p-2 p-sm-3 rounded-3 border d-flex align-items-center justify-content-between gap-2" 
-               style="cursor: pointer; background: var(--scanner-soft); border-color: var(--scanner-border) !important; transition: all 0.15s ease;"
-               onclick="selectLookupProduct('${escapeAttr(p.barcode || '')}', ${p.id})"
-               onmouseenter="this.style.borderColor='var(--scanner-accent)'"
-               onmouseleave="this.style.borderColor='var(--scanner-border)'">
-            <div class="min-w-0 flex-grow-1">
-              <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-                <span class="fw-bold text-truncate" style="font-size: 0.92rem; color: var(--scanner-text);">${escapeHtml(p.name)}</span>
-                ${p.station ? `<span class="badge bg-primary-subtle text-primary border" style="font-size: 0.7rem;">${escapeHtml(p.station)}</span>` : ''}
-              </div>
-              <div class="d-flex align-items-center gap-2 flex-wrap" style="font-size: 0.75rem; color: var(--scanner-muted);">
-                <span class="badge bg-dark-subtle text-secondary border font-monospace" style="font-size: 0.7rem;">
-                  <i class="fas fa-barcode me-1"></i>${escapeHtml(p.barcode || 'No barcode')}
-                </span>
-                <span>Whse: <strong>${p.warehouse_qty ?? p.stock ?? 0}</strong> ${escapeHtml(p.uom || '')}</span>
-                <span>&bull; Store: <strong>${p.store_qty ?? 0}</strong></span>
-              </div>
-            </div>
-            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1 flex-shrink-0" style="font-size: 0.8rem;">
-              Select <i class="fas fa-chevron-right ms-1"></i>
-            </button>
-          </div>
-        `).join('');
+      if (!append) {
+        if (!cachedLookupProducts || cachedLookupProducts.length === 0) {
+          if (resultsContainer) resultsContainer.innerHTML = '';
+          if (emptyEl) emptyEl.classList.remove('d-none');
+          return;
+        }
+        if (emptyEl) emptyEl.classList.add('d-none');
+        if (resultsContainer) {
+          resultsContainer.innerHTML = cachedLookupProducts.map(p => renderLookupCard(p)).join('');
+          resultsContainer.scrollTop = 0;
+        }
+      } else {
+        // Appending lazy-loaded items smoothly
+        if (resultsContainer && newItems && newItems.length > 0) {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = newItems.map(p => renderLookupCard(p)).join('');
+          while (tempDiv.firstChild) {
+            resultsContainer.appendChild(tempDiv.firstChild);
+          }
+        }
       }
     }
 
@@ -1580,7 +1669,10 @@
           btn.classList.add('bg-secondary-subtle', 'text-secondary');
         }
       });
-      renderLookupResults();
+      // Trigger new query with station filter
+      const input = document.getElementById('productLookupInput');
+      const q = input ? input.value.trim() : '';
+      fetchLookupProducts(q, station, 1, false);
     }
     window.filterLookupByStation = filterLookupByStation;
 
@@ -1589,7 +1681,7 @@
       if (input) {
         input.value = '';
         input.focus();
-        fetchLookupProducts('');
+        fetchLookupProducts('', currentLookupStationFilter, 1, false);
       }
     }
     window.clearLookupSearch = clearLookupSearch;
@@ -1605,7 +1697,7 @@
         if (input) input.value = barcode;
         lookupProductByBarcode(barcode);
       } else {
-        showFlashAlert('Selected product has no barcode. Loading directly...', 'info');
+        showFlashAlert('Loading product details...', 'info');
         fetchProductByIdDirectly(productId);
       }
     }
@@ -1614,17 +1706,17 @@
     async function fetchProductByIdDirectly(productId) {
       if (!productId) return;
       try {
-        const res = await fetch(`/api/search_products?q=&limit=50`);
+        const res = await fetch(`/products/lookup_product_by_id/${productId}`);
         const data = await res.json();
         if (data.success) {
-          const item = data.products.find(p => p.id === productId);
-          if (item && item.barcode) {
-            lookupProductByBarcode(item.barcode);
-            return;
-          }
+          populateProductWorkbench(data);
+        } else {
+          showFlashAlert(data.message || 'Product details could not be loaded.', 'warning');
         }
-      } catch (e) {}
-      showFlashAlert('Please assign a barcode to this product in Product Management.', 'warning');
+      } catch (e) {
+        console.error('Error fetching product by ID:', e);
+        showFlashAlert('Failed to load product details.', 'danger');
+      }
     }
 
     function escapeHtml(str) {
@@ -1636,7 +1728,7 @@
       return String(str).replace(/'/g, "\'");
     }
 
-    // Attach search input event listener
+    // Attach search input & infinite scroll event listeners
     document.addEventListener('DOMContentLoaded', function() {
       const lookupInput = document.getElementById('productLookupInput');
       if (lookupInput) {
@@ -1644,8 +1736,19 @@
           clearTimeout(lookupDebounceTimer);
           const q = this.value.trim();
           lookupDebounceTimer = setTimeout(() => {
-            fetchLookupProducts(q);
-          }, 250);
+            fetchLookupProducts(q, currentLookupStationFilter, 1, false);
+          }, 200);
+        });
+      }
+
+      // Infinite scroll listener for lazy loading
+      const resultsContainer = document.getElementById('productLookupResults');
+      if (resultsContainer) {
+        resultsContainer.addEventListener('scroll', function() {
+          if (lookupIsLoading || !lookupHasMore) return;
+          if (this.scrollTop + this.clientHeight >= this.scrollHeight - 70) {
+            fetchLookupProducts(currentLookupQuery, currentLookupStationFilter, currentLookupPage + 1, true);
+          }
         });
       }
     });

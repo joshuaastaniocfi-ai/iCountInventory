@@ -1477,23 +1477,34 @@ def delete_audit_batch(batch_label):
 @api.route('/search_products')
 @login_required
 def search_products():
-    """Search products by name, barcode, station, or account title for scanner product lookup"""
+    """Search products by name, barcode, station, or account title with pagination and lazy loading"""
     q = request.args.get('q', '').strip()
-    limit = min(request.args.get('limit', 25, type=int), 50)
+    station = request.args.get('station', '').strip()
+    page = max(1, request.args.get('page', 1, type=int))
+    limit = min(request.args.get('limit', 20, type=int), 50)
+    offset = (page - 1) * limit
 
     try:
         if current_user.role == 'SYS-Admin' and current_user.company_id is None:
             base_query = Product.query
         else:
-            allowed_comp_ids = current_user.all_company_ids if hasattr(current_user, 'all_company_ids') and current_user.all_company_ids else ([current_user.company_id] if current_user.company_id else [])
-            if allowed_comp_ids:
-                base_query = Product.query.filter(Product.company_id.in_(allowed_comp_ids))
+            if current_user.company_id:
+                base_query = Product.query.filter(Product.company_id == current_user.company_id)
             else:
-                base_query = Product.query
+                allowed_comp_ids = current_user.all_company_ids if hasattr(current_user, 'all_company_ids') and current_user.all_company_ids else []
+                if allowed_comp_ids:
+                    base_query = Product.query.filter(Product.company_id.in_(allowed_comp_ids))
+                else:
+                    base_query = Product.query
+
+        query = base_query
+
+        if station:
+            query = query.filter(Product.station.ilike(f'%{station}%'))
 
         if q:
             search_pattern = f'%{q}%'
-            query = base_query.filter(
+            query = query.filter(
                 or_(
                     Product.name.ilike(search_pattern),
                     Product.barcode.ilike(search_pattern),
@@ -1501,14 +1512,18 @@ def search_products():
                     Product.account_title.ilike(search_pattern)
                 )
             )
-        else:
-            query = base_query
 
-        products = query.order_by(Product.name.asc()).limit(limit).all()
+        total_count = query.count()
+        products = query.order_by(Product.name.asc()).offset(offset).limit(limit).all()
+        has_more = (offset + len(products)) < total_count
 
         return jsonify({
             'success': True,
+            'page': page,
+            'limit': limit,
             'count': len(products),
+            'total_count': total_count,
+            'has_more': has_more,
             'products': [{
                 'id': p.id,
                 'name': p.name,
