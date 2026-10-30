@@ -2394,6 +2394,12 @@ textarea.finput {
     width: 100%;
   }
 
+  /* Hidden rows must win over the card layout's display rule during search. */
+  .it.mobile-cards tr[hidden],
+  .inv-t.mobile-cards tr[hidden] {
+    display: none !important;
+  }
+
   .it.mobile-cards td,
   .inv-t.mobile-cards td {
     display: flex !important;
