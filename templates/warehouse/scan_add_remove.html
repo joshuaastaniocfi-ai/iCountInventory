@@ -472,6 +472,13 @@
     .scanner-workbench .product-body { padding: 1.15rem; }
     .scanner-workbench .retryBtn { margin-top: 0.75rem !important; }
     .scanner-workbench .scanner-result-column:has(#product-info.d-none) { min-height: 1px; }
+    .scanner-workbench .scanner-sticky-header { position: sticky; top: 0; z-index: 1030; overflow: visible; }
+    .scanner-workbench .scanner-nav,
+    .scanner-workbench .scanner-store-toggle-bar { position: relative; z-index: 1; flex-shrink: 0; }
+    .scanner-workbench .scanner-container,
+    .scanner-workbench #reader,
+    .scanner-workbench #reader video,
+    .scanner-workbench #reader canvas { touch-action: none !important; overscroll-behavior: contain; }
 
     @media (max-width: 767px) {
       .scanner-sticky-header {
@@ -482,7 +489,7 @@
       .scanner-brand-name { font-size: 0.88rem; }
       .scanner-nav-link { padding-inline: 0.48rem; font-size: 0.74rem; min-height: 28px; }
       .scanner-workbench .scanner-wrapper {
-        padding: 0.25rem 0.5rem 1.25rem !important;
+        padding: 0 0.5rem 1.25rem !important;
         max-width: 540px;
       }
       /* Hide redundant large heading on mobile to place scanner directly below the store toggle */
@@ -502,14 +509,14 @@
         height: min(50%, 105px);
       }
       .scanner-workbench .manual-input-card {
-        margin-top: 0.45rem !important;
+        margin-top: 0.25rem !important;
         padding: 0.6rem 0.7rem !important;
         border-radius: 12px !important;
       }
       .scanner-workbench .manual-input-card .btn {
         font-size: 0.82rem;
       }
-      .scanner-workbench .scanner-result-column { margin-top: 0.35rem; }
+      .scanner-workbench .scanner-result-column { margin-top: 0 !important; }
       .scanner-workbench .product-card { margin-top: 0 !important; }
     }
 
