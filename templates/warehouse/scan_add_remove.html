@@ -487,7 +487,13 @@
         padding-block: max(0.35rem, env(safe-area-inset-top, 0.35rem)) 0.3rem !important;
       }
       .scanner-brand-name { font-size: 0.88rem; }
-      .scanner-nav-link { padding-inline: 0.48rem; font-size: 0.74rem; min-height: 28px; }
+      .scanner-nav-link {
+        padding: 0.35rem 0.68rem;
+        font-size: 0.86rem;
+        min-height: 36px;
+        gap: 0.42rem;
+      }
+      .scanner-nav-link i { font-size: 0.86rem; }
       .scanner-workbench .scanner-wrapper {
         padding: 0 0.5rem 1.25rem !important;
         max-width: 540px;
@@ -2485,7 +2491,10 @@
         const inst = bootstrap.Modal.getInstance(modalEl);
         if (inst) inst.hide();
         form.reset();
-        setTimeout(() => window.location.reload(), 700);
+        // Keep the current product workbench open and refresh only its data.
+        if (currentProduct && currentProduct.id) {
+          fetchProductByIdDirectly(currentProduct.id);
+        }
       })
       .catch(err => {
         console.error('Add stock failed:', err);
@@ -2569,9 +2578,13 @@
         const inst = (typeof bootstrap !== 'undefined' && bootstrap.Modal) ? (bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl)) : null;
         if (inst) inst.hide();
         form.reset();
+        const productIdToRefresh = currentProduct && currentProduct.id;
         selectedBatchId = null;
         document.getElementById('status')?.classList.add('d-none');
-        setTimeout(() => window.location.reload(), 700);
+        // Stay on the selected product instead of returning to scanner home.
+        if (productIdToRefresh) {
+          fetchProductByIdDirectly(productIdToRefresh);
+        }
       })
       .catch(err => {
         console.error('Remove stock failed:', err);
