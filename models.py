@@ -63,11 +63,21 @@ class User(db.Model, UserMixin):
     @property
     def all_companies(self):
         """Return list of Company objects this user has access to."""
-        if self.role == 'SYS-Admin' and self.company_id is None:
+        # SYS-Admin always has access to all companies regardless of active selection
+        if self.role == 'SYS-Admin':
             return Company.query.order_by(Company.name.asc()).all()
+
         comps = list(self.handled_companies) if self.handled_companies else []
         if self.company and self.company not in comps:
             comps.insert(0, self.company)
+
+        # WH-Admin: If 1 or 0 handled companies assigned but system has 2+ companies,
+        # grant access to all companies so toggling between warehouses is never disabled
+        if self.role == 'WH-Admin' and len(comps) <= 1:
+            all_comps = Company.query.order_by(Company.name.asc()).all()
+            if len(all_comps) >= 2:
+                return all_comps
+
         return comps
 
     @property

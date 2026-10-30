@@ -424,11 +424,29 @@ def admin_update_user_companies(user_id):
 @admin.route('/switch_company/<int:company_id>', methods=['POST', 'GET'])
 @login_required
 def switch_company(company_id):
+    # Allow SYS-Admin to switch to Global View (All Warehouses) with 0
+    if company_id == 0 and current_user.role == 'SYS-Admin':
+        current_user.company_id = None
+        db.session.commit()
+        session.pop('active_company_id', None)
+        flash("Switched to Global View (All Warehouses).", "success")
+        return redirect(request.referrer or url_for('main.dashboard'))
+
     company = Company.query.get_or_404(company_id)
     if current_user.role != 'SYS-Admin' and company_id not in current_user.all_company_ids:
         flash("You do not have access to this company/warehouse.", "error")
         return redirect(request.referrer or url_for('main.dashboard'))
-    
+
+    # Crucial: Keep both the previous company and the newly selected company in handled_companies
+    # so toggling back and forth NEVER drops either warehouse from the user's available list!
+    if current_user.role != 'SYS-Admin':
+        current_comps = list(current_user.handled_companies)
+        if current_user.company and current_user.company not in current_comps:
+            current_comps.append(current_user.company)
+        if company not in current_comps:
+            current_comps.append(company)
+        current_user.handled_companies = current_comps
+
     current_user.company_id = company_id
     db.session.commit()
     session['active_company_id'] = company_id
