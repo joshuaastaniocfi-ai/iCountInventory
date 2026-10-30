@@ -2696,6 +2696,9 @@ body.in-req-wizard .main {
 .invcount-table-card .ic-actual { min-height: 40px; }
 
 .invcount-submit {
+  position: sticky;
+  bottom: 0;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2704,7 +2707,7 @@ body.in-req-wizard .main {
   padding: .85rem 1rem;
   border: 1px solid var(--border-strong);
   background: var(--card-bg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, .16);
 }
 .invcount-verifier { display: flex; align-items: center; gap: .65rem; min-width: 0; }
 .invcount-verifier label { display: block; color: var(--text-primary); font-size: .76rem; font-weight: 750; }
@@ -2722,7 +2725,13 @@ body.in-req-wizard .main {
   .invcount-search-status { align-self: flex-start; margin-top: -.55rem; }
   .invcount-table-heading { align-items: flex-start; }
   .invcount-table-badge { white-space: nowrap; }
-  .invcount-submit { align-items: stretch; flex-direction: column; }
+  .invcount-submit {
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    align-items: stretch;
+    flex-direction: column;
+    z-index: 940;
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, .22);
+  }
   .invcount-verifier { flex-wrap: wrap; }
   .invcount-verifier .finput { flex: 1 1 180px; width: auto; margin-left: 0; }
   .invcount-submit-actions { width: 100%; }
