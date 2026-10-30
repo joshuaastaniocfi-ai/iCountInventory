@@ -2030,7 +2030,7 @@
         }
         return res.json();
       })
-      .then(data => {
+      .then(async data => {
         if (data.status === 'success') {
           showFlashAlert('✅ ' + data.message, 'success');
           const removeModal = bootstrap.Modal.getInstance(document.getElementById('removeStockModal'));
