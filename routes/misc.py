@@ -671,23 +671,18 @@ def download_all_transactions():
         from_datetime = datetime.combine(from_date, datetime.min.time())
         to_datetime = datetime.combine(to_date, datetime.max.time())
         
-        # Query only TRANS IN transaction history within date range
-        # Filter by company for Company-Admin users
-        if current_user.role == 'Company-Admin' and current_user.company_id:
-            # Company-Admin can only see their own company's transaction history
-            history_records = ProductHistory.query.join(Product).filter(
-                ProductHistory.trxn_code == 'TRANS IN',
-                ProductHistory.trxn_date >= from_datetime,
-                ProductHistory.trxn_date <= to_datetime,
-                Product.company_id == current_user.company_id
-            ).order_by(ProductHistory.trxn_date.desc()).all()
-        else:
-            # SYS-Admin and WH-Admin can see all TRANS IN transaction history
-            history_records = ProductHistory.query.filter(
-                ProductHistory.trxn_code == 'TRANS IN',
-                ProductHistory.trxn_date >= from_datetime,
-                ProductHistory.trxn_date <= to_datetime
-            ).order_by(ProductHistory.trxn_date.desc()).all()
+        # Query only TRANS IN transaction history within date range.
+        # Always respect the active store/brand toggle. A selected company must
+        # scope the export even for SYS-Admin and WH-Admin users; only Global
+        # View (no active company) intentionally exports across all companies.
+        history_query = ProductHistory.query.join(Product).filter(
+            ProductHistory.trxn_code == 'TRANS IN',
+            ProductHistory.trxn_date >= from_datetime,
+            ProductHistory.trxn_date <= to_datetime
+        )
+        if current_user.company_id:
+            history_query = history_query.filter(Product.company_id == current_user.company_id)
+        history_records = history_query.order_by(ProductHistory.trxn_date.desc()).all()
         
         if not history_records:
             flash('No TRANS IN transactions found for the selected date range.', 'warning')
