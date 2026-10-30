@@ -993,8 +993,10 @@ def settle_discrepancy(batch):
             
             total_products_processed += 1
             
-            # Get all batches for this product
-            batches = WarehouseProductBatch.query.filter_by(product_id=product_id).all()
+            # Store Inventory Count audits must settle against store batches.
+            # Warehouse audits retain the existing warehouse-batch behavior.
+            is_store_audit = batch.startswith('STORE-AUDIT-')
+            batches = (StoreProductBatch.query if is_store_audit else WarehouseProductBatch.query).filter_by(product_id=product_id).all()
             
             for audit in product_audit_list:
                 if audit.is_settled:
@@ -1012,7 +1014,8 @@ def settle_discrepancy(batch):
                 # For StockAudit, we don't have a specific batch_id, so we use the FEFO approach
                 # Apply adjustment according to FEFO principles
                 if adjustment > 0:
-                    # OVERAGE: Add excess quantity to the first batch with quantity > 0 and earliest expiry
+                    # OVERAGE: Add excess quantity to the first matching batch
+                    # with quantity > 0 and earliest expiry.
                     first_batch_with_qty = None
                     earliest_expiry = None
                     
@@ -1038,20 +1041,55 @@ def settle_discrepancy(batch):
                             quantity_out=0.0,
                             net_change=adjustment,
                             reference_id=first_batch_with_qty.id,
-                            reference_type='batch'
+                            reference_type='store_batch' if is_store_audit else 'batch'
                         )
                         # Assign company to history record
                         history_record = assign_company(history_record)
                         db.session.add(history_record)
                         
-                        # Update product quantities (adjustment was made to warehouse batches)
-                        product.warehouse_qty += adjustment
-                        product.warehouse_initial_qty = max(product.warehouse_initial_qty or 0, product.warehouse_qty)
+                        # Update the quantity for the audited location only.
+                        if is_store_audit:
+                            product.store_qty += adjustment
+                            product.store_initial_qty = max(product.store_initial_qty or 0, product.store_qty)
+                        else:
+                            product.warehouse_qty += adjustment
+                            product.warehouse_initial_qty = max(product.warehouse_initial_qty or 0, product.warehouse_qty)
                         product.quantity = product.warehouse_qty + product.store_qty
                         product.initial_quantity = product.quantity
                     
                     else:
-                        settlement_summary.append(f"OVERAGE of {adjustment} for {product.name} but no batches with quantity found")
+                        if is_store_audit:
+                            # Legacy store stock may not have a batch. Create an
+                            # adjustment batch so the counted stock remains in store inventory.
+                            from datetime import date
+                            adjustment_batch = StoreProductBatch(
+                                product_id=product.id,
+                                quantity=adjustment,
+                                int_quantity=adjustment,
+                                exp_date=date(2099, 12, 31),
+                                supplier_name=f'Audit Adjustment - {batch}'
+                            )
+                            db.session.add(adjustment_batch)
+                            db.session.flush()
+                            history_record = ProductHistory(
+                                product_id=product.id,
+                                trxn_date=current_time,
+                                trxn_code='TRANS IN',
+                                payee=f'Audit Adjustment - {batch}',
+                                quantity_in=adjustment,
+                                quantity_out=0.0,
+                                net_change=adjustment,
+                                reference_id=adjustment_batch.id,
+                                reference_type='store_batch'
+                            )
+                            db.session.add(assign_company(history_record))
+                            product.store_qty += adjustment
+                            product.store_initial_qty = max(product.store_initial_qty or 0, product.store_qty)
+                            product.quantity = product.warehouse_qty + product.store_qty
+                            product.initial_quantity = product.quantity
+                            settlement_summary.append(f"Added {adjustment} to store stock for {product.name}")
+                        else:
+                            settlement_summary.append(f"OVERAGE of {adjustment} for {product.name} but no batches with quantity found")
                 
                 elif adjustment < 0:
                     # SHORTAGE: Remove missing quantity from batches according to FEFO
@@ -1074,20 +1112,24 @@ def settle_discrepancy(batch):
                                 quantity_out=deduct_amount,
                                 net_change=-deduct_amount,
                                 reference_id=b.id,
-                                reference_type='batch'
+                                reference_type='store_batch' if is_store_audit else 'batch'
                             )
                             # Assign company to history record
                             history_record = assign_company(history_record)
                             db.session.add(history_record)
                     
-                    # Update product quantities (shortage was deducted from warehouse batches)
-                    product.warehouse_qty -= shortage
-                    if product.warehouse_qty < 0:
-                        product.warehouse_qty = 0
+                    # Update only the audited location. Store deductions are
+                    # capped at the quantity actually available in store batches.
+                    if is_store_audit:
+                        product.store_qty = max(0, product.store_qty - removed_qty)
+                    else:
+                        product.warehouse_qty -= shortage
+                        if product.warehouse_qty < 0:
+                            product.warehouse_qty = 0
                     product.quantity = product.warehouse_qty + product.store_qty
                     product.initial_quantity = product.quantity
                     
-                    settlement_summary.append(f"Removed {shortage} from {product.name} batches")
+                    settlement_summary.append(f"Removed {removed_qty if is_store_audit else shortage} from {product.name} {'store ' if is_store_audit else ''}batches")
                 
                 # Mark audit as settled
                 audit.is_settled = True
@@ -1595,4 +1637,3 @@ def mark_all_notifications_read():
         .update({'is_read': True})
     db.session.commit()
     return jsonify({'success': True})
-

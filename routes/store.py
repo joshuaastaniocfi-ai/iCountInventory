@@ -187,8 +187,8 @@ def submit_count():
         # Warehouse vs Store breakdown
         wh_recorded = entry.get('warehouse_recorded_qty', 0)
         wh_actual = entry.get('warehouse_actual_qty', wh_recorded)
-        st_recorded = entry.get('store_recorded_qty', 0)
-        st_actual = entry.get('store_actual_qty', st_recorded)
+        st_recorded = entry.get('store_recorded_qty', recorded_qty)
+        st_actual = entry.get('store_actual_qty', actual_qty)
 
         discrepancy = actual_qty - recorded_qty
 

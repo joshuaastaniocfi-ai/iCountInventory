@@ -2382,13 +2382,28 @@ body.in-req-wizard .main {
 /* Keep the desktop shell fixed while only the main content scrolls. */
 @media (min-width: 769px) {
   .app-body {
+    display: block;
     height: calc(100vh - var(--topbar-height));
     min-height: 0;
     overflow: hidden;
   }
 
+  .app-body > .sidebar {
+    position: fixed;
+    top: var(--topbar-height);
+    left: 0;
+    bottom: 0;
+    width: var(--sb-width);
+    height: auto;
+    max-height: none;
+    overflow-y: auto;
+  }
+
   .app-body > .main {
+    height: 100%;
+    margin-left: var(--sb-width);
     min-height: 0;
+    overflow-y: auto;
   }
 }
 
