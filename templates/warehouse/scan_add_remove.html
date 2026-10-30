@@ -1298,7 +1298,7 @@
 
       const prodDate = isProductionMode ? getProductionDateObj() : new Date();
       const shelfLife = isProductionMode && shelfLifeInput ? Number(shelfLifeInput.value || 3) : 3;
-      if (!prodDate || !preview) {
+      if (!prodDate) {
         if (preview) preview.textContent = '—';
         return;
       }
@@ -1315,6 +1315,7 @@
         }
         syncExpDateToDropdowns(expiryDate);
       }
+      if (!preview) return;
       preview.innerHTML = shelfLife === 0
         ? '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0" style="font-size: 0.8rem;"><i class="fas fa-infinity me-1"></i>No Expiry</span>'
         : formatDateMMDDYYYY(expiryDate);
