@@ -1310,11 +1310,28 @@
 
     function syncProductionExpiryControls() {
       const shelfLifeInput = document.getElementById('add_shelf_life');
+      const productionContainer = document.getElementById('add_production_date_container');
+      const productionInput = document.getElementById('add_production_date');
       const expiryContainer = document.getElementById('add_direct_expiry_container');
       const expiryInput = document.getElementById('add_direct_exp_date');
+      const productionControls = productionContainer ? productionContainer.querySelectorAll('select') : [];
       const expiryControls = expiryContainer ? expiryContainer.querySelectorAll('select') : [];
       const noExpiry = isProductionMode && shelfLifeInput && shelfLifeInput.value === '0';
 
+      if (productionContainer) {
+        productionContainer.classList.toggle('d-none', noExpiry);
+        productionContainer.setAttribute('aria-hidden', String(noExpiry));
+      }
+      if (productionInput) {
+        productionInput.disabled = noExpiry || !isProductionMode;
+        productionInput.required = isProductionMode && !noExpiry;
+      }
+      productionControls.forEach(control => {
+        control.disabled = noExpiry;
+      });
+      if (prodFlatpickr && prodFlatpickr.altInput) {
+        prodFlatpickr.altInput.disabled = noExpiry || !isProductionMode;
+      }
       if (expiryContainer) {
         expiryContainer.classList.toggle('d-none', noExpiry);
         expiryContainer.setAttribute('aria-hidden', String(noExpiry));
