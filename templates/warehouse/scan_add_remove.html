@@ -808,6 +808,7 @@
                     <div class="col-4"><select id="exp_sel_year" class="form-select form-select-sm border-warning" onchange="onExpDropdownChanged()" aria-label="Expiry Year"></select></div>
                   </div>
                 </div>
+                <div class="form-text" id="add_expiry_auto_note">Automatically calculated from production date and shelf life.</div>
               </div>
 
               <input type="hidden" name="is_dry_goods" id="is_dry_goods" value="false">
@@ -1303,6 +1304,17 @@
       }
 
       const expiryDate = addCalendarMonths(prodDate, shelfLife);
+      if (isProductionMode && shelfLife > 0) {
+        // Production expiry is derived from the production date and shelf life;
+        // keep the normalized dropdown display in sync without allowing edits.
+        if (expFlatpickr) {
+          expFlatpickr.setDate(expiryDate, false);
+        } else {
+          const directInput = document.getElementById('add_direct_exp_date');
+          if (directInput) directInput.value = formatDateForInput(expiryDate);
+        }
+        syncExpDateToDropdowns(expiryDate);
+      }
       preview.innerHTML = shelfLife === 0
         ? '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0" style="font-size: 0.8rem;"><i class="fas fa-infinity me-1"></i>No Expiry</span>'
         : formatDateMMDDYYYY(expiryDate);
@@ -1314,9 +1326,11 @@
       const productionInput = document.getElementById('add_production_date');
       const expiryContainer = document.getElementById('add_direct_expiry_container');
       const expiryInput = document.getElementById('add_direct_exp_date');
+      const expiryAutoNote = document.getElementById('add_expiry_auto_note');
       const productionControls = productionContainer ? productionContainer.querySelectorAll('select') : [];
       const expiryControls = expiryContainer ? expiryContainer.querySelectorAll('select') : [];
       const noExpiry = isProductionMode && shelfLifeInput && shelfLifeInput.value === '0';
+      const autoExpiry = isProductionMode && !noExpiry;
 
       if (productionContainer) {
         productionContainer.classList.toggle('d-none', noExpiry);
@@ -1337,12 +1351,13 @@
         expiryContainer.setAttribute('aria-hidden', String(noExpiry));
       }
       if (expiryInput) {
-        expiryInput.disabled = noExpiry;
+        expiryInput.disabled = noExpiry || autoExpiry;
         if (noExpiry) expiryInput.value = '';
       }
       expiryControls.forEach(control => {
-        control.disabled = noExpiry;
+        control.disabled = noExpiry || autoExpiry;
       });
+      if (expiryAutoNote) expiryAutoNote.classList.toggle('d-none', !autoExpiry);
     }
 
     function toggleDryGoodsMode(forceState) {
