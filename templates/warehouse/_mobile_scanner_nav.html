@@ -37,8 +37,6 @@
       <div class="d-flex align-items-center gap-1 flex-grow-1 justify-content-end scanner-toggle-pill-list">
         {% for c in current_user.all_companies %}
           <a href="{{ url_for('admin.switch_company', company_id=c.id) }}" 
-             onclick="switchWarehouseSilently(event, {{ c.id }}, '{{ (c.franchise_name or c.name)|replace("'", "\\'") }}')"
-             data-company-id="{{ c.id }}"
              class="scanner-wh-toggle-pill px-2 py-1 rounded-pill text-truncate d-inline-flex align-items-center gap-1 text-decoration-none transition-all {{ 'active fw-bold' if current_user.company_id == c.id else 'text-muted' }}"
              title="Switch store to {{ c.franchise_name or c.name }}"
              style="{{ 'background: #2563eb; color: #ffffff !important; box-shadow: 0 2px 6px rgba(37,99,235,0.35); font-weight: 700;' if current_user.company_id == c.id else 'color: var(--scanner-muted, #71717a); font-weight: 500;' }} font-size: 0.72rem; line-height: 1.2; max-width: 140px;">
@@ -88,92 +86,17 @@
   applyTheme();
 
   // Fetch pending requisitions count for the nav badge
-  function fetchPendingRequisitionsCount() {
-    fetch('/scanner/api/pending-requisitions')
-      .then(r => r.json())
-      .then(data => {
-        if (data && data.success) {
-          const badge = document.getElementById('pendingCount');
-          if (badge) {
-            badge.textContent = data.count || 0;
-            badge.style.display = (data.count && data.count > 0) ? 'inline-flex' : 'none';
-          }
-        }
-      })
-      .catch(() => {});
-  }
-  window.fetchPendingRequisitionsCount = fetchPendingRequisitionsCount;
-  fetchPendingRequisitionsCount();
-
-  // Silent Warehouse Switcher (No Page Reload / No Screen Flicker)
-  window.switchWarehouseSilently = async function(event, companyId, companyName) {
-    if (event) event.preventDefault();
-
-    // Optimistically toggle active styles on pills
-    const pills = document.querySelectorAll('.scanner-wh-toggle-pill');
-    pills.forEach(p => {
-      const isTarget = p.getAttribute('data-company-id') == companyId;
-      if (isTarget) {
-        p.classList.add('active', 'fw-bold');
-        p.classList.remove('text-muted');
-        p.style.background = '#2563eb';
-        p.style.color = '#ffffff';
-        p.style.boxShadow = '0 2px 6px rgba(37,99,235,0.35)';
-        if (!p.querySelector('.fa-check')) {
-          const checkIcon = document.createElement('i');
-          checkIcon.className = 'fas fa-check small text-white ms-1';
-          checkIcon.style.fontSize = '0.55rem';
-          p.appendChild(checkIcon);
-        }
-      } else {
-        p.classList.remove('active', 'fw-bold');
-        p.classList.add('text-muted');
-        p.style.background = 'transparent';
-        p.style.color = 'var(--scanner-muted, #71717a)';
-        p.style.boxShadow = 'none';
-        const checkIcon = p.querySelector('.fa-check');
-        if (checkIcon) checkIcon.remove();
-      }
-    });
-
-    try {
-      const res = await fetch(`/admin/switch_company/${companyId}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
-      const data = await res.json();
-
-      // Clear product lookup cache so searches fetch products for this newly active warehouse
-      if (typeof lookupQueryCache !== 'undefined' && lookupQueryCache.clear) {
-        lookupQueryCache.clear();
-        if (typeof cachedLookupProducts !== 'undefined') cachedLookupProducts = [];
-      }
-
-      // If an item is currently loaded in workbench, check if it belongs to this warehouse or reload batches
-      if (typeof currentProduct !== 'undefined' && currentProduct && currentProduct.id) {
-        if (typeof fetchProductBatches === 'function') {
-          fetchProductBatches(currentProduct.id);
-        }
-        if (typeof fetchProductByIdDirectly === 'function') {
-          fetchProductByIdDirectly(currentProduct.id);
+  fetch('/scanner/api/pending-requisitions')
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.success) {
+        const badge = document.getElementById('pendingCount');
+        if (badge) {
+          badge.textContent = data.count || 0;
+          badge.style.display = (data.count && data.count > 0) ? 'inline-flex' : 'none';
         }
       }
-
-      // Refresh pending requisitions count for the new warehouse
-      fetchPendingRequisitionsCount();
-
-      if (typeof showFlashAlert === 'function') {
-        showFlashAlert(`Active warehouse: ${companyName}`, 'info');
-      } else if (typeof showNotification === 'function') {
-        showNotification(`Active warehouse: ${companyName}`, 'info');
-      }
-    } catch (err) {
-      console.warn('Silent switch fallback:', err);
-      window.location.href = `/admin/switch_company/${companyId}`;
-    }
-  };
+    })
+    .catch(() => {});
 })();
 </script>
