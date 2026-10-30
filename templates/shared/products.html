@@ -1599,6 +1599,7 @@ function editProduct(trigger) {
   if (!modalElement || !form || !product.id) return;
 
   form.action = trigger.dataset.editUrl;
+  form.dataset.editing = 'true';
   modalElement.querySelector('.add-product-kicker').innerHTML = 'INVENTORY <span>/</span> EDIT ITEM';
   modalElement.querySelector('#addProductTitle').textContent = 'Edit product';
   modalElement.querySelector('.add-product-subtitle').textContent = 'Update product details and alert settings. Stock quantities are managed separately.';
@@ -1629,6 +1630,7 @@ function resetProductModal() {
   if (!modalElement || !form) return;
 
   form.action = form.dataset.addAction;
+  form.dataset.editing = 'false';
   form.reset();
   modalElement.querySelector('.add-product-kicker').innerHTML = 'INVENTORY <span>/</span> NEW ITEM';
   modalElement.querySelector('#addProductTitle').textContent = 'Add new product';
@@ -1666,7 +1668,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const expDate = expDateInput.value;
 
         // Check if it's a COS product and expiry date is missing
-        if ((accountTitle.toLowerCase().startsWith('cos')) && !expDate) {
+        if (addProductForm.dataset.editing !== 'true' && (accountTitle.toLowerCase().startsWith('cos')) && !expDate) {
           e.preventDefault();
           showNotification('❌ Expiry date is required for COS products', 'error');
           expDateInput.focus();
