@@ -1308,6 +1308,26 @@
         : formatDateMMDDYYYY(expiryDate);
     }
 
+    function syncProductionExpiryControls() {
+      const shelfLifeInput = document.getElementById('add_shelf_life');
+      const expiryContainer = document.getElementById('add_direct_expiry_container');
+      const expiryInput = document.getElementById('add_direct_exp_date');
+      const expiryControls = expiryContainer ? expiryContainer.querySelectorAll('select') : [];
+      const noExpiry = isProductionMode && shelfLifeInput && shelfLifeInput.value === '0';
+
+      if (expiryContainer) {
+        expiryContainer.classList.toggle('d-none', noExpiry);
+        expiryContainer.setAttribute('aria-hidden', String(noExpiry));
+      }
+      if (expiryInput) {
+        expiryInput.disabled = noExpiry;
+        if (noExpiry) expiryInput.value = '';
+      }
+      expiryControls.forEach(control => {
+        control.disabled = noExpiry;
+      });
+    }
+
     function toggleDryGoodsMode(forceState) {
       if (typeof forceState === 'boolean') {
         isDryGoodsMode = forceState;
@@ -1433,6 +1453,7 @@
       }
       if (hiddenFlag) hiddenFlag.value = isProductionMode ? 'false' : 'true';
       isDryGoodsMode = !isProductionMode;
+      syncProductionExpiryControls();
       updateAddStockExpiryPreview();
     }
     window.toggleProductionMode = toggleProductionMode;
@@ -1497,7 +1518,10 @@
         });
       }
 
-      if (shelfLifeInput) shelfLifeInput.addEventListener('change', updateAddStockExpiryPreview);
+      if (shelfLifeInput) shelfLifeInput.addEventListener('change', function() {
+        syncProductionExpiryControls();
+        updateAddStockExpiryPreview();
+      });
 
       // Initialize date pickers
       initDatePickers();
