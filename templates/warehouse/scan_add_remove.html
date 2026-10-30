@@ -775,11 +775,25 @@
                 </div>
               </div>
 
-              <div class="col-12">
-                <div class="expiry-preview" id="add_expiry_preview">
-                  <i class="fas fa-calendar-check"></i>
-                  <span>Expiration date: <strong>—</strong> <small class="text-muted ms-1" id="add_expiry_format_tag" style="font-size: 0.7rem;">(MM/DD/YYYY)</small></span>
-                  <span class="badge bg-primary-subtle text-primary ms-auto small" style="font-size: 0.68rem;">Calculated</span>
+              <div class="col-12" id="add_direct_expiry_container">
+                <label class="form-label" for="add_direct_exp_date">
+                  <i class="fas fa-calendar-check me-1"></i>Expiration date
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle ms-1" style="font-size: 0.65rem;">MM/DD/YYYY</span>
+                </label>
+                <input type="hidden" name="direct_exp_date" id="add_direct_exp_date">
+                <div id="exp_dropdowns_view" class="date-dropdowns">
+                  <div class="row g-1">
+                    <div class="col-5">
+                      <select id="exp_sel_month" class="form-select form-select-sm border-warning" onchange="onExpDropdownChanged()" aria-label="Expiry Month">
+                        <option value="01">01 - Jan</option><option value="02">02 - Feb</option><option value="03">03 - Mar</option>
+                        <option value="04">04 - Apr</option><option value="05">05 - May</option><option value="06">06 - Jun</option>
+                        <option value="07">07 - Jul</option><option value="08">08 - Aug</option><option value="09">09 - Sep</option>
+                        <option value="10">10 - Oct</option><option value="11">11 - Nov</option><option value="12">12 - Dec</option>
+                      </select>
+                    </div>
+                    <div class="col-3"><select id="exp_sel_day" class="form-select form-select-sm border-warning" onchange="onExpDropdownChanged()" aria-label="Expiry Day"></select></div>
+                    <div class="col-4"><select id="exp_sel_year" class="form-select form-select-sm border-warning" onchange="onExpDropdownChanged()" aria-label="Expiry Year"></select></div>
+                  </div>
                 </div>
               </div>
 
@@ -1438,25 +1452,7 @@
           });
         }
 
-        // 3. Initialize Flatpickr for Direct Expiration Date
-        const expEl = document.getElementById('add_direct_exp_date');
-        if (expEl && !expFlatpickr) {
-          expFlatpickr = flatpickr(expEl, {
-            dateFormat: "Y-m-d",
-            altInput: true,
-            altFormat: "m/d/Y",
-            altInputClass: "form-control border-warning fw-semibold border-start-0",
-            disableMobile: true,
-            allowInput: true,
-            monthSelectorType: "dropdown",
-            onChange: function(selectedDates) {
-              if (selectedDates && selectedDates.length > 0) {
-                syncExpDateToDropdowns(selectedDates[0]);
-              }
-              updateAddStockExpiryPreview();
-            }
-          });
-        }
+        // Expiration uses the normalized month/day/year dropdowns below.
       }
 
       // Initial sync to dropdowns
@@ -2437,10 +2433,16 @@
       const isNoExpiry = (shelfLifeSelect && shelfLifeSelect.value === '0');
 
       if (!isProductionMode) {
-        // Simple default flow: calculate expiry from today + the default 3-month shelf life.
-        formData.set('is_dry_goods', 'false');
-        formData.set('production_date', formatDateForInput(new Date()));
-        formData.set('shelf_life_months', '3');
+        const directDateVal = getDirectExpDateValue();
+        formData.set('is_dry_goods', 'true');
+        if (directDateVal) {
+          formData.set('direct_exp_date', directDateVal);
+          formData.set('exp_date', directDateVal);
+        } else {
+          showFlashAlert('Please select the expiration date.', 'warning');
+          if (submitBtn) submitBtn.disabled = false;
+          return;
+        }
       } else if (isNoExpiry) {
         formData.set('shelf_life_months', '0');
         formData.set('no_expiry', 'true');
