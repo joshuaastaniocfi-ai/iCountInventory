@@ -217,6 +217,9 @@ function showPanel(id, updateUrl = true){
   const nb = document.getElementById('nav'+id.charAt(0).toUpperCase()+id.slice(1));
   if(nb) nb.classList.add('act');
   document.getElementById('pageLabel').textContent = panelLabels[id] || id;
+  document.querySelectorAll('[data-topbar-panel]').forEach(action => {
+    action.hidden = action.dataset.topbarPanel !== id;
+  });
 
   // Toggle in-req-wizard class on body (hides sticky topbar and mobile bottom bar)
   if(id === 'requisition'){

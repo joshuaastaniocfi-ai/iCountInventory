@@ -209,6 +209,45 @@ body {
   gap: .65rem;
 }
 
+.topbar-page-actions {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+
+.topbar-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  min-height: 34px;
+  padding: .35rem .7rem;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all .14s ease;
+}
+
+.topbar-action:hover {
+  background: var(--surface-hover);
+  border-color: var(--text-muted);
+}
+
+.topbar-action[hidden] {
+  display: none;
+}
+
+/* Page actions now live in the compact navbar; panels keep their content only. */
+.panel > .ph {
+  display: none;
+}
+
 .topbar .uchip {
   display: inline-flex;
   align-items: center;
@@ -1885,6 +1924,21 @@ body.in-req-wizard .main {
 
   .topbar .tr2 {
     gap: .35rem;
+  }
+
+  .topbar-page-actions {
+    gap: .25rem;
+  }
+
+  .topbar-action {
+    width: 32px;
+    min-height: 32px;
+    padding: 0;
+    font-size: .75rem;
+  }
+
+  .topbar-action span {
+    display: none;
   }
 
   .topbar .uchip {

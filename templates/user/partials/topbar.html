@@ -8,6 +8,26 @@
     <span class="page-lbl" id="pageLabel">Store Inventory</span>
   </div>
   <div class="tr2">
+    <div class="topbar-page-actions" id="topbarPageActions" aria-label="Page actions">
+      <button type="button" class="topbar-action" data-topbar-panel="storeinv" onclick="showPanel('inventory')" title="View Full Inventory" hidden>
+        <i class="fas fa-warehouse"></i><span>Full Inventory</span>
+      </button>
+      <button type="button" class="topbar-action" data-topbar-panel="inventory" onclick="showPanel('requisition')" title="New Request" hidden>
+        <i class="fas fa-plus"></i><span>New Request</span>
+      </button>
+      <button type="button" class="topbar-action" data-topbar-panel="history" onclick="showPanel('requisition')" title="New Request" hidden>
+        <i class="fas fa-plus"></i><span>New Request</span>
+      </button>
+      <button type="button" class="topbar-action" data-topbar-panel="receiving" onclick="loadReceivingList()" title="Refresh shipments" hidden>
+        <i class="fas fa-rotate"></i><span>Refresh</span>
+      </button>
+      <a href="{{ url_for('receiving.deliveries_page') }}" class="topbar-action" data-topbar-panel="receiving" title="Full Deliveries Hub" hidden>
+        <i class="fas fa-truck-ramp-box"></i><span>Deliveries Hub</span>
+      </a>
+      <button type="button" class="topbar-action" data-topbar-panel="receiving" onclick="showPanel('requisition')" title="New Requisition" hidden>
+        <i class="fas fa-plus"></i><span>New Requisition</span>
+      </button>
+    </div>
     <div class="uchip">
       <div class="av" id="userInitials">UN</div>
       <span id="userFullName">{{ current_user.full_name }}</span>
