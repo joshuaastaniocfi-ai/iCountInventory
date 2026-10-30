@@ -364,28 +364,97 @@
     .scanner-workbench-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr); gap: clamp(1rem, 3vw, 1.75rem); align-items: start; }
     .scanner-workbench .scanner-primary-column { min-width: 0; }
     .scanner-workbench .scanner-result-column { min-width: 0; }
-    .scanner-workbench .scanner-container { margin-top: 0; height: clamp(240px, 62vw, 320px); }
+    .scanner-workbench .scanner-container {
+      margin-top: 0;
+      height: clamp(240px, 45vh, 320px);
+      touch-action: pan-y !important;
+    }
     .scanner-workbench .scanner-container.is-hidden { display: none !important; }
-    .scanner-workbench #reader { width: 100%; height: 100% !important; min-height: 0 !important; aspect-ratio: auto !important; overflow: hidden; }
-    .scanner-workbench #reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
-    .scanner-workbench .scanner-frame { width: min(86%, 250px); height: min(48%, 100px); }
+    .scanner-workbench #reader {
+      width: 100%;
+      height: 100% !important;
+      min-height: 0 !important;
+      aspect-ratio: auto !important;
+      overflow: hidden;
+      touch-action: pan-y !important;
+    }
+    .scanner-workbench #reader video,
+    .scanner-workbench #reader canvas {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover;
+      pointer-events: none !important;
+      touch-action: pan-y !important;
+    }
+    .scanner-workbench .scanner-controls-overlay {
+      pointer-events: auto !important;
+    }
+    .scanner-workbench .scanner-frame {
+      width: min(86%, 250px);
+      height: min(48%, 100px);
+      pointer-events: none !important;
+    }
     .scanner-workbench .manual-input-card { margin-top: 0.75rem !important; }
     .scanner-workbench .product-card { margin-top: 0 !important; }
     .scanner-workbench .product-header { padding: 1.1rem 1.15rem; }
     .scanner-workbench .product-body { padding: 1.15rem; }
     .scanner-workbench .retryBtn { margin-top: 0.75rem !important; }
     .scanner-workbench .scanner-result-column:has(#product-info.d-none) { min-height: 1px; }
+
     @media (max-width: 767px) {
-      .scanner-sticky-header { gap: 0.5rem; padding-inline: 0.7rem; }
-      .scanner-brand-name { font-size: 0.9rem; }
-      .scanner-nav-link { padding-inline: 0.55rem; }
-      .scanner-workbench .scanner-wrapper { padding-top: 0.7rem; }
-      .scanner-workbench .scanner-heading { display: block; }
-      .scanner-workbench .scanner-heading small { display: block; margin-bottom: 0.45rem; }
+      .scanner-sticky-header {
+        gap: 0.2rem !important;
+        padding-inline: 0.5rem !important;
+        padding-block: max(0.35rem, env(safe-area-inset-top, 0.35rem)) 0.3rem !important;
+      }
+      .scanner-brand-name { font-size: 0.88rem; }
+      .scanner-nav-link { padding-inline: 0.48rem; font-size: 0.74rem; min-height: 28px; }
+      .scanner-workbench .scanner-wrapper {
+        padding: 0.25rem 0.5rem 1.25rem !important;
+        max-width: 540px;
+      }
+      /* Hide redundant large heading on mobile to place scanner directly below the store toggle */
+      .scanner-workbench .scanner-heading {
+        display: none !important;
+      }
       .scanner-workbench-grid { display: block; }
-      .scanner-workbench .scanner-result-column { margin-top: 1rem; }
+      /* Responsive to phone screenheight so it fits snugly right below the store toggle without scrolling */
+      .scanner-workbench .scanner-container {
+        margin-top: 0.15rem !important;
+        height: clamp(180px, calc(100vh - 290px), 280px) !important;
+        height: clamp(180px, calc(100dvh - 290px), 280px) !important;
+        border-radius: 12px;
+      }
+      .scanner-workbench .scanner-frame {
+        width: min(84%, 230px);
+        height: min(50%, 105px);
+      }
+      .scanner-workbench .manual-input-card {
+        margin-top: 0.45rem !important;
+        padding: 0.6rem 0.7rem !important;
+        border-radius: 12px !important;
+      }
+      .scanner-workbench .manual-input-card .btn {
+        font-size: 0.82rem;
+      }
+      .scanner-workbench .scanner-result-column { margin-top: 0.35rem; }
       .scanner-workbench .product-card { margin-top: 0 !important; }
     }
+
+    @media (max-height: 640px) and (max-width: 767px) {
+      .scanner-workbench .scanner-container {
+        height: clamp(150px, calc(100dvh - 230px), 220px) !important;
+      }
+      .scanner-workbench .scanner-frame {
+        width: min(80%, 200px);
+        height: min(46%, 80px);
+      }
+      .scanner-workbench .manual-input-card {
+        margin-top: 0.35rem !important;
+        padding: 0.45rem 0.6rem !important;
+      }
+    }
+
     @media (min-width: 768px) {
       .scanner-workbench .scanner-result-column { position: sticky; top: 1rem; }
       .scanner-workbench .scanner-result-column:has(#product-info.d-none) { display: none; }
