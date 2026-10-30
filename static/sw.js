@@ -1,4 +1,4 @@
-const CACHE_NAME = 'icebergINV-v1.0.1';
+const CACHE_NAME = 'icebergINV-v1.0.2-pwa-layout';
 const urlsToCache = [
   '/',
   '/static/css/style.css',

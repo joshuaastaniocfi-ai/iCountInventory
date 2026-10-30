@@ -117,9 +117,7 @@ class ScannerPWA {
 
         // Adjust scanner wrapper position
         const scannerWrapper = document.querySelector('.scanner-wrapper');
-        if (scannerWrapper) {
-            scannerWrapper.style.marginTop = '80px';
-        }
+        if (scannerWrapper) scannerWrapper.style.removeProperty('margin-top');
     }
 
     createInstallOverlay() {
@@ -290,6 +288,10 @@ class ScannerPWA {
     }
 
     addPWANavigationControls() {
+        // Scanner pages already render the shared sticky header.
+        // Avoid adding a second fixed header over the navigation in standalone mode.
+        if (document.querySelector('.scanner-sticky-header')) return;
+
         // Create a navigation header for PWA mode
         const navHeader = document.createElement('div');
         navHeader.id = 'pwa-nav-header';
@@ -327,10 +329,10 @@ class ScannerPWA {
             document.body.insertBefore(navHeader, document.body.firstChild);
         }
 
-        // Adjust scanner wrapper position for both headers
+        // Legacy pages without the shared header need no forced spacer.
         const scannerWrapper = document.querySelector('.scanner-wrapper');
         if (scannerWrapper) {
-            scannerWrapper.style.marginTop = '120px';
+            scannerWrapper.style.marginTop = '0';
         }
     }
 }
