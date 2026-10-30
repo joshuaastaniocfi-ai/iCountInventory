@@ -1,88 +1,58 @@
-<!-- ──────────────────────────────────────────────────
-     PANEL: INVENTORY COUNT (Daily)
-────────────────────────────────────────────────── -->
-<div class="panel" id="panel-invcount">
-  <div class="ph">
+<!-- Inventory count workspace -->
+<div class="panel invcount-panel" id="panel-invcount">
+  <div class="ph invcount-header">
     <div>
+      <div class="invcount-kicker"><i class="fas fa-clipboard-check"></i> CONTROLLED COUNT</div>
       <div class="ph-title">Daily Inventory Count</div>
       <div class="ph-sub">Count actual stock for all products today</div>
     </div>
+    <div class="invcount-header-note"><i class="fas fa-shield-halved"></i><span>Variance review enabled</span></div>
   </div>
 
-  <!-- Instructions -->
-  <div class="cs" style="margin-bottom:1rem">
+  <div class="cs invcount-instructions">
     <div class="cs-body d-flex align-items-start gap-3">
-      <div style="width:32px;height:32px;background:var(--tone-green-subtle);border:1px solid var(--tone-green);color:var(--tone-green);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem">
-        <i class="fas fa-info-circle"></i>
-      </div>
-      <div>
-        <div style="font-weight:700;font-size:0.85rem;margin-bottom:0.25rem">How to count inventory</div>
-        <div class="fs-sm text-muted" style="line-height:1.5">
-          Enter the <strong>actual quantity</strong> you physically counted for each product. The system will calculate the variance automatically. <span class="pill pill-ok" style="font-size:0.65rem">Match</span> means correct, <span class="pill pill-warn" style="font-size:0.65rem">Over</span> means excess, <span class="pill pill-bad" style="font-size:0.65rem">Short</span> means missing.
-        </div>
+      <div class="invcount-info-icon"><i class="fas fa-info-circle"></i></div>
+      <div class="invcount-instruction-copy">
+        <div class="invcount-section-title">How to count inventory</div>
+        <div class="fs-sm text-muted">Enter the <strong>actual quantity</strong> you physically counted for each product. Variance updates as you type. <span class="pill pill-ok">Match</span> <span class="pill pill-warn">Over</span> <span class="pill pill-bad">Short</span></div>
       </div>
     </div>
   </div>
 
-  <!-- Stats Bar -->
-  <div class="cs" style="margin-bottom:1rem">
-    <div class="cs-body d-flex flex-wrap gap-3 align-items-center" style="padding:0.6rem 1.25rem">
-      <div class="d-flex align-items-center gap-2">
-        <i class="fas fa-cubes text-muted" style="font-size:0.8rem"></i>
-        <span class="fw-bold" style="color:var(--txt)" id="icTotal">0</span>
-        <span class="text-muted fs-sm">products</span>
-      </div>
-      <div style="width:1px;height:16px;background:var(--bord)"></div>
-      <div class="d-flex align-items-center gap-1">
-        <span class="fw-bold" style="color:var(--green)" id="icMatched">0</span>
-        <span class="text-muted fs-sm">matched</span>
-      </div>
-      <div class="d-flex align-items-center gap-1">
-        <span class="fw-bold" style="color:var(--amber)" id="icOver">0</span>
-        <span class="text-muted fs-sm">over</span>
-      </div>
-      <div class="d-flex align-items-center gap-1">
-        <span class="fw-bold" style="color:var(--red)" id="icShort">0</span>
-        <span class="text-muted fs-sm">short</span>
-      </div>
-      <div class="d-flex align-items-center gap-1">
-        <span class="fw-bold" style="color:var(--accent)" id="icCounted">0</span>
-        <span class="text-muted fs-sm">counted</span>
-      </div>
-      <div class="ms-auto">
-        <div class="fsearch" style="min-width:180px;width:200px">
-          <i class="fas fa-search fsi"></i>
-          <input class="finput" id="icSearch" placeholder="Search products…" oninput="filterCountRows(this.value)">
-        </div>
-      </div>
+  <div class="invcount-toolbar">
+    <div class="invcount-stats" aria-label="Count summary">
+      <div class="invcount-stat invcount-stat-neutral"><span class="invcount-stat-icon"><i class="fas fa-cubes"></i></span><span><strong id="icTotal">0</strong><small>Products</small></span></div>
+      <div class="invcount-stat invcount-stat-green"><span class="invcount-stat-icon"><i class="fas fa-check"></i></span><span><strong id="icMatched">0</strong><small>Matched</small></span></div>
+      <div class="invcount-stat invcount-stat-amber"><span class="invcount-stat-icon"><i class="fas fa-arrow-up"></i></span><span><strong id="icOver">0</strong><small>Over</small></span></div>
+      <div class="invcount-stat invcount-stat-red"><span class="invcount-stat-icon"><i class="fas fa-arrow-down"></i></span><span><strong id="icShort">0</strong><small>Short</small></span></div>
+      <div class="invcount-stat invcount-stat-blue"><span class="invcount-stat-icon"><i class="fas fa-pen"></i></span><span><strong id="icCounted">0</strong><small>Counted</small></span></div>
+    </div>
+    <div class="invcount-search fsearch">
+      <i class="fas fa-search fsi"></i>
+      <input class="finput" id="icSearch" placeholder="Search products…" oninput="filterCountRows(this.value)" aria-label="Search products to count">
     </div>
   </div>
 
-  <!-- Count Table -->
-  <div class="cs">
-    <div class="ovx" style="max-height:55vh;overflow-y:auto">
+  <div class="cs invcount-table-card">
+    <div class="invcount-table-heading">
+      <div><div class="invcount-section-title">Stock count sheet</div><div class="text-muted fs-sm">Enter only the products you physically checked.</div></div>
+      <span class="invcount-table-badge"><i class="fas fa-list-check"></i> Live variance</span>
+    </div>
+    <div class="ovx invcount-table-scroll">
       <table class="it mobile-cards" style="margin:0">
-        <thead>
-          <tr>
-            <th style="width:5%">#</th>
-            <th style="width:35%">Product Name</th>
-            <th class="tc" style="width:15%">System Qty</th>
-            <th class="tc" style="width:22%">Actual Count</th>
-            <th class="tc" style="width:23%">Variance</th>
-          </tr>
-        </thead>
+        <thead><tr><th style="width:5%">#</th><th style="width:35%">Product Name</th><th class="tc" style="width:15%">System Qty</th><th class="tc" style="width:22%">Actual Count</th><th class="tc" style="width:23%">Variance</th></tr></thead>
         <tbody id="icBody"></tbody>
       </table>
     </div>
   </div>
 
-  <!-- Submit Bar -->
-  <div class="d-flex justify-between align-center mt-3 gap-3" style="flex-wrap:wrap">
-    <div class="d-flex align-items-center gap-2">
-      <label class="fs-sm text-muted" style="font-weight:600">Counted By:</label>
-      <input type="text" class="finput" id="icVerifiedBy" value="{{ current_user.full_name }}" style="width:200px;padding:0.4rem 0.6rem;font-size:0.8rem">
+  <div class="invcount-submit cs">
+    <div class="invcount-verifier">
+      <span class="invcount-info-icon"><i class="fas fa-user-check"></i></span>
+      <div><label for="icVerifiedBy">Counted by</label><small>Person responsible for this count</small></div>
+      <input type="text" class="finput" id="icVerifiedBy" value="{{ current_user.full_name }}">
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 invcount-submit-actions">
       <button class="btn-ghost" onclick="resetCountForm()"><i class="fas fa-rotate-left"></i> Reset</button>
       <button class="btn-p" onclick="submitDailyCount()" id="icSubmitBtn"><i class="fas fa-paper-plane"></i> Submit Count</button>
     </div>
