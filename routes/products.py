@@ -758,27 +758,49 @@ def add_stock():
 
     supplier_name = request.form.get('supplier_name', '').strip() or None
 
-    production_date_str = request.form.get('production_date', '').strip()
-    shelf_life_raw = request.form.get('shelf_life_months', '3').strip()
+    is_dry_goods = (request.form.get('is_dry_goods', '').lower() in ('true', '1', 'yes') or 
+                    bool(request.form.get('direct_exp_date', '').strip()))
+    direct_exp_date_str = request.form.get('direct_exp_date', '').strip() or request.form.get('exp_date', '').strip()
 
-    try:
-        production_date = datetime.strptime(production_date_str, '%Y-%m-%d').date()
-    except (TypeError, ValueError):
-        # Keep accepting the legacy payload while all new UI submissions use production_date.
-        legacy_exp_date = request.form.get('exp_date', '').strip()
+    shelf_life_months = None
+    if is_dry_goods and direct_exp_date_str:
         try:
-            production_date = datetime.strptime(legacy_exp_date, '%Y-%m-%d').date()
+            exp_date = datetime.strptime(direct_exp_date_str, '%Y-%m-%d').date()
         except (TypeError, ValueError):
-            return jsonify({'message': 'Production date is required.'}), 400
+            return jsonify({'message': 'Enter a valid expiration date for dry goods.'}), 400
+        # For dry goods, production_date is optional
+        prod_date_str = request.form.get('production_date', '').strip()
+        try:
+            production_date = datetime.strptime(prod_date_str, '%Y-%m-%d').date() if prod_date_str else None
+        except (TypeError, ValueError):
+            production_date = None
+    else:
+        # Standard perishable goods workflow: production_date + shelf_life_months
+        production_date_str = request.form.get('production_date', '').strip()
+        shelf_life_raw = request.form.get('shelf_life_months', '3').strip()
 
-    try:
-        shelf_life_months = int(shelf_life_raw)
-    except (TypeError, ValueError):
-        return jsonify({'message': 'Choose a valid shelf life.'}), 400
-    if shelf_life_months not in (3, 6, 12):
-        return jsonify({'message': 'Shelf life must be 3, 6, or 12 months.'}), 400
+        try:
+            production_date = datetime.strptime(production_date_str, '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            # Keep accepting direct exp_date as fallback
+            if direct_exp_date_str:
+                try:
+                    exp_date = datetime.strptime(direct_exp_date_str, '%Y-%m-%d').date()
+                    production_date = None
+                except (TypeError, ValueError):
+                    return jsonify({'message': 'Production date is required.'}), 400
+            else:
+                return jsonify({'message': 'Production date is required.'}), 400
 
-    exp_date = add_months_to_date(production_date, shelf_life_months)
+        if production_date is not None:
+            try:
+                shelf_life_months = int(shelf_life_raw)
+            except (TypeError, ValueError):
+                return jsonify({'message': 'Choose a valid shelf life.'}), 400
+            if shelf_life_months not in (3, 6, 12):
+                return jsonify({'message': 'Shelf life must be 3, 6, or 12 months.'}), 400
+
+            exp_date = add_months_to_date(production_date, shelf_life_months)
 
     # Get current time in PHT
     current_time = datetime.now(ZoneInfo("Asia/Manila"))
@@ -856,12 +878,14 @@ def add_stock():
     # Determine expiry date for logging
     exp_date_str = exp_date.strftime('%Y-%m-%d')
 
+    prod_date_display = production_date.strftime('%Y-%m-%d') if production_date else 'N/A (Dry Goods)'
+    shelf_life_display = f"{shelf_life_months} months" if shelf_life_months else "N/A (Dry Goods - Direct Expiry)"
     log_activity(
         action="Add Stock",
         details=f"<strong>{add_qty} {product.uom}</strong> added to "
                 f"<strong>{product.name}</strong><br>"
-                f"Production date: {production_date.strftime('%Y-%m-%d')}<br>"
-                f"Shelf life: {shelf_life_months} months · Expiry: {exp_date_str}<br>"
+                f"Production date: {prod_date_display}<br>"
+                f"Shelf life: {shelf_life_display} · Expiry: {exp_date_str}<br>"
                 f"Supplier: {supplier_name or 'N/A'}<br>"
                 f"Added on: {formatted_time}<br>"
                 f"New Total: <span class='badge bg-warning'>{product.quantity} {product.uom}</span>"

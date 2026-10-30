@@ -568,20 +568,46 @@
                 <label class="form-label" for="add_quantity">Qty to add</label>
                 <input type="number" name="quantity" id="add_quantity" class="form-control" required min="0.01" step="0.01" inputmode="decimal" pattern="[0-9]+([.][0-9]+)?" autocomplete="off" placeholder="0.00">
               </div>
-              <div class="col-12 col-sm-6">
+              <div class="col-12 col-sm-6" id="add_production_date_container">
                 <label class="form-label" for="add_production_date">Production date</label>
                 <input type="date" name="production_date" id="add_production_date" class="form-control" required>
                 <div class="form-text">The date this batch was produced</div>
               </div>
-              <div class="col-12">
+              <div class="col-12" id="add_shelf_life_container">
                 <label class="form-label" for="add_shelf_life">Shelf life</label>
                 <select name="shelf_life_months" id="add_shelf_life" class="form-select" required>
                   <option value="3" selected>3 months (default)</option>
                   <option value="6">6 months</option>
                   <option value="12">12 months</option>
                 </select>
-                <div class="expiry-preview" id="add_expiry_preview"><i class="fas fa-calendar-check"></i><span>Expiration date: <strong>—</strong></span></div>
+                <div class="expiry-preview" id="add_expiry_preview" title="Double-click to switch to Dry Goods (Direct Expiration Date)" style="cursor: pointer; user-select: none;">
+                  <i class="fas fa-calendar-check"></i>
+                  <span>Expiration date: <strong>—</strong></span>
+                  <span id="dry_goods_badge" class="badge bg-secondary-subtle text-secondary ms-auto small" style="font-size: 0.68rem;">
+                    <i class="fas fa-hand-pointer me-1"></i>Double-click for Dry Goods
+                  </span>
+                </div>
               </div>
+
+              <!-- Direct Expiration Date for Dry Goods (shown when double-clicked) -->
+              <div class="col-12 d-none" id="add_direct_expiry_container">
+                <div class="p-3 rounded-3 border border-warning-subtle" style="background: rgba(245, 158, 11, 0.08);">
+                  <div class="d-flex align-items-center justify-content-between mb-2">
+                    <label class="form-label mb-0 fw-bold text-warning-emphasis" for="add_direct_exp_date">
+                      <i class="fas fa-box me-1"></i> Actual Expiration Date (Dry Goods)
+                    </label>
+                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="toggleDryGoodsMode(false)" style="font-size: 0.72rem;">
+                      <i class="fas fa-rotate-left me-1"></i> Re-enable Production Date
+                    </button>
+                  </div>
+                  <input type="date" name="direct_exp_date" id="add_direct_exp_date" class="form-control border-warning fw-semibold">
+                  <div class="form-text text-warning-emphasis small mt-1">
+                    <i class="fas fa-info-circle me-1"></i> Dry goods mode: Production date &amp; shelf life are disabled. Select the printed expiration date.
+                  </div>
+                </div>
+              </div>
+
+              <input type="hidden" name="is_dry_goods" id="is_dry_goods" value="false">
               <div class="col-12">
               <label class="form-label">
                 <i class="fas fa-truck me-1"></i>Supplier Name
@@ -762,10 +788,19 @@
       return result;
     }
 
+    let isDryGoodsMode = false;
+
     function updateAddStockExpiryPreview() {
+      const preview = document.querySelector('#add_expiry_preview strong');
+      if (isDryGoodsMode) {
+        const directInput = document.getElementById('add_direct_exp_date');
+        if (preview) {
+          preview.textContent = (directInput && directInput.value) ? directInput.value : 'Select date below';
+        }
+        return;
+      }
       const productionInput = document.getElementById('add_production_date');
       const shelfLifeInput = document.getElementById('add_shelf_life');
-      const preview = document.querySelector('#add_expiry_preview strong');
       if (!productionInput || !shelfLifeInput || !preview || !productionInput.value) {
         if (preview) preview.textContent = '—';
         return;
@@ -774,6 +809,92 @@
       const expiryDate = addCalendarMonths(productionDate, Number(shelfLifeInput.value || 3));
       preview.textContent = formatDateForInput(expiryDate);
     }
+
+    function toggleDryGoodsMode(forceState) {
+      if (typeof forceState === 'boolean') {
+        isDryGoodsMode = forceState;
+      } else {
+        isDryGoodsMode = !isDryGoodsMode;
+      }
+
+      const prodContainer = document.getElementById('add_production_date_container');
+      const prodInput = document.getElementById('add_production_date');
+      const shelfContainer = document.getElementById('add_shelf_life_container');
+      const shelfInput = document.getElementById('add_shelf_life');
+      const directContainer = document.getElementById('add_direct_expiry_container');
+      const directInput = document.getElementById('add_direct_exp_date');
+      const hiddenFlag = document.getElementById('is_dry_goods');
+      const preview = document.querySelector('#add_expiry_preview strong');
+      const badge = document.getElementById('dry_goods_badge');
+
+      if (hiddenFlag) hiddenFlag.value = isDryGoodsMode ? 'true' : 'false';
+
+      if (isDryGoodsMode) {
+        // Disable production date and shelf life
+        if (prodInput) {
+          prodInput.disabled = true;
+          prodInput.required = false;
+        }
+        if (shelfInput) {
+          shelfInput.disabled = true;
+          shelfInput.required = false;
+        }
+        if (prodContainer) prodContainer.classList.add('opacity-50');
+        if (shelfContainer) shelfContainer.classList.add('opacity-50');
+
+        // Show direct expiration date picker
+        if (directContainer) directContainer.classList.remove('d-none');
+        if (directInput) {
+          directInput.required = true;
+          if (directInput.value && preview) {
+            preview.textContent = directInput.value;
+          } else if (preview && preview.textContent !== '—' && preview.textContent !== 'Select date below') {
+            directInput.value = preview.textContent;
+          }
+          // Focus and open date picker
+          setTimeout(() => {
+            directInput.focus();
+            if (typeof directInput.showPicker === 'function') {
+              try { directInput.showPicker(); } catch (e) {}
+            }
+          }, 150);
+        }
+
+        if (badge) {
+          badge.className = 'badge bg-warning text-dark ms-auto small';
+          badge.innerHTML = '<i class="fas fa-box me-1"></i>Dry Goods Active (Double-click to reset)';
+        }
+
+        showFlashAlert('Dry Goods Mode: Production date & shelf life disabled. Select actual expiration date.', 'info');
+      } else {
+        // Re-enable production date and shelf life
+        if (prodInput) {
+          prodInput.disabled = false;
+          prodInput.required = true;
+        }
+        if (shelfInput) {
+          shelfInput.disabled = false;
+          shelfInput.required = true;
+        }
+        if (prodContainer) prodContainer.classList.remove('opacity-50');
+        if (shelfContainer) shelfContainer.classList.remove('opacity-50');
+
+        // Hide direct expiration date picker
+        if (directContainer) directContainer.classList.add('d-none');
+        if (directInput) {
+          directInput.required = false;
+          directInput.value = '';
+        }
+
+        if (badge) {
+          badge.className = 'badge bg-secondary-subtle text-secondary ms-auto small';
+          badge.innerHTML = '<i class="fas fa-hand-pointer me-1"></i>Double-click for Dry Goods';
+        }
+
+        updateAddStockExpiryPreview();
+      }
+    }
+    window.toggleDryGoodsMode = toggleDryGoodsMode;
 
     document.addEventListener('DOMContentLoaded', function() {
       const quantityInput = document.getElementById('add_quantity');
@@ -790,6 +911,44 @@
       }
       if (shelfLifeInput) shelfLifeInput.addEventListener('change', updateAddStockExpiryPreview);
       updateAddStockExpiryPreview();
+
+      // Setup double-click and mobile double-tap on Expiration Date preview
+      const expiryPreviewEl = document.getElementById('add_expiry_preview');
+      if (expiryPreviewEl) {
+        expiryPreviewEl.addEventListener('dblclick', function(e) {
+          e.preventDefault();
+          toggleDryGoodsMode();
+        });
+
+        let lastTap = 0;
+        expiryPreviewEl.addEventListener('touchend', function(e) {
+          const now = Date.now();
+          if (now - lastTap < 350 && now - lastTap > 0) {
+            e.preventDefault();
+            toggleDryGoodsMode();
+          }
+          lastTap = now;
+        });
+      }
+
+      // Sync direct expiration date picker changes to preview
+      const directDateInput = document.getElementById('add_direct_exp_date');
+      if (directDateInput) {
+        directDateInput.addEventListener('change', function() {
+          const preview = document.querySelector('#add_expiry_preview strong');
+          if (preview) {
+            preview.textContent = this.value || '—';
+          }
+        });
+      }
+
+      // Reset dry goods mode when modal is closed
+      const addStockModalEl = document.getElementById('addStockModal');
+      if (addStockModalEl) {
+        addStockModalEl.addEventListener('hidden.bs.modal', function() {
+          toggleDryGoodsMode(false);
+        });
+      }
     });
 
     // Pass user role from Flask template to JavaScript
@@ -1599,6 +1758,19 @@
         showFlashAlert('Scan a product first.', 'error');
         if (submitBtn) submitBtn.disabled = false;
         return;
+      }
+
+      if (isDryGoodsMode) {
+        formData.set('is_dry_goods', 'true');
+        const directDate = document.getElementById('add_direct_exp_date');
+        if (directDate && directDate.value) {
+          formData.set('direct_exp_date', directDate.value);
+          formData.set('exp_date', directDate.value);
+        } else {
+          showFlashAlert('Please select the expiration date for dry goods.', 'warning');
+          if (submitBtn) submitBtn.disabled = false;
+          return;
+        }
       }
 
       fetch('{{ url_for("products.add_stock") }}', {
