@@ -667,6 +667,16 @@ def create_app(config_name='default'):
                 db.session.rollback()
                 app.logger.warning(f"Product stock auto-heal sync note: {e_sync}")
 
+            # ── Auto-heal: Ensure all products have barcodes and generated barcode images ──
+            try:
+                from helpers import ensure_all_product_barcodes
+                fixed_bc = ensure_all_product_barcodes()
+                if fixed_bc > 0:
+                    app.logger.info(f"Auto-healed {fixed_bc} missing product barcodes")
+            except Exception as e_bc:
+                db.session.rollback()
+                app.logger.warning(f"Barcode auto-heal note: {e_bc}")
+
         except Exception as e:
             db.session.rollback()
             app.logger.warning(f"Database initialization error (may be expected during first run): {e}")

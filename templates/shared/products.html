@@ -40,6 +40,11 @@
       <button class="btn btn-filter-toggle btn-sm shadow-sm d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true">
         <i class="fas fa-sliders"></i> <span>Filters</span>
       </button>
+      {% if current_user.role in ['SYS-Admin', 'WH-Admin', 'Company-Admin'] %}
+      <a href="{{ url_for('misc.download_barcodes') }}" class="btn btn-filter-toggle btn-sm shadow-sm d-flex align-items-center gap-2" title="Download Barcode Grid (PDF)">
+        <i class="fas fa-barcode"></i> <span>Barcodes</span>
+      </a>
+      {% endif %}
       {% if current_user.role != 'Purchaser' %}
       <button class="btn btn-primary-action btn-sm shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#addProductModal">
         <i class="fas fa-plus"></i> <span>Add Product</span>
@@ -432,12 +437,20 @@
                 <h6 class="fw-bold mb-3">Barcode</h6>
                 <div class="text-center p-3 bg-subtle rounded product-barcode-panel">
                   {% if product.barcode %}
-                    <img src="{{ url_for('static', filename='product_barcodes/company_' + product.company_id|string + '/' + product.barcode + '.png') }}"
-                         alt="barcode" class="img-fluid" style="max-height: 60px;" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=text-muted>Barcode not available</span>';">
+                    <img src="{{ url_for('static', filename='product_barcodes/company_' + (product.company_id|string if product.company_id else '1') + '/' + product.barcode + '.png') }}"
+                         alt="barcode" class="img-fluid mb-2" style="max-height: 60px;"
+                         onerror="this.onerror=null; this.src='/static/product_barcodes/{{ product.barcode }}.png';">
+                    <div>
+                      <a href="{{ url_for('static', filename='product_barcodes/' + product.barcode + '.png') }}"
+                         download="barcode_{{ product.barcode }}.png"
+                         class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size: 0.72rem;">
+                        <i class="fas fa-download me-1"></i>Download PNG
+                      </a>
+                    </div>
                   {% else %}
                     <span class="text-muted">No barcode available</span>
                   {% endif %}
-  </div>
+                </div>
 </div>
 
               <!-- Product Batches -->

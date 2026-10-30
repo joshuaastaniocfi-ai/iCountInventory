@@ -95,12 +95,53 @@ def edit_delete_required(view_func):
     return decorated_view
 
 
-def generate_barcode():
-    """Generate a unique barcode for new products"""
+def generate_barcode_image(code, company_id=None):
+    """
+    Generate and save barcode PNG image for a given barcode string.
+    Saves to:
+      - static/product_barcodes/company_{company_id}/{code}.png (if company_id is provided or current_user has one)
+      - static/product_barcodes/{code}.png (universal root fallback)
+    Uses EAN-13 when code is 12 or 13 digits; falls back to Code128 otherwise.
+    """
     import os
-    import time
     import traceback
+    if not code:
+        return False
+        
+    code_str = str(code).strip()
+    root_dir = os.path.join(current_app.root_path, 'static', 'product_barcodes')
+    os.makedirs(root_dir, exist_ok=True)
     
+    target_dirs = [root_dir]
+    eff_comp = company_id
+    if eff_comp is None and hasattr(current_user, 'company_id') and current_user and current_user.company_id:
+        eff_comp = current_user.company_id
+        
+    if eff_comp:
+        comp_dir = os.path.join(root_dir, f'company_{eff_comp}')
+        os.makedirs(comp_dir, exist_ok=True)
+        target_dirs.append(comp_dir)
+        
+    try:
+        writer = ImageWriter()
+        if code_str.isdigit() and len(code_str) in (12, 13):
+            ean_code = code_str[:12]
+            bc_obj = barcode.get('ean13', ean_code, writer=writer)
+        else:
+            bc_obj = barcode.get('code128', code_str, writer=writer)
+            
+        for d in target_dirs:
+            target_base = os.path.join(d, code_str)
+            bc_obj.save(target_base)
+        return True
+    except Exception as e:
+        print(f"Warning: Could not generate barcode image for {code_str}: {e}")
+        print(f"Full traceback: {traceback.format_exc()}")
+        return False
+
+
+def generate_barcode(company_id=None):
+    """Generate a unique barcode for new products and create its image files."""
     base = current_app.config.get('BARCODE_BASE', "12082016")
     
     # Get the highest existing barcode number to ensure uniqueness
@@ -109,7 +150,6 @@ def generate_barcode():
     
     for product in existing_products:
         try:
-            # Extract the numeric part from existing barcodes
             if product.barcode and product.barcode.startswith(base):
                 number_part = product.barcode[len(base):]
                 if number_part.isdigit():
@@ -121,33 +161,55 @@ def generate_barcode():
     next_number = max_number + 1
     code = base + str(next_number).zfill(4)
     
-    # Create company-specific path to static/product_barcodes directory (updated path)
-    if hasattr(current_user, 'company_id') and current_user.company_id:
-        static_dir = os.path.join(current_app.root_path, 'static', 'product_barcodes', f'company_{current_user.company_id}')
-    else:
-        static_dir = os.path.join(current_app.root_path, 'static', 'product_barcodes')
-    
-    # Ensure the directory exists
-    try:
-        os.makedirs(static_dir, exist_ok=True)
-    except Exception as e:
-        print(f"Warning: Could not create barcode directory {static_dir}: {e}")
-        # Fallback to default directory
-        static_dir = os.path.join(current_app.root_path, 'static', 'product_barcodes')
-        os.makedirs(static_dir, exist_ok=True)
-    
-    # Create full filename path
-    filename = os.path.join(static_dir, code)
-    
-    try:
-        ean = barcode.get('ean13', code, writer=ImageWriter())
-        ean.save(filename)
-    except Exception as e:
-        # Log the error but still return the barcode code
-        print(f"Warning: Could not generate barcode image for {code}: {e}")
-        print(f"Full traceback: {traceback.format_exc()}")
-    
+    eff_comp = company_id
+    if eff_comp is None and hasattr(current_user, 'company_id') and current_user and current_user.company_id:
+        eff_comp = current_user.company_id
+        
+    generate_barcode_image(code, company_id=eff_comp)
     return code
+
+
+def ensure_product_barcode(product):
+    """Ensure a product has a valid barcode in DB and its image exists on disk."""
+    changed = False
+    if not product.barcode:
+        product.barcode = generate_barcode(company_id=product.company_id)
+        changed = True
+        
+    root_dir = os.path.join(current_app.root_path, 'static', 'product_barcodes')
+    root_file = os.path.join(root_dir, f'{product.barcode}.png')
+    comp_file = os.path.join(root_dir, f'company_{product.company_id}', f'{product.barcode}.png') if product.company_id else None
+    
+    if not os.path.exists(root_file) or (comp_file and not os.path.exists(comp_file)):
+        generate_barcode_image(product.barcode, company_id=product.company_id)
+        
+    return changed
+
+
+def ensure_all_product_barcodes():
+    """Verify all products in the database have barcodes and images. Returns count of new barcodes assigned."""
+    products = Product.query.all()
+    fixed_barcodes = 0
+    base = current_app.config.get('BARCODE_BASE', "12082016")
+    
+    max_num = 0
+    for p in products:
+        if p.barcode and p.barcode.startswith(base):
+            part = p.barcode[len(base):]
+            if part.isdigit():
+                max_num = max(max_num, int(part))
+                
+    for p in products:
+        if not p.barcode:
+            max_num += 1
+            p.barcode = base + str(max_num).zfill(4)
+            fixed_barcodes += 1
+        ensure_product_barcode(p)
+        
+    if fixed_barcodes > 0:
+        db.session.commit()
+        
+    return fixed_barcodes
 
 
 def generate_sub_barcode(product_barcode=None, exp_date=None, db_connection=None, company_id=None):

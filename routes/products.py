@@ -18,7 +18,7 @@ from sqlalchemy import or_
 # Local imports
 from extensions import db
 from models import Product, WarehouseProductBatch, StoreProductBatch, ProductHistory, Requisition, RequisitionItem, Company, PendingRemoval, StockAudit, DeletionRequest, Notification, User
-from helpers import user_redirect_to_requisition, admin_required, sys_admin_required, edit_delete_required, generate_barcode, generate_sub_barcode, log_activity, assign_company
+from helpers import user_redirect_to_requisition, admin_required, sys_admin_required, edit_delete_required, generate_barcode, generate_sub_barcode, log_activity, assign_company, ensure_product_barcode, generate_barcode_image
 
 # Create blueprint with URL prefix as required by project specifications
 products = Blueprint('products', __name__, url_prefix='/products')
@@ -294,6 +294,7 @@ def add_product():
         
         # Assign to current user's company
         product = assign_company(product)
+        ensure_product_barcode(product)
         print(f"Assigned company: {product.company_id}")
         
         # Add to database
@@ -1597,6 +1598,7 @@ def import_products_csv():
                 
                 # Assign to current user's company
                 new_product = assign_company(new_product)
+                ensure_product_barcode(new_product)
                 
                 db.session.add(new_product)
                 db.session.flush()  # so we can use new_product.id
@@ -1752,6 +1754,7 @@ def import_from_product_dict():
                     
                     # Assign to current user's company
                     new_product = assign_company(new_product)
+                    ensure_product_barcode(new_product)
                     
                     db.session.add(new_product)
                     db.session.flush()  # so we can use new_product.id

@@ -295,67 +295,53 @@ def calculate_layout(page_width, page_height, barcode_width, barcode_height, mar
 @login_required
 @admin_required
 def download_barcodes():
-    """Download barcode PDF"""
+    """Download barcode PDF formatted in a clean, non-overlapping grid layout without edge cropping."""
     try:
+        from helpers import ensure_product_barcode
+        
         # Get products from database, filtered by company for users with company assignment
         if hasattr(current_user, 'company_id') and current_user.company_id:
-            # Users with company assignment can only see their own company's products
             products = Product.query.filter(
                 Product.company_id == current_user.company_id
             ).order_by(Product.name).all()
         else:
-            # Users without company assignment can see all products
             products = Product.query.order_by(Product.name).all()
         
         if not products:
             flash('No products found in database!', 'warning')
             return redirect(url_for('misc.transaction_history'))
         
-        # Get barcode images path - use company-specific path for users with company assignment
-        # According to project specifications, use company-specific path when company_id is available
-        if hasattr(current_user, 'company_id') and current_user.company_id:
-            barcode_path = Path(current_app.root_path) / "static" / "product_barcodes" / f"company_{current_user.company_id}"
-        else:
-            # Fallback to default path for users without company assignment
-            barcode_path = Path(current_app.root_path) / "static" / "product_barcodes"
-        
+        # Ensure all retrieved products have a barcode and PNG image generated
+        for p in products:
+            ensure_product_barcode(p)
+            
         # Create PDF in memory
         output = io.BytesIO()
         
-        # PDF setup - A4 size: 210mm x 297mm (595.276 x 841.890 points)
+        # Standard A4: 210mm x 297mm
         page_width, page_height = A4
-        margin = 5 * mm
+        margin_x = 8 * mm
+        margin_top = 10 * mm
+        margin_bottom = 12 * mm
         
-        # Fixed layout: exactly 3 barcodes per row
+        # Clean 3x7 Grid (21 labels per page - perfectly fits within printable boundaries)
         cols = 3
-        rows = 8  # 8 rows to fit on A4 page
+        rows = 7
+        gap_x = 4 * mm
+        gap_y = 3.5 * mm
         
-        # Label dimensions - adjusted for exactly 3 per row
-        available_width = page_width - 2 * margin
-        label_width = (available_width - (cols + 1) * 3*mm) / cols  # 3mm spacing between labels
-        barcode_height = 25 * mm  # Fixed height
-        text_height = 8 * mm   # Reduced text height
-        border_padding = 2 * mm  # Reduced padding
-        
-        # Calculate spacing
-        spacing_x = 3 * mm  # Fixed spacing
-        spacing_y = 3 * mm  # Fixed spacing
-        total_label_height = barcode_height + text_height + (2 * border_padding)
+        # Label dimensions: exact fit within available space
+        avail_width = page_width - (2 * margin_x)
+        label_width = (avail_width - (cols - 1) * gap_x) / cols  # 62.0 mm
+        label_height = 36 * mm  # Generous height for name, category, and sharp barcode
         
         labels_per_page = cols * rows
         total_pages = (len(products) + labels_per_page - 1) // labels_per_page
         
-        # Create PDF with proper A4 size
         c = canvas.Canvas(output, pagesize=A4)
-        c.setFont("Helvetica", 8)
-        
         product_index = 0
         
         for page_num in range(total_pages):
-            # Reset font for barcodes
-            c.setFont("Helvetica", 8)
-            
-            # Place barcodes on this page
             for row in range(rows):
                 for col in range(cols):
                     if product_index >= len(products):
@@ -363,58 +349,87 @@ def download_barcodes():
                     
                     product = products[product_index]
                     
-                    # Calculate position
-                    item_width = label_width + (2 * border_padding)
-                    x = margin + spacing_x + col * (item_width + spacing_x)
-                    y = page_height - margin - total_label_height - row * (total_label_height + spacing_y)
+                    # Position for this label
+                    x = margin_x + col * (label_width + gap_x)
+                    y = page_height - margin_top - label_height - row * (label_height + gap_y)
                     
-                    # Draw dashed border
-                    c.setStrokeColorRGB(0, 0, 0)
+                    # 1. Subtle, clean cut-guide rounded border
+                    c.setStrokeColorRGB(0.78, 0.81, 0.86)
                     c.setLineWidth(0.5)
-                    draw_dashed_rect(c, x, y, item_width, total_label_height)
+                    c.roundRect(x, y, label_width, label_height, 2 * mm, stroke=1, fill=0)
                     
-                    # Check if barcode image exists
-                    barcode_file = barcode_path / f"{product.barcode}.png"
+                    # 2. Product Name (Bold, centered, cleanly truncated if long)
+                    c.setFillColorRGB(0.06, 0.09, 0.16)
+                    c.setFont("Helvetica-Bold", 7.5)
+                    max_text_w = label_width - 4 * mm
+                    display_name = product.name or "Unnamed Product"
+                    while display_name and c.stringWidth(display_name + "...", "Helvetica-Bold", 7.5) > max_text_w:
+                        display_name = display_name[:-1]
+                    if display_name != (product.name or ""):
+                        display_name = display_name.strip() + "..."
+                    name_w = c.stringWidth(display_name, "Helvetica-Bold", 7.5)
+                    c.drawString(x + (label_width - name_w) / 2, y + label_height - 4.5 * mm, display_name)
                     
-                    # Calculate barcode position
-                    barcode_x = x + border_padding
-                    barcode_y = y + border_padding + text_height
+                    # 3. Sub-info: Category & UOM
+                    c.setFillColorRGB(0.40, 0.45, 0.53)
+                    c.setFont("Helvetica", 6.2)
+                    sub_parts = []
+                    if product.uom:
+                        sub_parts.append(f"UOM: {product.uom}")
+                    if product.account_title:
+                        sub_parts.append(product.account_title)
+                    sub_text = " • ".join(sub_parts) if sub_parts else "General"
+                    while sub_text and c.stringWidth(sub_text + "...", "Helvetica", 6.2) > max_text_w:
+                        sub_text = sub_text[:-1]
+                    if sub_parts and sub_text != " • ".join(sub_parts):
+                        sub_text = sub_text.strip() + "..."
+                    sub_w = c.stringWidth(sub_text, "Helvetica", 6.2)
+                    c.drawString(x + (label_width - sub_w) / 2, y + label_height - 7.5 * mm, sub_text)
                     
-                    if barcode_file.exists():
+                    # 4. Barcode Image
+                    barcode_file = None
+                    if product.barcode:
+                        if product.company_id:
+                            comp_file = Path(current_app.root_path) / "static" / "product_barcodes" / f"company_{product.company_id}" / f"{product.barcode}.png"
+                            if comp_file.exists():
+                                barcode_file = comp_file
+                        if not barcode_file:
+                            root_file = Path(current_app.root_path) / "static" / "product_barcodes" / f"{product.barcode}.png"
+                            if root_file.exists():
+                                barcode_file = root_file
+                    
+                    img_w = 56 * mm
+                    img_h = 22 * mm
+                    img_x = x + (label_width - img_w) / 2
+                    img_y = y + 2.8 * mm
+                    
+                    if barcode_file and barcode_file.exists():
                         try:
-                            # Draw barcode image
-                            c.drawImage(str(barcode_file), barcode_x, barcode_y, 
-                                      width=label_width, height=barcode_height)
-                        except Exception as e:
-                            # Draw placeholder rectangle
-                            c.rect(barcode_x, barcode_y, label_width, barcode_height)
-                            c.drawString(barcode_x + 5*mm, barcode_y + 10*mm, f"Barcode: {product.barcode}")
+                            c.drawImage(str(barcode_file), img_x, img_y, 
+                                        width=img_w, height=img_h, 
+                                        preserveAspectRatio=True, anchor='c')
+                        except Exception:
+                            c.setStrokeColorRGB(0.85, 0.85, 0.88)
+                            c.rect(img_x, img_y, img_w, img_h)
+                            c.setFont("Helvetica", 7)
+                            c.setFillColorRGB(0.4, 0.4, 0.4)
+                            c.drawCentredString(x + label_width / 2, y + 12 * mm, f"Barcode: {product.barcode}")
                     else:
-                        # Draw placeholder if image doesn't exist
-                        c.rect(barcode_x, barcode_y, label_width, barcode_height)
-                        c.drawString(barcode_x + 5*mm, barcode_y + 10*mm, f"Barcode: {product.barcode}")
-                    
-                    # Draw product name and info - centered
-                    max_name_length = int(label_width / 4)
-                    display_name = product.name[:max_name_length] + "..." if len(product.name) > max_name_length else product.name
-                    
-                    # Combine product name and info
-                    combined_text = f"{display_name} | {product.uom or 'unit'} | {product.account_title}"
-                    
-                    # Center the combined text
-                    text_width = c.stringWidth(combined_text, "Helvetica", 8)
-                    text_x = x + (label_width + 2 * border_padding) / 2  # Center position
-                    centered_text_x = text_x - text_width / 2  # Adjust for centering
-                    c.drawString(centered_text_x, y + border_padding + 5*mm, combined_text)
+                        c.setStrokeColorRGB(0.85, 0.85, 0.88)
+                        c.rect(img_x, img_y, img_w, img_h)
+                        c.setFont("Helvetica", 7)
+                        c.setFillColorRGB(0.4, 0.4, 0.4)
+                        c.drawCentredString(x + label_width / 2, y + 12 * mm, f"Barcode: {product.barcode or 'N/A'}")
                     
                     product_index += 1
                 
                 if product_index >= len(products):
                     break
             
-            # Add page number
-            c.setFont("Helvetica", 8)
-            c.drawString(page_width - margin - 15*mm, margin, f"Page {page_num + 1}")
+            # Professional page footer
+            c.setFont("Helvetica", 7.5)
+            c.setFillColorRGB(0.45, 0.48, 0.55)
+            c.drawCentredString(page_width / 2, 5 * mm, f"iCount Inventory — Page {page_num + 1} of {total_pages}")
             
             # Start new page if not the last page
             if page_num < total_pages - 1:
@@ -424,11 +439,9 @@ def download_barcodes():
         c.save()
         output.seek(0)
         
-        # Prepare response
         timestamp = datetime.now(ZoneInfo("Asia/Manila")).strftime('%Y%m%d_%H%M%S')
         filename = f"product_barcodes_{timestamp}.pdf"
         
-        # Log the export
         log_activity(
             action="Export Barcode PDF",
             details=f"Exported barcode PDF with {len(products)} products across {total_pages} pages"
@@ -441,7 +454,6 @@ def download_barcodes():
         )
         
     except Exception as e:
-        # Log the error
         log_activity(
             action="Export Barcode PDF Error",
             details=f"Failed to export barcode PDF: {str(e)}"
