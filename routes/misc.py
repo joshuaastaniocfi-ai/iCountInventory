@@ -71,20 +71,15 @@ def download_transaction_history():
         from_datetime = datetime.combine(from_date, datetime.min.time())
         to_datetime = datetime.combine(to_date, datetime.max.time())
         
-        # Filter by company for Company-Admin users
-        if current_user.role == 'Company-Admin' and current_user.company_id:
-            # Company-Admin can only see their own company's transaction history
-            history_records = ProductHistory.query.join(Product).filter(
-                ProductHistory.trxn_date >= from_datetime,
-                ProductHistory.trxn_date <= to_datetime,
-                Product.company_id == current_user.company_id
-            ).order_by(ProductHistory.product_id, ProductHistory.trxn_date).all()
-        else:
-            # SYS-Admin and WH-Admin can see all transaction history
-            history_records = ProductHistory.query.filter(
-                ProductHistory.trxn_date >= from_datetime,
-                ProductHistory.trxn_date <= to_datetime
-            ).order_by(ProductHistory.product_id, ProductHistory.trxn_date).all()
+        # Respect the active store/brand toggle for every role. Only Global
+        # View (no active company) intentionally includes all companies.
+        history_query = ProductHistory.query.join(Product).filter(
+            ProductHistory.trxn_date >= from_datetime,
+            ProductHistory.trxn_date <= to_datetime
+        )
+        if current_user.company_id:
+            history_query = history_query.filter(Product.company_id == current_user.company_id)
+        history_records = history_query.order_by(ProductHistory.product_id, ProductHistory.trxn_date).all()
         
         if not history_records:
             flash('No transaction history found for the selected date range.', 'warning')
@@ -488,23 +483,17 @@ def download_requisition_history():
         from_datetime = datetime.combine(from_date, datetime.min.time())
         to_datetime = datetime.combine(to_date, datetime.max.time())
         
-        # Get approved requisitions within date range
-        # Base filtering on date_created instead of date_approved
-        if current_user.role == 'Company-Admin' and current_user.company_id:
-            # Company-Admin can only see their own company's requisitions
-            requisitions = Requisition.query.filter(
-                Requisition.status == 'approved',
-                Requisition.company_id == current_user.company_id,
-                Requisition.date_created >= from_datetime,
-                Requisition.date_created <= to_datetime
-            ).order_by(Requisition.date_created.desc()).all()
-        else:
-            # SYS-Admin and WH-Admin can see all requisitions
-            requisitions = Requisition.query.filter(
-                Requisition.status == 'approved',
-                Requisition.date_created >= from_datetime,
-                Requisition.date_created <= to_datetime
-            ).order_by(Requisition.date_created.desc()).all()
+        # Get approved requisitions within date range, scoped to the active
+        # store/brand toggle for every role. Global View intentionally includes
+        # all companies.
+        requisition_query = Requisition.query.filter(
+            Requisition.status == 'approved',
+            Requisition.date_created >= from_datetime,
+            Requisition.date_created <= to_datetime
+        )
+        if current_user.company_id:
+            requisition_query = requisition_query.filter(Requisition.company_id == current_user.company_id)
+        requisitions = requisition_query.order_by(Requisition.date_created.desc()).all()
         
         # Extract requisition IDs and approval dates
         requisition_ids = [req.id for req in requisitions]
