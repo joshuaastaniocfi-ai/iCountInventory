@@ -96,24 +96,26 @@ def view_products():
     status_filter = request.args.get('status', '').strip()
     company_id = request.args.get('company_id', '').strip()
     
-    # Base query - filter by current user's company
-    if current_user.role == 'SYS-Admin' and current_user.company_id is None:
-        # SYS-Admin with no company can see all products
-        query = Product.query
-        # For SYS-Admin, also get companies for the company filter
-        companies = Company.query.all()
+    # Base query - filter by current user's company or handled companies
+    user_comps = current_user.all_companies if hasattr(current_user, 'all_companies') else []
+    can_filter_companies = (current_user.role == 'SYS-Admin' and current_user.company_id is None) or len(user_comps) > 1
+
+    if can_filter_companies:
+        companies = Company.query.order_by(Company.name.asc()).all() if current_user.role == 'SYS-Admin' else user_comps
+        if company_id:
+            try:
+                cid = int(company_id)
+                query = Product.query.filter_by(company_id=cid)
+            except (ValueError, TypeError):
+                query = Product.query.filter_by(company_id=current_user.company_id)
+        else:
+            if current_user.role == 'SYS-Admin' and current_user.company_id is None:
+                query = Product.query
+            else:
+                query = Product.query.filter_by(company_id=current_user.company_id)
     else:
-        # Filter by current user's company
         query = Product.query.filter_by(company_id=current_user.company_id)
         companies = None
-    
-    # Apply company filter for SYS-Admin
-    if current_user.role == 'SYS-Admin' and company_id:
-        try:
-            company_id = int(company_id)
-            query = query.filter_by(company_id=company_id)
-        except (ValueError, TypeError):
-            pass  # Invalid company_id, ignore filter
     
     # Apply search filter
     if search_query:

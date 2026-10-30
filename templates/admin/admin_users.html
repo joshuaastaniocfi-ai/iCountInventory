@@ -165,9 +165,38 @@
               <span class="email-text" title="{{ current_admin.email }}">{{ current_admin.email }}</span>
             </td>
             <td data-label="Company / Branch">
-              <span class="company-text" title="{{ current_admin.company.franchise_name if current_admin.company else current_admin.branch or '—' }}">
-                {{ current_admin.company.franchise_name if current_admin.company else current_admin.branch or '—' }}
-              </span>
+              {% set admin_comps = current_admin.all_companies %}
+              {% if admin_comps and admin_comps|length > 1 %}
+                <div class="d-flex flex-column gap-1">
+                  <div class="d-flex flex-wrap gap-1 align-items-center">
+                    {% for c in admin_comps %}
+                      <span class="badge {{ 'bg-primary text-white' if c.id == current_admin.company_id else 'bg-secondary-subtle text-secondary-emphasis border' }}" style="font-size: 0.72rem; padding: 2px 7px;">
+                        <i class="fas fa-warehouse me-1 {{ 'text-white' if c.id == current_admin.company_id else 'text-primary' }}"></i>{{ c.franchise_name or c.name }}
+                        {% if c.id == current_admin.company_id %}<span class="ms-1 opacity-75 small">(Active)</span>{% endif %}
+                      </span>
+                    {% endfor %}
+                  </div>
+                  <div class="d-flex align-items-center gap-1 mt-1">
+                    <small class="text-muted" style="font-size: 0.7rem;"><i class="fas fa-check-double text-success me-1"></i>{{ admin_comps|length }} Warehouses Handled</small>
+                    {% if current_user.role == 'SYS-Admin' and current_admin.role != 'SYS-Admin' %}
+                    <button type="button" class="btn btn-sm btn-link p-0 text-primary ms-1" style="font-size: 0.75rem;" title="Edit assigned warehouses" onclick="openAssignCompaniesModal({{ current_admin.id }}, {{ current_admin.full_name|tojson|forceescape }}, {{ current_admin.all_company_ids|tojson }}, {{ current_admin.company_id|tojson }})">
+                      <i class="fas fa-pen-to-square"></i> Edit
+                    </button>
+                    {% endif %}
+                  </div>
+                </div>
+              {% else %}
+                <div class="d-flex align-items-center gap-1">
+                  <span class="company-text" title="{{ current_admin.company.franchise_name if current_admin.company else current_admin.branch or '—' }}">
+                    {{ current_admin.company.franchise_name if current_admin.company else current_admin.branch or '—' }}
+                  </span>
+                  {% if current_user.role == 'SYS-Admin' and current_admin.role != 'SYS-Admin' %}
+                  <button type="button" class="btn btn-sm btn-link p-0 text-primary ms-1" style="font-size: 0.75rem;" title="Assign Warehouses Handled" onclick="openAssignCompaniesModal({{ current_admin.id }}, {{ current_admin.full_name|tojson|forceescape }}, {{ current_admin.all_company_ids|tojson }}, {{ current_admin.company_id|tojson }})">
+                    <i class="fas fa-plus-circle"></i>
+                  </button>
+                  {% endif %}
+                </div>
+              {% endif %}
             </td>
             <td data-label="Role">
               {{ role_chip(current_admin.role) }}
@@ -195,6 +224,11 @@
                 <button type="button" class="product-action-item" role="menuitem" onclick="openEditEmailModal({{ current_admin.id }}, {{ current_admin.email|tojson|forceescape }}, {{ current_admin.full_name|tojson|forceescape }})">
                   <i class="fas fa-envelope" aria-hidden="true"></i>Edit Email
                 </button>
+                {% if current_user.role == 'SYS-Admin' and current_admin.role != 'SYS-Admin' %}
+                <button type="button" class="product-action-item" role="menuitem" onclick="openAssignCompaniesModal({{ current_admin.id }}, {{ current_admin.full_name|tojson|forceescape }}, {{ current_admin.all_company_ids|tojson }}, {{ current_admin.company_id|tojson }})">
+                  <i class="fas fa-warehouse text-primary" aria-hidden="true"></i>Assign Warehouses Handled
+                </button>
+                {% endif %}
               </div>
             </td>
           </tr>
@@ -223,9 +257,38 @@
               <span class="email-text" title="{{ u.email }}">{{ u.email }}</span>
             </td>
             <td data-label="Company / Branch">
-              <span class="company-text" title="{{ u.company.franchise_name if u.company else u.branch or '—' }}">
-                {{ u.company.franchise_name if u.company else u.branch or '—' }}
-              </span>
+              {% set u_comps = u.all_companies %}
+              {% if u_comps and u_comps|length > 1 %}
+                <div class="d-flex flex-column gap-1">
+                  <div class="d-flex flex-wrap gap-1 align-items-center">
+                    {% for c in u_comps %}
+                      <span class="badge {{ 'bg-primary text-white' if c.id == u.company_id else 'bg-secondary-subtle text-secondary-emphasis border' }}" style="font-size: 0.72rem; padding: 2px 7px;">
+                        <i class="fas fa-warehouse me-1 {{ 'text-white' if c.id == u.company_id else 'text-primary' }}"></i>{{ c.franchise_name or c.name }}
+                        {% if c.id == u.company_id %}<span class="ms-1 opacity-75 small">(Active)</span>{% endif %}
+                      </span>
+                    {% endfor %}
+                  </div>
+                  <div class="d-flex align-items-center gap-1 mt-1">
+                    <small class="text-muted" style="font-size: 0.7rem;"><i class="fas fa-check-double text-success me-1"></i>{{ u_comps|length }} Warehouses Handled</small>
+                    {% if can_manage_users and current_user.role == 'SYS-Admin' %}
+                    <button type="button" class="btn btn-sm btn-link p-0 text-primary ms-1" style="font-size: 0.75rem;" title="Edit assigned warehouses" onclick="openAssignCompaniesModal({{ u.id }}, {{ u.full_name|tojson|forceescape }}, {{ u.all_company_ids|tojson }}, {{ u.company_id|tojson }})">
+                      <i class="fas fa-pen-to-square"></i> Edit
+                    </button>
+                    {% endif %}
+                  </div>
+                </div>
+              {% else %}
+                <div class="d-flex align-items-center gap-1">
+                  <span class="company-text" title="{{ u.company.franchise_name if u.company else u.branch or '—' }}">
+                    {{ u.company.franchise_name if u.company else u.branch or '—' }}
+                  </span>
+                  {% if can_manage_users and current_user.role == 'SYS-Admin' and u.role != 'SYS-Admin' %}
+                  <button type="button" class="btn btn-sm btn-link p-0 text-primary ms-1" style="font-size: 0.75rem;" title="Assign Warehouses Handled" onclick="openAssignCompaniesModal({{ u.id }}, {{ u.full_name|tojson|forceescape }}, {{ u.all_company_ids|tojson }}, {{ u.company_id|tojson }})">
+                    <i class="fas fa-plus-circle"></i>
+                  </button>
+                  {% endif %}
+                </div>
+              {% endif %}
             </td>
             <td data-label="Role">
               {% if can_manage_users and u.id != current_user.id %}
@@ -267,6 +330,11 @@
                 <button type="button" class="product-action-item" role="menuitem" onclick="openEditEmailModal({{ u.id }}, {{ u.email|tojson|forceescape }}, {{ u.full_name|tojson|forceescape }})">
                   <i class="fas fa-envelope" aria-hidden="true"></i>Edit Email
                 </button>
+                {% if can_manage_users and current_user.role == 'SYS-Admin' and u.role != 'SYS-Admin' %}
+                <button type="button" class="product-action-item" role="menuitem" onclick="openAssignCompaniesModal({{ u.id }}, {{ u.full_name|tojson|forceescape }}, {{ u.all_company_ids|tojson }}, {{ u.company_id|tojson }})">
+                  <i class="fas fa-warehouse text-primary" aria-hidden="true"></i>Assign Warehouses Handled
+                </button>
+                {% endif %}
                 {% endif %}
 
                 {% if can_manage_users and u.id != current_user.id %}
@@ -390,13 +458,22 @@
             </div>
             {% if current_user.role == 'SYS-Admin' and companies %}
             <div class="col-12">
-              <label class="form-label" for="addCompany">Company (optional — leave blank for SYS-Admin)</label>
-              <select id="addCompany" class="form-select" name="company_id">
-                <option value="">-- No company --</option>
+              <label class="form-label d-flex justify-content-between align-items-center mb-1">
+                <span>Warehouses / Companies Handled</span>
+                <small class="text-muted">Select 1 or more (e.g. 2 for WH-Admin)</small>
+              </label>
+              <div class="border rounded p-2 bg-body-tertiary d-flex flex-column gap-2" style="max-height: 160px; overflow-y: auto;">
                 {% for c in companies %}
-                <option value="{{ c.id }}">{{ c.franchise_name or c.name }}</option>
+                <div class="form-check d-flex align-items-center gap-2">
+                  <input class="form-check-input mt-0 add-company-checkbox" type="checkbox" name="company_ids" value="{{ c.id }}" id="addComp_{{ c.id }}">
+                  <label class="form-check-label flex-grow-1" for="addComp_{{ c.id }}" style="cursor: pointer;">
+                    <span class="fw-semibold">{{ c.franchise_name or c.name }}</span>
+                    <span class="text-muted small ms-1">({{ c.name }})</span>
+                  </label>
+                </div>
                 {% endfor %}
-              </select>
+              </div>
+              <div class="form-text small text-muted">A WH-Admin selected with 2 warehouses will be able to manage and switch between both.</div>
             </div>
             {% endif %}
           </div>
@@ -404,6 +481,53 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-primary px-4"><i class="fas fa-plus me-1" aria-hidden="true"></i>Create Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Assign Companies Handled -->
+<div class="modal fade users-modal" id="assignCompaniesModal" tabindex="-1" aria-labelledby="assignCompaniesTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="assignCompaniesTitle"><i class="fas fa-warehouse me-2 text-primary" aria-hidden="true"></i>Assign Warehouses Handled</h5>
+          <small class="text-muted" id="assignCompaniesSubtitle">Select which warehouses/companies this user manages</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="assignCompaniesForm" method="post" action="">
+        <div class="modal-body">
+          <p class="small text-muted mb-3">
+            Check the warehouses or companies this user handles (e.g., select 2 for a WH-Admin managing multiple warehouse branches):
+          </p>
+          <div class="d-flex flex-column gap-2 mb-3">
+            {% for c in companies %}
+            <label class="d-flex align-items-center justify-content-between p-2 rounded border" for="assignComp_{{ c.id }}" style="cursor: pointer; background: var(--bg-surface, rgba(0,0,0,0.02));">
+              <div class="d-flex align-items-center gap-2">
+                <input class="form-check-input mt-0 assign-comp-checkbox" type="checkbox" name="company_ids" value="{{ c.id }}" id="assignComp_{{ c.id }}" onchange="updatePrimaryCompanyOptions()">
+                <div>
+                  <div class="fw-semibold text-body">{{ c.franchise_name or c.name }}</div>
+                  <div class="small text-muted" style="font-size:0.75rem;">{{ c.name }} (ID #{{ c.id }})</div>
+                </div>
+              </div>
+              <span class="badge bg-secondary-subtle text-secondary border">Branch #{{ c.id }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold" for="primaryCompanySelect">Primary / Default Active Warehouse</label>
+            <select id="primaryCompanySelect" name="primary_company_id" class="form-select form-select-sm">
+              <!-- Dynamically populated via JS -->
+            </select>
+            <div class="form-text small text-muted">The warehouse active by default when this user signs in.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-check me-1" aria-hidden="true"></i>Save Warehouses</button>
         </div>
       </form>
     </div>
@@ -501,6 +625,55 @@
 
 <script>
 // Action modal opener helpers
+const allCompaniesMap = {
+  {% for c in companies %}
+  {{ c.id }}: {{ (c.franchise_name or c.name)|tojson }},
+  {% endfor %}
+};
+
+function openAssignCompaniesModal(userId, fullName, assignedIds, primaryId) {
+  const form = document.getElementById('assignCompaniesForm');
+  form.action = `/admin/users/${userId}/companies`;
+  document.getElementById('assignCompaniesSubtitle').textContent = `Manage warehouses handled for ${fullName}`;
+
+  // Check the checkboxes for assigned companies
+  document.querySelectorAll('.assign-comp-checkbox').forEach(cb => {
+    cb.checked = Array.isArray(assignedIds) && assignedIds.includes(parseInt(cb.value, 10));
+  });
+
+  updatePrimaryCompanyOptions(primaryId);
+
+  const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('assignCompaniesModal'));
+  modal.show();
+}
+
+function updatePrimaryCompanyOptions(selectedPrimaryId) {
+  const select = document.getElementById('primaryCompanySelect');
+  if (!select) return;
+  const checkedBoxes = Array.from(document.querySelectorAll('.assign-comp-checkbox:checked'));
+  const currentVal = selectedPrimaryId !== undefined ? selectedPrimaryId : parseInt(select.value, 10);
+  
+  select.innerHTML = '';
+  if (checkedBoxes.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = '-- No warehouse selected --';
+    select.appendChild(opt);
+    return;
+  }
+
+  checkedBoxes.forEach(cb => {
+    const id = parseInt(cb.value, 10);
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = allCompaniesMap[id] || `Company #${id}`;
+    if (id === currentVal) {
+      opt.selected = true;
+    }
+    select.appendChild(opt);
+  });
+}
+
 function openRenameUsernameModal(userId, currentUsername, fullName) {
   const form = document.getElementById('renameUsernameForm');
   form.action = `/admin/users/${userId}/username`;

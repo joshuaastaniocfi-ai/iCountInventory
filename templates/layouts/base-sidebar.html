@@ -575,6 +575,33 @@
       </a>
     </div>
     <div class="user-area">
+      {% if current_user.is_authenticated and current_user.all_companies and current_user.all_companies|length > 1 and current_user.role != 'SYS-Admin' %}
+      <!-- Multi-warehouse switcher for WH-Admin / Multi-Company users -->
+      <div class="dropdown me-2">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2" type="button" id="warehouseSwitcherBtn" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 8px; font-size: 0.82rem; padding: 4px 10px; border-color: var(--border, #3f3f46);">
+          <i class="fas fa-warehouse text-primary"></i>
+          <span class="d-none d-sm-inline fw-semibold text-truncate" style="max-width: 150px;">
+            {{ current_user.company.franchise_name if current_user.company else current_user.company.name if current_user.company else 'Warehouse' }}
+          </span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="warehouseSwitcherBtn" style="min-width: 210px;">
+          <li class="dropdown-header small text-uppercase fw-bold text-muted" style="font-size:0.68rem;">Switch Active Warehouse</li>
+          {% for c in current_user.all_companies %}
+          <li>
+            <a href="{{ url_for('admin.switch_company', company_id=c.id) }}" class="dropdown-item d-flex align-items-center justify-content-between py-2 {{ 'active fw-bold' if current_user.company_id == c.id }}">
+              <span class="d-flex align-items-center gap-2 text-truncate">
+                <i class="fas fa-building {{ 'text-primary' if current_user.company_id == c.id else 'text-muted' }}"></i>
+                <span>{{ c.franchise_name or c.name }}</span>
+              </span>
+              {% if current_user.company_id == c.id %}
+                <i class="fas fa-check text-primary ms-2 small"></i>
+              {% endif %}
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
       <div class="user-info d-flex align-items-center">
         <div class="status-indicator status-active"></div>
         <span class="username">{{ current_user.full_name }}</span>

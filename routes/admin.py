@@ -3,7 +3,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 # Third-party imports
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
 
 # Local imports
@@ -366,6 +366,75 @@ def admin_toggle_ban(user_id):
     return redirect(url_for('admin.admin_users'))
 
 
+@admin.route('/users/<int:user_id>/companies', methods=['POST'])
+@login_required
+@user_redirect_to_requisition
+@edit_delete_required
+def admin_update_user_companies(user_id):
+    # Only SYS-Admin can assign companies to users
+    if current_user.role != 'SYS-Admin':
+        flash("You don't have permission to modify user company assignments.", 'warning')
+        return redirect(url_for('admin.admin_users'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    company_ids = request.form.getlist('company_ids')
+    primary_company_id = request.form.get('primary_company_id')
+    
+    selected_companies = []
+    if company_ids:
+        for cid in company_ids:
+            try:
+                c = Company.query.get(int(cid))
+                if c and c not in selected_companies:
+                    selected_companies.append(c)
+            except (ValueError, TypeError):
+                continue
+    
+    user.handled_companies = selected_companies
+    
+    if selected_companies:
+        if primary_company_id:
+            try:
+                pid = int(primary_company_id)
+                if any(c.id == pid for c in selected_companies):
+                    user.company_id = pid
+                else:
+                    user.company_id = selected_companies[0].id
+            except (ValueError, TypeError):
+                user.company_id = selected_companies[0].id
+        elif user.company_id not in [c.id for c in selected_companies]:
+            user.company_id = selected_companies[0].id
+    else:
+        if user.role == 'SYS-Admin':
+            user.company_id = None
+        else:
+            flash("Non-SYS-Admin users must be assigned to at least one company/warehouse.", "warning")
+            return redirect(url_for('admin.admin_users'))
+            
+    db.session.commit()
+    
+    comp_names = ", ".join([c.franchise_name or c.name for c in selected_companies]) or "None"
+    log_activity('Update User Companies', f"Updated warehouses handled for <strong>{user.username}</strong> ({user.full_name}): <strong>{comp_names}</strong>.")
+    flash(f"Updated warehouses handled for {user.full_name}: {comp_names}.", 'success')
+    return redirect(url_for('admin.admin_users'))
+
+
+@admin.route('/switch_company/<int:company_id>', methods=['POST', 'GET'])
+@login_required
+def switch_company(company_id):
+    company = Company.query.get_or_404(company_id)
+    if current_user.role != 'SYS-Admin' and company_id not in current_user.all_company_ids:
+        flash("You do not have access to this company/warehouse.", "error")
+        return redirect(request.referrer or url_for('main.dashboard'))
+    
+    current_user.company_id = company_id
+    db.session.commit()
+    session['active_company_id'] = company_id
+    flash(f"Switched active warehouse to {company.franchise_name or company.name}.", "success")
+    return redirect(request.referrer or url_for('main.dashboard'))
+
+
 @admin.route('/add_user', methods=['POST'])
 @login_required
 @edit_delete_required
@@ -409,34 +478,38 @@ def add_user():
             role=role
         )
         
+        # Check for multiple company IDs
+        company_ids = request.form.getlist('company_ids')
+        selected_comps = []
+        if company_ids:
+            for cid in company_ids:
+                try:
+                    c = Company.query.get(int(cid))
+                    if c and c not in selected_comps:
+                        selected_comps.append(c)
+                except (ValueError, TypeError):
+                    continue
+
         # Special handling for SYS-Admin users
         if role == 'SYS-Admin':
-            new_user.company_id = None  # SYS-Admin has no company affiliation
-        # Company-Admin should be assigned to a company like other admins
-        elif role == 'Company-Admin':
-            # For Company-Admin users, assign to specified company or current user's company
-            if company_id:
-                # Verify company exists
-                company = Company.query.get(company_id)
-                if not company:
-                    flash('Invalid company selected', 'error')
-                    return redirect(url_for('admin.admin_users'))
-                new_user.company_id = company_id
-            else:
-                # Assign to current user's company
-                new_user.company_id = current_user.company_id
+            new_user.company_id = None
+            if selected_comps:
+                new_user.handled_companies = selected_comps
         else:
-            # For non-SYS-Admin users, assign to specified company or current user's company
-            if company_id:
-                # Verify company exists
+            if selected_comps:
+                new_user.handled_companies = selected_comps
+                new_user.company_id = selected_comps[0].id
+            elif company_id:
                 company = Company.query.get(company_id)
                 if not company:
                     flash('Invalid company selected', 'error')
                     return redirect(url_for('admin.admin_users'))
                 new_user.company_id = company_id
+                new_user.handled_companies = [company]
             else:
-                # Assign to current user's company
                 new_user.company_id = current_user.company_id
+                if current_user.company:
+                    new_user.handled_companies = [current_user.company]
 
         # Set password
         new_user.set_password(password)

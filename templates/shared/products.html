@@ -57,7 +57,7 @@
   <div class="collapse show" id="filterCollapse">
     <div class="card border-0 shadow-sm mb-3 products-filter-card">
       <div class="card-body">
-        <form method="get" action="{{ url_for('products.view_products') }}" id="productsFilterForm" class="row g-2 align-items-center products-filter-form {{ 'has-company-filter' if current_user.role == 'SYS-Admin' and current_user.company_id is none and companies }}">
+        <form method="get" action="{{ url_for('products.view_products') }}" id="productsFilterForm" class="row g-2 align-items-center products-filter-form {{ 'has-company-filter' if companies and (companies|length > 1 or current_user.role == 'SYS-Admin') }}">
           <div class="col-md-4 products-filter-search">
             <div class="input-group input-group-sm">
               <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
@@ -85,13 +85,15 @@
               <option value="Favorites" {{ 'selected' if request.args.get('status') == 'Favorites' }}>Favorites</option>
             </select>
           </div>
-          {% if current_user.role == 'SYS-Admin' and current_user.company_id is none and companies %}
+          {% if companies and (companies|length > 1 or (current_user.role == 'SYS-Admin' and current_user.company_id is none)) %}
           <div class="col-md-2">
             <label class="visually-hidden" for="productCompanyFilter">Filter by company</label>
-            <select id="productCompanyFilter" name="company_id" class="form-select form-select-sm">
+            <select id="productCompanyFilter" name="company_id" class="form-select form-select-sm" onchange="document.getElementById('productsFilterForm').submit()">
+              {% if current_user.role == 'SYS-Admin' and current_user.company_id is none %}
               <option value="">All Companies</option>
+              {% endif %}
               {% for company in companies %}
-                <option value="{{ company.id }}" {{ 'selected' if request.args.get('company_id') == company.id|string }}>{{ company.name }}</option>
+                <option value="{{ company.id }}" {{ 'selected' if request.args.get('company_id') == company.id|string or (not request.args.get('company_id') and current_user.company_id == company.id and current_user.role != 'SYS-Admin') }}>{{ company.franchise_name or company.name }}</option>
               {% endfor %}
             </select>
           </div>

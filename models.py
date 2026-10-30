@@ -13,6 +13,13 @@ import json
 from extensions import db
 
 
+# Many-to-many relationship table for users handling multiple companies/warehouses
+user_companies = db.Table('user_companies',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('company_id', db.Integer, db.ForeignKey('company.id', ondelete='CASCADE'), primary_key=True)
+)
+
+
 class Company(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
@@ -44,6 +51,29 @@ class User(db.Model, UserMixin):
     is_banned = db.Column(db.Boolean, default=False)
     verification_token = db.Column(db.String(100), unique=True)
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
+
+    # Additional companies / warehouses this user handles
+    handled_companies = db.relationship(
+        'Company',
+        secondary=user_companies,
+        lazy='subquery',
+        backref=db.backref('assigned_users', lazy=True)
+    )
+
+    @property
+    def all_companies(self):
+        """Return list of Company objects this user has access to."""
+        if self.role == 'SYS-Admin' and self.company_id is None:
+            return Company.query.order_by(Company.name.asc()).all()
+        comps = list(self.handled_companies) if self.handled_companies else []
+        if self.company and self.company not in comps:
+            comps.insert(0, self.company)
+        return comps
+
+    @property
+    def all_company_ids(self):
+        """Return list of company IDs this user has access to."""
+        return [c.id for c in self.all_companies]
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

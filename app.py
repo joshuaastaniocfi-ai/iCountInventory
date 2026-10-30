@@ -3,7 +3,7 @@ import os
 from urllib.parse import quote_plus
 
 # Third-party imports
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session
 from flask_login import current_user
 from flask_migrate import Migrate
 from werkzeug.exceptions import HTTPException
@@ -625,6 +625,28 @@ def create_app(config_name='default'):
             except Exception as e:
                 db.session.rollback()
                 app.logger.warning(f"Requisition item/variance migration note: {e}")
+
+            # ── Create user_companies table if not exists ──
+            try:
+                db.session.execute(text('''
+                    CREATE TABLE IF NOT EXISTS user_companies (
+                        user_id INTEGER NOT NULL,
+                        company_id INTEGER NOT NULL,
+                        PRIMARY KEY (user_id, company_id),
+                        FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
+                        FOREIGN KEY (company_id) REFERENCES company(id) ON DELETE CASCADE
+                    )
+                '''))
+                # Seed existing user companies
+                db.session.execute(text('''
+                    INSERT OR IGNORE INTO user_companies (user_id, company_id)
+                    SELECT id, company_id FROM user WHERE company_id IS NOT NULL
+                '''))
+                db.session.commit()
+                app.logger.info("Checked/created user_companies table and synchronized assignments")
+            except Exception as e_uc:
+                db.session.rollback()
+                app.logger.warning(f"user_companies migration note: {e_uc}")
 
             # ── Add is_banned to user table ──
             try:
