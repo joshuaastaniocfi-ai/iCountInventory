@@ -1,6 +1,7 @@
 # Standard library imports
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 # Third-party imports
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
@@ -432,7 +433,18 @@ def switch_company(company_id):
     db.session.commit()
     session['active_company_id'] = company_id
     flash(f"Switched active warehouse to {company.franchise_name or company.name}.", "success")
-    return redirect(request.referrer or url_for('main.dashboard'))
+
+    ref = request.referrer
+    if ref:
+        parsed = urlparse(ref)
+        qs = parse_qs(parsed.query)
+        if 'company_id' in qs:
+            qs['company_id'] = [str(company_id)]
+            new_query = urlencode(qs, doseq=True)
+            ref = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
+        return redirect(ref)
+
+    return redirect(url_for('main.dashboard'))
 
 
 @admin.route('/add_user', methods=['POST'])

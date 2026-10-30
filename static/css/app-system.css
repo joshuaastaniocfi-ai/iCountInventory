@@ -279,9 +279,11 @@ body {
 
   background: var(--header-bg) !important;
 
-  position: relative !important;
+  position: sticky !important;
 
-  top: auto !important;
+  top: 0 !important;
+
+  z-index: 1030 !important;
 
   left: var(--sidebar-width) !important;
 

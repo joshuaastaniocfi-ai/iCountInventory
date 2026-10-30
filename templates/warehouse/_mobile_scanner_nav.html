@@ -1,4 +1,28 @@
 <header class="scanner-sticky-header">
+  {% if current_user.is_authenticated and current_user.all_companies and current_user.all_companies|length > 1 %}
+  <!-- Store / Warehouse Toggle Bar in Sticky Scanner Header -->
+  <div class="scanner-store-toggle-bar w-100" style="order: 2.5; padding: 4px 0 2px 0;">
+    <div class="d-flex align-items-center justify-content-between gap-1 p-1 rounded-pill" style="background: rgba(120, 120, 128, 0.12); border: 1px solid var(--scanner-border, rgba(99,102,241,.18));">
+      <div class="d-flex align-items-center gap-1 ps-2 text-muted" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;">
+        <i class="fas fa-warehouse text-primary"></i>
+        <span>Store:</span>
+      </div>
+      <div class="d-flex align-items-center gap-1 flex-grow-1 justify-content-end">
+        {% for c in current_user.all_companies %}
+          <a href="{{ url_for('admin.switch_company', company_id=c.id) }}" 
+             class="scanner-wh-toggle-pill px-2 py-1 rounded-pill text-truncate d-inline-flex align-items-center gap-1 text-decoration-none transition-all {{ 'active fw-bold' if current_user.company_id == c.id else 'text-muted' }}"
+             title="Switch store to {{ c.franchise_name or c.name }}"
+             style="{{ 'background: #2563eb; color: #ffffff !important; box-shadow: 0 2px 6px rgba(37,99,235,0.35); font-weight: 700;' if current_user.company_id == c.id else 'color: var(--scanner-muted, #71717a); font-weight: 500;' }} font-size: 0.75rem; line-height: 1.2; max-width: 140px;">
+            <span class="text-truncate">{{ c.franchise_name or c.name }}</span>
+            {% if current_user.company_id == c.id %}
+              <i class="fas fa-check small text-white" style="font-size: 0.6rem;"></i>
+            {% endif %}
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
   <a class="scanner-brand" href="{{ url_for('scanner.mobile_scanner') }}" aria-label="iCount Scanner home">
     <span class="scanner-brand-mark"><i class="fas fa-cube"></i></span>
     <span class="scanner-brand-name">iCount Scanner</span>

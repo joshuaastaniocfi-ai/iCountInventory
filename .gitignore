@@ -1,3 +1,5 @@
+instance/*.db
+*.db
 instance/*backup*.db
 *.pyc
 *.pyo
