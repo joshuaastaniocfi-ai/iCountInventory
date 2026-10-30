@@ -1722,10 +1722,37 @@ function updateCountStats(){
 }
 
 function filterCountRows(q){
-  const lq = q.toLowerCase();
-  document.querySelectorAll('#icBody .ic-row').forEach(row => {
-    row.style.display = (!lq || row.dataset.name.includes(lq)) ? '' : 'none';
+  const query = String(q || '').trim().toLowerCase();
+  const rows = Array.from(document.querySelectorAll('#icBody .ic-row'));
+  let visible = 0;
+  rows.forEach(row => {
+    const matches = !query || row.dataset.name.includes(query);
+    row.style.display = matches ? '' : 'none';
+    if(matches) visible++;
   });
+  const clear = document.getElementById('icSearchClear');
+  if(clear) clear.hidden = !query;
+  const status = document.getElementById('icSearchStatus');
+  if(status) status.textContent = query ? `${visible} ${visible === 1 ? 'product' : 'products'} found` : '';
+  let empty = document.getElementById('icSearchEmpty');
+  if(query && !visible){
+    if(!empty){
+      empty = document.createElement('tr');
+      empty.id = 'icSearchEmpty';
+      empty.innerHTML = '<td colspan="5"><div class="empty"><div class="empty-ico"><i class="fas fa-search"></i></div><p>No products match this search.</p><button type="button" class="btn-ghost" onclick="clearCountSearch()">Clear search</button></div></td>';
+      document.getElementById('icBody').appendChild(empty);
+    }
+    empty.style.display = '';
+  } else if(empty){
+    empty.style.display = 'none';
+  }
+}
+
+function clearCountSearch(){
+  const input = document.getElementById('icSearch');
+  if(input) input.value = '';
+  filterCountRows('');
+  if(input) input.focus();
 }
 
 function resetCountForm(){
@@ -1734,8 +1761,7 @@ function resetCountForm(){
     inp.value = '';
     updateCountVariance(inp);
   });
-  document.getElementById('icSearch').value = '';
-  filterCountRows('');
+  clearCountSearch();
 }
 
 function submitDailyCount(){

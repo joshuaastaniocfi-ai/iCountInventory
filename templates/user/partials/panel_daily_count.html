@@ -28,9 +28,11 @@
       <div class="invcount-stat invcount-stat-blue"><span class="invcount-stat-icon"><i class="fas fa-pen"></i></span><span><strong id="icCounted">0</strong><small>Counted</small></span></div>
     </div>
     <div class="invcount-search fsearch">
+      <button type="button" class="invcount-search-clear" id="icSearchClear" onclick="clearCountSearch()" title="Clear search" aria-label="Clear search" hidden><i class="fas fa-times"></i></button>
       <i class="fas fa-search fsi"></i>
       <input class="finput" id="icSearch" placeholder="Search products…" oninput="filterCountRows(this.value)" aria-label="Search products to count">
     </div>
+    <div class="invcount-search-status" id="icSearchStatus" aria-live="polite"></div>
   </div>
 
   <div class="cs invcount-table-card">

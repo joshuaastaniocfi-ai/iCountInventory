@@ -2649,6 +2649,7 @@ body.in-req-wizard .main {
 .invcount-stat-blue .invcount-stat-icon { background: var(--tone-blue-subtle); color: var(--tone-blue); }
 
 .invcount-search {
+  position: relative;
   display: flex;
   align-items: center;
   width: 220px;
@@ -2656,7 +2657,27 @@ body.in-req-wizard .main {
   margin: 0;
 }
 
-.invcount-search .finput { min-height: 42px; }
+.invcount-search .finput { min-height: 42px; padding-right: 2.25rem; }
+.invcount-search-clear {
+  position: absolute;
+  right: .45rem;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.invcount-search-clear:hover { color: var(--text-primary); }
+.invcount-search-clear[hidden] { display: none; }
+.invcount-search-status {
+  align-self: center;
+  min-width: 5.5rem;
+  color: var(--text-muted);
+  font-size: .68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
 
 .invcount-table-card { overflow: hidden; }
 .invcount-table-heading {
@@ -2668,7 +2689,7 @@ body.in-req-wizard .main {
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
-.invcount-table-scroll { max-height: min(55vh, 620px); overflow-y: auto; }
+.invcount-table-scroll { max-height: none; overflow: visible; }
 .invcount-table-card thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); color: var(--text-muted); font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; }
 .invcount-table-card tbody tr { transition: background-color .15s ease; }
 .invcount-table-card tbody tr:hover { background: var(--surface-hover); }
@@ -2698,6 +2719,7 @@ body.in-req-wizard .main {
   .invcount-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .invcount-stat:last-child { grid-column: span 2; }
   .invcount-search { width: 100%; min-width: 0; }
+  .invcount-search-status { align-self: flex-start; margin-top: -.55rem; }
   .invcount-table-heading { align-items: flex-start; }
   .invcount-table-badge { white-space: nowrap; }
   .invcount-submit { align-items: stretch; flex-direction: column; }
@@ -2705,7 +2727,7 @@ body.in-req-wizard .main {
   .invcount-verifier .finput { flex: 1 1 180px; width: auto; margin-left: 0; }
   .invcount-submit-actions { width: 100%; }
   .invcount-submit-actions button { flex: 1; justify-content: center; }
-  .invcount-table-scroll { max-height: 52vh; }
+  .invcount-table-scroll { max-height: none; overflow: visible; }
 }
 
 
