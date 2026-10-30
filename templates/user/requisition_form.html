@@ -450,8 +450,32 @@ try {
 } catch(e) { reqQuantities = {}; }
 
 function resetRequisitionWizard(){
-  // Reset to step 0 (station selection)
-  setStep(0);
+  const hasDetectedStations = products.some(p => String(p.station || '').trim() !== '');
+  const panel = document.getElementById('panel-requisition');
+  const stationPane = document.getElementById('wp0');
+
+  // If product data has no station values, skip station selection and open items.
+  if(hasDetectedStations){
+    setStep(0);
+    if(panel) panel.classList.remove('no-station-detected');
+    if(stationPane) stationPane.classList.remove('d-none');
+    document.querySelector('#ws0 .wstep-circle').textContent = '1';
+    document.querySelector('#ws0 .wstep-label').textContent = 'Station';
+    document.querySelector('#ws1 .wstep-circle').textContent = '2';
+    document.querySelector('#ws1 .wstep-label').textContent = 'Items';
+    document.querySelector('#ws2 .wstep-circle').textContent = '3';
+    document.querySelector('#ws2 .wstep-label').textContent = 'Review';
+  } else {
+    setStep(1);
+    if(panel) panel.classList.add('no-station-detected');
+    if(stationPane) stationPane.classList.add('d-none');
+    document.querySelector('#ws1 .wstep-circle').textContent = '1';
+    document.querySelector('#ws1 .wstep-label').textContent = 'Items';
+    document.querySelector('#ws2 .wstep-circle').textContent = '2';
+    document.querySelector('#ws2 .wstep-label').textContent = 'Review';
+    const subtitle = document.getElementById('reqHeaderSubtitle');
+    if(subtitle) subtitle.textContent = 'Step 1 of 2 · Request Items';
+  }
   // Clear station selection
   selectedStation = '';
   reqQuantities = {};
@@ -459,6 +483,7 @@ function resetRequisitionWizard(){
   document.getElementById('stationInput').value = '';
   document.getElementById('toItemsBtn').disabled = true;
   document.querySelectorAll('#stationGrid .uom-card').forEach(c => c.classList.remove('sel'));
+  if(!hasDetectedStations) buildReqTable();
 }
 
 function validateStep1(){
@@ -466,7 +491,7 @@ function validateStep1(){
   let isValid = true;
 
   for(const p of products){
-    if(p.station !== selectedStation) continue;
+    if(selectedStation && p.station !== selectedStation) continue;
     const oq = parseFloat(reqQuantities[p.id] || 0);
     if(oq > 0){
       hasItems = true;
@@ -568,12 +593,12 @@ function renderProductCardHtml(p){
 }
 
 function buildReqTable(){
-  reqStationProducts = products.filter(p => p.station === selectedStation);
+  reqStationProducts = selectedStation ? products.filter(p => p.station === selectedStation) : products.slice();
 
   // Update station pill and count
   const pill = document.getElementById('stationPill');
   const countEl = document.getElementById('stationProductCount');
-  if(pill) pill.textContent = selectedStation;
+  if(pill) pill.textContent = selectedStation || 'All items';
   if(countEl) countEl.textContent = reqStationProducts.length + ' product' + (reqStationProducts.length !== 1 ? 's' : '');
 
   // Reset search and tab
@@ -623,8 +648,7 @@ function clearReqSearch(){
 }
 
 function updateReqFilterCounts(){
-  if(!selectedStation) return;
-  const stationItems = products.filter(p => p.station === selectedStation);
+  const stationItems = selectedStation ? products.filter(p => p.station === selectedStation) : products.slice();
   const orderedItems = stationItems.filter(p => parseFloat(reqQuantities[p.id] || 0) > 0);
   const lowItems = stationItems.filter(p => {
     const storeStock = p.store_qty !== undefined ? p.store_qty : 0;
@@ -660,7 +684,7 @@ function applyReqFilterAndRender(){
   listEl.innerHTML = '';
   reqRenderedCount = 0;
 
-  let list = products.filter(p => p.station === selectedStation);
+  let list = selectedStation ? products.filter(p => p.station === selectedStation) : products.slice();
 
   if(reqCurrentTab === 'ordered'){
     list = list.filter(p => parseFloat(reqQuantities[p.id] || 0) > 0);
@@ -679,7 +703,7 @@ function applyReqFilterAndRender(){
   reqFilteredProducts = list;
 
   if(!reqFilteredProducts.length){
-    let emptyMsg = 'No products found for this station.';
+    let emptyMsg = selectedStation ? 'No products found for this station.' : 'No products found.';
     if(reqCurrentTab === 'ordered') emptyMsg = 'No products ordered yet in this station.';
     else if(reqCurrentTab === 'low') emptyMsg = 'No low-stock products in this station.';
     else if(reqSearchQuery) emptyMsg = `No products match "${escapeHtml(reqSearchQuery)}".`;
@@ -938,7 +962,7 @@ function buildReview(){
   let totalUnitsCount = 0;
 
   products.forEach(p => {
-    if(p.station !== selectedStation) return;
+    if(selectedStation && p.station !== selectedStation) return;
     const oq = parseFloat(reqQuantities[p.id] || 0);
     if(oq > 0){
       totalProductsCount++;
@@ -976,7 +1000,7 @@ function handleSubmit(e){
 
   const arr = [];
   products.forEach(p => {
-    if(p.station !== selectedStation) return;
+    if(selectedStation && p.station !== selectedStation) return;
     const oq = parseFloat(reqQuantities[p.id] || 0);
     if(oq > 0){
       arr.push({product_id:p.id,product_name:p.name,quantity:oq,uom:p.uom});

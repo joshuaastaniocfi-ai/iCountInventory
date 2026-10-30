@@ -952,6 +952,22 @@ textarea.finput {
   display: block;
 }
 
+/* When products have no station metadata, start directly on item selection. */
+#panel-requisition.no-station-detected #wp0,
+#panel-requisition.no-station-detected #ws0 {
+  display: none !important;
+}
+#panel-requisition.no-station-detected .steps-track {
+  left: 25%;
+  right: 25%;
+}
+#panel-requisition.no-station-detected #wp1 .wizard-nav {
+  justify-content: flex-end;
+}
+#panel-requisition.no-station-detected #wp1 .wizard-nav .btn-ghost {
+  display: none;
+}
+
 .wizard-body {
   padding: 1.5rem;
 }
@@ -2767,4 +2783,3 @@ body.receiving-modal-open {
     padding: .85rem;
   }
 }
-
