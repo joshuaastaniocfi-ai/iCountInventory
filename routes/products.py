@@ -247,7 +247,8 @@ def add_product():
         item_uom_desc = request.form.get('item_uom_desc', '').strip()
         uom_conversion = request.form.get('uom_conversion', '1').strip()
         uom = request.form['uom'].strip()
-        quantity = float(request.form.get('quantity', 0))
+        quantity_raw = request.form.get('quantity', '').strip()
+        quantity = float(quantity_raw) if quantity_raw else 0.0
         # Use quantity as initial_quantity since that's what the form provides
         initial_quantity = quantity
         low_stock_threshold = int(request.form.get('low_stock_threshold', 
@@ -263,6 +264,10 @@ def add_product():
         if not name or not account_title or not uom:
             flash('Name, Account Title, and UOM are required', 'error')
             print("Validation failed: Required fields missing")
+            return redirect(url_for('products.view_products'))
+
+        if quantity < 0:
+            flash('Opening stock cannot be negative', 'error')
             return redirect(url_for('products.view_products'))
         
         # UOM conversion should be treated as text, not converted to float
@@ -329,7 +334,7 @@ def add_product():
         print("Database commit successful")
         
         # If product has expiration date, create initial batch
-        if exp_date:
+        if exp_date and quantity > 0:
             try:
                 # Parse the expiration date
                 exp_date_obj = datetime.strptime(exp_date, '%Y-%m-%d').date()

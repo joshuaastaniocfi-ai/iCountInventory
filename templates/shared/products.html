@@ -646,9 +646,9 @@
               <section class="add-product-section add-product-stock">
                 <div class="add-product-section-heading"><span>02</span><div><h6>Opening stock</h6><p>Set the initial quantity and alert levels.</p></div></div>
                 <div class="add-product-field">
-                  <label for="newProductQuantity" id="newProductQuantityLabel">Initial stock quantity <span class="required-mark">*</span></label>
-                  <div class="add-product-quantity"><input id="newProductQuantity" class="form-control" type="number" name="quantity" min="0.01" step="0.01" required placeholder="0.00"><span data-product-uom-preview>unit</span></div>
-                  <small>Enter the available opening quantity.</small>
+                  <label for="newProductQuantity" id="newProductQuantityLabel">Initial stock quantity <span class="text-muted">Optional</span></label>
+                  <div class="add-product-quantity"><input id="newProductQuantity" class="form-control" type="number" name="quantity" min="0" step="0.01" placeholder="0.00"><span data-product-uom-preview>unit</span></div>
+                  <small>Leave blank if the product has no opening stock.</small>
                 </div>
                 <div class="add-product-subgrid">
                   <div class="add-product-field">
