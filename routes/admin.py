@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 # Third-party imports
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import login_required, current_user
 
 # Local imports
@@ -424,17 +424,23 @@ def admin_update_user_companies(user_id):
 @admin.route('/switch_company/<int:company_id>', methods=['POST', 'GET'])
 @login_required
 def switch_company(company_id):
+    is_ajax = request.is_json or request.headers.get('Accept') == 'application/json' or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     # Allow SYS-Admin to switch to Global View (All Warehouses) with 0
     if company_id == 0 and current_user.role == 'SYS-Admin':
         current_user.company_id = None
         db.session.commit()
         session.pop('active_company_id', None)
         flash("Switched to Global View (All Warehouses).", "success")
+        if is_ajax:
+            return jsonify({'success': True, 'company_id': None, 'company_name': 'All Warehouses', 'message': 'Switched to Global View.'})
         return redirect(request.referrer or url_for('main.dashboard'))
 
     company = Company.query.get_or_404(company_id)
     if current_user.role != 'SYS-Admin' and company_id not in current_user.all_company_ids:
         flash("You do not have access to this company/warehouse.", "error")
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'You do not have access to this company/warehouse.'}), 403
         return redirect(request.referrer or url_for('main.dashboard'))
 
     # Crucial: Keep both the previous company and the newly selected company in handled_companies
@@ -450,7 +456,16 @@ def switch_company(company_id):
     current_user.company_id = company_id
     db.session.commit()
     session['active_company_id'] = company_id
-    flash(f"Switched active warehouse to {company.franchise_name or company.name}.", "success")
+    comp_display = company.franchise_name or company.name
+    flash(f"Switched active warehouse to {comp_display}.", "success")
+
+    if is_ajax:
+        return jsonify({
+            'success': True,
+            'company_id': company_id,
+            'company_name': comp_display,
+            'message': f"Switched active warehouse to {comp_display}."
+        })
 
     ref = request.referrer
     if ref:

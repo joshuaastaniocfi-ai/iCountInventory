@@ -1,21 +1,50 @@
 <header class="scanner-sticky-header">
+  <!-- Row 1: Brand & Actions -->
+  <div class="scanner-top-bar">
+    <a class="scanner-brand" href="{{ url_for('scanner.mobile_scanner') }}" aria-label="iCount Scanner home">
+      <span class="scanner-brand-mark"><i class="fas fa-cube"></i></span>
+      <span class="scanner-brand-name">iCount Scanner</span>
+    </a>
+    <div class="d-flex align-items-center gap-1 gap-sm-2">
+      <button type="button" class="scanner-theme-toggle" id="scannerThemeToggle" aria-label="Toggle dark mode" title="Toggle dark mode"><i class="fas fa-moon"></i></button>
+      <div class="scanner-account">
+        <button type="button" class="scanner-user-badge" id="scannerAccountToggle" aria-label="Open account menu" aria-expanded="false" title="Account menu"><i class="fas fa-user"></i></button>
+        <div class="scanner-account-menu" id="scannerAccountMenu" hidden>
+          <div class="scanner-account-summary"><strong>{{ current_user.full_name }}</strong><span>{{ current_user.role }}</span></div>
+          <a href="{{ url_for('auth.profile') }}"><i class="fas fa-user-circle"></i> View profile</a>
+          <a href="{{ url_for('auth.logout') }}" class="scanner-account-logout"><i class="fas fa-right-from-bracket"></i> Logout</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Navigation Links -->
+  <nav class="scanner-nav" aria-label="Scanner navigation">
+    <a href="{{ url_for('scanner.mobile_scanner') }}" class="scanner-nav-link {{ 'active' if request.endpoint == 'scanner.mobile_scanner' else '' }}" {% if request.endpoint == 'scanner.mobile_scanner' %}aria-current="page"{% endif %}><i class="fas fa-barcode"></i><span>Stock</span></a>
+    <a href="{{ url_for('scanner.mobile_audit') }}" class="scanner-nav-link {{ 'active' if request.endpoint == 'scanner.mobile_audit' else '' }}" {% if request.endpoint == 'scanner.mobile_audit' %}aria-current="page"{% endif %}><i class="fas fa-clipboard-check"></i><span>Audit</span></a>
+    <a href="{{ url_for('scanner.mobile_pending_requisitions') }}" class="scanner-nav-link {{ 'active' if request.endpoint == 'scanner.mobile_pending_requisitions' else '' }}" {% if request.endpoint == 'scanner.mobile_pending_requisitions' %}aria-current="page"{% endif %}><i class="fas fa-file-invoice"></i><span>Pending</span><span class="scanner-nav-count" id="pendingCount">0</span></a>
+    <a href="{{ url_for('scanner.mobile_batch_sub_audit') }}" class="scanner-nav-link {{ 'active' if request.endpoint == 'scanner.mobile_batch_sub_audit' else '' }}" {% if request.endpoint == 'scanner.mobile_batch_sub_audit' %}aria-current="page"{% endif %}><i class="fas fa-boxes"></i><span>Batch audit</span></a>
+  </nav>
+
   {% if current_user.is_authenticated and current_user.all_companies and current_user.all_companies|length > 1 %}
-  <!-- Store / Warehouse Toggle Bar in Sticky Scanner Header -->
-  <div class="scanner-store-toggle-bar w-100" style="order: 2.5; padding: 4px 0 2px 0;">
-    <div class="d-flex align-items-center justify-content-between gap-1 p-1 rounded-pill" style="background: rgba(120, 120, 128, 0.12); border: 1px solid var(--scanner-border, rgba(99,102,241,.18));">
-      <div class="d-flex align-items-center gap-1 ps-2 text-muted" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;">
+  <!-- Row 3: Store / Warehouse Toggle Bar (DISPLAYED BELOW NAV LINKS) -->
+  <div class="scanner-store-toggle-bar w-100" id="scannerStoreToggleBar">
+    <div class="d-flex align-items-center justify-content-between gap-1 p-1 rounded-pill scanner-toggle-pill-wrapper">
+      <div class="d-flex align-items-center gap-1 ps-2 text-muted scanner-toggle-label">
         <i class="fas fa-warehouse text-primary"></i>
         <span>Store:</span>
       </div>
-      <div class="d-flex align-items-center gap-1 flex-grow-1 justify-content-end">
+      <div class="d-flex align-items-center gap-1 flex-grow-1 justify-content-end scanner-toggle-pill-list">
         {% for c in current_user.all_companies %}
           <a href="{{ url_for('admin.switch_company', company_id=c.id) }}" 
+             onclick="switchWarehouseSilently(event, {{ c.id }}, '{{ (c.franchise_name or c.name)|replace("'", "\\'") }}')"
+             data-company-id="{{ c.id }}"
              class="scanner-wh-toggle-pill px-2 py-1 rounded-pill text-truncate d-inline-flex align-items-center gap-1 text-decoration-none transition-all {{ 'active fw-bold' if current_user.company_id == c.id else 'text-muted' }}"
              title="Switch store to {{ c.franchise_name or c.name }}"
-             style="{{ 'background: #2563eb; color: #ffffff !important; box-shadow: 0 2px 6px rgba(37,99,235,0.35); font-weight: 700;' if current_user.company_id == c.id else 'color: var(--scanner-muted, #71717a); font-weight: 500;' }} font-size: 0.75rem; line-height: 1.2; max-width: 140px;">
+             style="{{ 'background: #2563eb; color: #ffffff !important; box-shadow: 0 2px 6px rgba(37,99,235,0.35); font-weight: 700;' if current_user.company_id == c.id else 'color: var(--scanner-muted, #71717a); font-weight: 500;' }} font-size: 0.72rem; line-height: 1.2; max-width: 140px;">
             <span class="text-truncate">{{ c.franchise_name or c.name }}</span>
             {% if current_user.company_id == c.id %}
-              <i class="fas fa-check small text-white" style="font-size: 0.6rem;"></i>
+              <i class="fas fa-check small text-white" style="font-size: 0.55rem;"></i>
             {% endif %}
           </a>
         {% endfor %}
@@ -23,25 +52,6 @@
     </div>
   </div>
   {% endif %}
-  <a class="scanner-brand" href="{{ url_for('scanner.mobile_scanner') }}" aria-label="iCount Scanner home">
-    <span class="scanner-brand-mark"><i class="fas fa-cube"></i></span>
-    <span class="scanner-brand-name">iCount Scanner</span>
-  </a>
-  <nav class="scanner-nav" aria-label="Scanner navigation">
-    <a href="{{ url_for('scanner.mobile_scanner') }}" class="scanner-nav-link {{ 'active' if request.endpoint == 'scanner.mobile_scanner' else '' }}" {% if request.endpoint == 'scanner.mobile_scanner' %}aria-current="page"{% endif %}><i class="fas fa-barcode"></i><span>Stock</span></a>
-    <a href="{{ url_for('scanner.mobile_audit') }}" class="scanner-nav-link {{ 'active' if request.endpoint == 'scanner.mobile_audit' else '' }}" {% if request.endpoint == 'scanner.mobile_audit' %}aria-current="page"{% endif %}><i class="fas fa-clipboard-check"></i><span>Audit</span></a>
-    <a href="{{ url_for('scanner.mobile_pending_requisitions') }}" class="scanner-nav-link {{ 'active' if request.endpoint == 'scanner.mobile_pending_requisitions' else '' }}" {% if request.endpoint == 'scanner.mobile_pending_requisitions' %}aria-current="page"{% endif %}><i class="fas fa-file-invoice"></i><span>Pending</span><span class="scanner-nav-count" id="pendingCount">0</span></a>
-    <a href="{{ url_for('scanner.mobile_batch_sub_audit') }}" class="scanner-nav-link {{ 'active' if request.endpoint == 'scanner.mobile_batch_sub_audit' else '' }}" {% if request.endpoint == 'scanner.mobile_batch_sub_audit' %}aria-current="page"{% endif %}><i class="fas fa-boxes"></i><span>Batch audit</span></a>
-  </nav>
-  <button type="button" class="scanner-theme-toggle" id="scannerThemeToggle" aria-label="Toggle dark mode" title="Toggle dark mode"><i class="fas fa-moon"></i></button>
-  <div class="scanner-account">
-    <button type="button" class="scanner-user-badge" id="scannerAccountToggle" aria-label="Open account menu" aria-expanded="false" title="Account menu"><i class="fas fa-user"></i></button>
-    <div class="scanner-account-menu" id="scannerAccountMenu" hidden>
-      <div class="scanner-account-summary"><strong>{{ current_user.full_name }}</strong><span>{{ current_user.role }}</span></div>
-      <a href="{{ url_for('auth.profile') }}"><i class="fas fa-user-circle"></i> View profile</a>
-      <a href="{{ url_for('auth.logout') }}" class="scanner-account-logout"><i class="fas fa-right-from-bracket"></i> Logout</a>
-    </div>
-  </div>
 </header>
 <script>
 (function() {
@@ -78,17 +88,92 @@
   applyTheme();
 
   // Fetch pending requisitions count for the nav badge
-  fetch('/scanner/api/pending-requisitions')
-    .then(r => r.json())
-    .then(data => {
-      if (data && data.success) {
-        const badge = document.getElementById('pendingCount');
-        if (badge) {
-          badge.textContent = data.count || 0;
-          badge.style.display = (data.count && data.count > 0) ? 'inline-flex' : 'none';
+  function fetchPendingRequisitionsCount() {
+    fetch('/scanner/api/pending-requisitions')
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.success) {
+          const badge = document.getElementById('pendingCount');
+          if (badge) {
+            badge.textContent = data.count || 0;
+            badge.style.display = (data.count && data.count > 0) ? 'inline-flex' : 'none';
+          }
+        }
+      })
+      .catch(() => {});
+  }
+  window.fetchPendingRequisitionsCount = fetchPendingRequisitionsCount;
+  fetchPendingRequisitionsCount();
+
+  // Silent Warehouse Switcher (No Page Reload / No Screen Flicker)
+  window.switchWarehouseSilently = async function(event, companyId, companyName) {
+    if (event) event.preventDefault();
+
+    // Optimistically toggle active styles on pills
+    const pills = document.querySelectorAll('.scanner-wh-toggle-pill');
+    pills.forEach(p => {
+      const isTarget = p.getAttribute('data-company-id') == companyId;
+      if (isTarget) {
+        p.classList.add('active', 'fw-bold');
+        p.classList.remove('text-muted');
+        p.style.background = '#2563eb';
+        p.style.color = '#ffffff';
+        p.style.boxShadow = '0 2px 6px rgba(37,99,235,0.35)';
+        if (!p.querySelector('.fa-check')) {
+          const checkIcon = document.createElement('i');
+          checkIcon.className = 'fas fa-check small text-white ms-1';
+          checkIcon.style.fontSize = '0.55rem';
+          p.appendChild(checkIcon);
+        }
+      } else {
+        p.classList.remove('active', 'fw-bold');
+        p.classList.add('text-muted');
+        p.style.background = 'transparent';
+        p.style.color = 'var(--scanner-muted, #71717a)';
+        p.style.boxShadow = 'none';
+        const checkIcon = p.querySelector('.fa-check');
+        if (checkIcon) checkIcon.remove();
+      }
+    });
+
+    try {
+      const res = await fetch(`/admin/switch_company/${companyId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      const data = await res.json();
+
+      // Clear product lookup cache so searches fetch products for this newly active warehouse
+      if (typeof lookupQueryCache !== 'undefined' && lookupQueryCache.clear) {
+        lookupQueryCache.clear();
+        if (typeof cachedLookupProducts !== 'undefined') cachedLookupProducts = [];
+      }
+
+      // If an item is currently loaded in workbench, check if it belongs to this warehouse or reload batches
+      if (typeof currentProduct !== 'undefined' && currentProduct && currentProduct.id) {
+        if (typeof fetchProductBatches === 'function') {
+          fetchProductBatches(currentProduct.id);
+        }
+        if (typeof fetchProductByIdDirectly === 'function') {
+          fetchProductByIdDirectly(currentProduct.id);
         }
       }
-    })
-    .catch(() => {});
+
+      // Refresh pending requisitions count for the new warehouse
+      fetchPendingRequisitionsCount();
+
+      if (typeof showFlashAlert === 'function') {
+        showFlashAlert(`Active warehouse: ${companyName}`, 'info');
+      } else if (typeof showNotification === 'function') {
+        showNotification(`Active warehouse: ${companyName}`, 'info');
+      }
+    } catch (err) {
+      console.warn('Silent switch fallback:', err);
+      window.location.href = `/admin/switch_company/${companyId}`;
+    }
+  };
 })();
 </script>

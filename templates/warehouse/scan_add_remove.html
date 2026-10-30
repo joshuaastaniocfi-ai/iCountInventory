@@ -678,6 +678,7 @@
               <div class="col-12 col-sm-6">
                 <label class="form-label" for="remove_reason">Reason</label>
                 <select name="reason" id="remove_reason" class="form-select" required>
+                  <option value="Wrong Input">Wrong Input</option>
                   <option value="spoilage">Spoilage</option>
                   <option value="expired">Expired</option>
                   <option value="damaged">Damaged</option>
@@ -1954,13 +1955,38 @@
           throw new Error(msg);
         }
       })
-      .then(() => {
+      .then(async () => {
         showFlashAlert('Stock added successfully!', 'success');
         const modalEl = document.getElementById('addStockModal');
         const inst = bootstrap.Modal.getInstance(modalEl);
         if (inst) inst.hide();
         form.reset();
-        setTimeout(() => window.location.reload(), 700);
+
+        // Reset dry goods mode UI if enabled
+        if (typeof toggleDryGoodsMode === 'function') toggleDryGoodsMode(false);
+
+        // SILENT UPDATE: refresh batches and product stock on current workbench without page reload!
+        if (currentProduct && currentProduct.id) {
+          fetchProductBatches(currentProduct.id);
+          try {
+            const pRes = await fetch(`/products/lookup_product_by_id/${currentProduct.id}`);
+            const pData = await pRes.json();
+            if (pData.success) {
+              currentProduct.quantity = pData.quantity;
+              currentProduct.initial_quantity = pData.initial_quantity;
+              const stockEl = document.getElementById('product-stock-display');
+              if (stockEl) stockEl.textContent = `${pData.quantity ?? 0} / ${pData.initial_quantity ?? 0}`;
+            }
+          } catch (e) {
+            console.warn('Silent stock refresh failed:', e);
+          }
+        }
+
+        // Clear query cache so lookup modal shows updated warehouse quantities
+        if (typeof lookupQueryCache !== 'undefined' && lookupQueryCache.clear) {
+          lookupQueryCache.clear();
+          if (typeof cachedLookupProducts !== 'undefined') cachedLookupProducts = [];
+        }
       })
       .catch(err => {
         console.error('Add stock failed:', err);
@@ -2007,11 +2033,31 @@
       .then(data => {
         if (data.status === 'success') {
           showFlashAlert('✅ ' + data.message, 'success');
-          bootstrap.Modal.getInstance(document.getElementById('removeStockModal')).hide();
+          const removeModal = bootstrap.Modal.getInstance(document.getElementById('removeStockModal'));
+          if (removeModal) removeModal.hide();
           form.reset();
           // Hide status message on successful operation
           document.getElementById('status').classList.add('d-none');
-          window.location.reload();
+
+          // SILENT UPDATE: refresh batches and stock on current workbench without page reload!
+          if (currentProduct && currentProduct.id) {
+            fetchProductBatches(currentProduct.id);
+            try {
+              const pRes = await fetch(`/products/lookup_product_by_id/${currentProduct.id}`);
+              const pData = await pRes.json();
+              if (pData.success) {
+                currentProduct.quantity = pData.quantity;
+                currentProduct.initial_quantity = pData.initial_quantity;
+                const stockEl = document.getElementById('product-stock-display');
+                if (stockEl) stockEl.textContent = `${pData.quantity ?? 0} / ${pData.initial_quantity ?? 0}`;
+              }
+            } catch (e) {}
+          }
+
+          if (typeof lookupQueryCache !== 'undefined' && lookupQueryCache.clear) {
+            lookupQueryCache.clear();
+            if (typeof cachedLookupProducts !== 'undefined') cachedLookupProducts = [];
+          }
         } else {
           throw new Error(data.message || "Unknown error");
         }
@@ -2068,25 +2114,33 @@
           // Hide status message on successful operation
           document.getElementById('status').classList.add('d-none');
           
-          // Remove the batch row from the modal
+          // Remove the batch row from the modal smoothly
           const batchItem = deleteBtn.closest('.modal-batch-item');
           if (batchItem) {
             batchItem.style.animation = 'fadeOut 0.3s ease-out';
             setTimeout(() => {
               batchItem.remove();
-              // Refresh the batches modal to show updated data
-              setTimeout(() => {
-                const modal = bootstrap.Modal.getInstance(document.getElementById('batchesModal'));
-                if (modal) {
-                  modal.hide();
-                  // Re-scan to refresh data
-                  window.location.reload();
-                }
-              }, 300);
             }, 300);
-          } else {
-            // Fallback to page reload if removal fails
-            setTimeout(() => location.reload(), 1000);
+          }
+
+          // SILENT UPDATE: refresh batches and product stock without page reload!
+          if (productId) {
+            fetchProductBatches(productId);
+            fetch(`/products/lookup_product_by_id/${productId}`)
+              .then(r => r.json())
+              .then(pData => {
+                if (pData.success && currentProduct && currentProduct.id === productId) {
+                  currentProduct.quantity = pData.quantity;
+                  const stockEl = document.getElementById('product-stock-display');
+                  if (stockEl) stockEl.textContent = `${pData.quantity ?? 0} / ${pData.initial_quantity ?? 0}`;
+                }
+              })
+              .catch(e => console.warn('Silent stock refresh after batch delete failed:', e));
+          }
+
+          if (typeof lookupQueryCache !== 'undefined' && lookupQueryCache.clear) {
+            lookupQueryCache.clear();
+            if (typeof cachedLookupProducts !== 'undefined') cachedLookupProducts = [];
           }
         } else {
           throw new Error(data.message || 'Unknown error occurred');
