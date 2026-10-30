@@ -7,7 +7,7 @@
   </button>
 
   <!-- Production (Star Feature!) -->
-  <a href="{{ url_for('store.production') }}" class="bottom-bar-item bb-prod" id="bb-production" title="Store Production">
+  <a href="#" class="bottom-bar-item bb-prod is-disabled" id="bb-production" aria-disabled="true" tabindex="-1" title="Store Production is temporarily unavailable" onclick="return false;">
     <div class="bb-icon-wrap">
       <i class="fas fa-kitchen-set"></i>
       <span class="bb-badge-dot"></span>
@@ -58,7 +58,7 @@
       </div>
       <i class="fas fa-chevron-right more-card-arr"></i>
     </button>
-    <button type="button" class="more-card" onclick="selectFromMore('invcount')">
+    <button type="button" class="more-card is-disabled" aria-disabled="true" tabindex="-1" title="Physical Count is temporarily unavailable" onclick="return false;">
       <div class="more-card-icon icon-amber"><i class="fas fa-clipboard-check"></i></div>
       <div class="more-card-info">
         <div class="more-card-title">Physical Count</div>
@@ -75,7 +75,7 @@
       <span class="bb-badge-count" id="moreHistBadge" style="position:static;margin-left:auto;margin-right:8px">0</span>
       <i class="fas fa-chevron-right more-card-arr"></i>
     </button>
-    <a href="{{ url_for('store.production') }}" class="more-card">
+    <a href="#" class="more-card is-disabled" aria-disabled="true" tabindex="-1" title="Store Production is temporarily unavailable" onclick="return false;">
       <div class="more-card-icon icon-emerald"><i class="fas fa-kitchen-set"></i></div>
       <div class="more-card-info">
         <div class="more-card-title">Store Production</div>

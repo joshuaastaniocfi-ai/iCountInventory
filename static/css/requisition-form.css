@@ -2663,6 +2663,21 @@ textarea.finput {
   transform: none;
   pointer-events: none;
 }
+.bottom-bar-item.is-disabled,
+.bottom-bar-item.is-disabled:hover,
+.bottom-bar-item.is-disabled:focus {
+  opacity: .48;
+  color: var(--text-muted) !important;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.more-card.is-disabled,
+.more-card.is-disabled:hover,
+.more-card.is-disabled:focus {
+  opacity: .48;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 .prod-badge-pill {
   display: inline-block;
   font-size: 0.68rem;

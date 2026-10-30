@@ -303,7 +303,7 @@ function loadStoreInvDataForDate(){
     const threshold = slq > 0 ? slq : (p.threshold || 0);
     const stCls = storeStock <= 0 ? 'pill-bad' : storeStock <= threshold ? 'pill-warn' : 'pill-ok';
     const stLbl = storeStock <= 0 ? 'Out of Stock' : storeStock <= threshold ? 'Low Stock' : 'In Stock';
-    return `<tr id="storeInvRow_${p.id}" class="si-row">
+    return `<tr id="storeInvRow_${p.id}" class="si-row" data-product-name="${escapeHtml(String(p.name || ''))}">
       <td style="font-weight:600">${escapeHtml(p.name)}</td>
       <td class="te" data-label="UOM"><span class="text-muted fs-sm">${escapeHtml(p.uom)}</span></td>
       <td class="te" data-label="Store Stock"><span class="fw-semibold">${formatStock(storeStock)}</span></td>
@@ -337,10 +337,15 @@ function updateStoreStats(){
 function filterStoreInv(q = ''){
   const lq = String(q ?? '').trim().toLocaleLowerCase();
   let total = 0, inStock = 0, low = 0, out = 0;
-  products.forEach(p => {
-    const visible = String(p.name || '').toLocaleLowerCase().includes(lq);
-    const row = document.getElementById(`storeInvRow_${p.id}`);
-    if(row) row.style.display = visible ? '' : 'none';
+  const rows = document.querySelectorAll('#storeInvBody .si-row');
+  products.forEach((p, index) => {
+    const row = rows[index];
+    const rowName = row ? row.dataset.productName : String(p.name || '');
+    const visible = rowName.toLocaleLowerCase().includes(lq);
+    if(row) {
+      row.hidden = !visible;
+      row.style.display = visible ? '' : 'none';
+    }
     if(!visible) return;
     total++;
     const storeStock = p.store_qty !== undefined ? p.store_qty : (p.stock || 0);
