@@ -1,8 +1,10 @@
-const CACHE_NAME = 'icebergINV-v1.0.0';
+const CACHE_NAME = 'icebergINV-v1.0.1';
 const urlsToCache = [
   '/',
   '/static/css/style.css',
+  '/static/css/flatpickr.min.css',
   '/static/js/app.js',
+  '/static/js/flatpickr.min.js',
   '/static/icons/icon_logo.png',
   '/scanner/mobile-scanner',
   '/scanner/scanner'

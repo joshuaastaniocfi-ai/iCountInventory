@@ -26,6 +26,15 @@
     <link href="{{ url_for('static', filename='mobile_scanner_nav.css') }}" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <!-- Flatpickr Date Picker (Local + CDN fallback) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/flatpickr.min.css') }}">
+  <script src="{{ url_for('static', filename='js/flatpickr.min.js') }}"></script>
+  <script>
+    if (typeof flatpickr === 'undefined') {
+      document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">');
+      document.write('<script src="https://cdn.jsdelivr.net/npm/flatpickr"><\/script>');
+    }
+  </script>
   <script>
     (function () {
       const darkMode = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
@@ -304,6 +313,66 @@
     .scanner-page #addStockModal .expiry-preview strong { color: var(--scanner-text); }
     .scanner-page #addStockModal .modal-footer { padding: 0.8rem 1.15rem; }
     .scanner-page #addStockModal .modal-footer .btn { min-height: 42px; min-width: 110px; border-radius: 9px; font-weight: 600; }
+
+    /* ===== FLATPICKR & DATE PICKER CUSTOM STYLES ===== */
+    .btn-xs {
+      padding: 0.18rem 0.45rem !important;
+      font-size: 0.68rem !important;
+      line-height: 1.25 !important;
+      border-radius: 5px !important;
+    }
+    .picker-mode-group .btn {
+      font-size: 0.68rem !important;
+      padding: 0.16rem 0.45rem !important;
+    }
+    .flatpickr-calendar {
+      z-index: 10600 !important;
+      font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif !important;
+      border-radius: 12px !important;
+      border: 1px solid var(--wh-border) !important;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+      background: var(--wh-card-bg) !important;
+    }
+    .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange {
+      background: var(--wh-primary) !important;
+      border-color: var(--wh-primary) !important;
+      font-weight: 700 !important;
+    }
+    .flatpickr-months .flatpickr-month {
+      background: var(--wh-primary) !important;
+      color: #fff !important;
+      border-radius: 12px 12px 0 0 !important;
+    }
+    .flatpickr-current-month .flatpickr-monthDropdown-months,
+    .flatpickr-current-month input.cur-year {
+      color: #fff !important;
+      font-weight: 700 !important;
+    }
+    .dark-mode .flatpickr-calendar {
+      background: #1e1b4b !important;
+      border-color: #312e81 !important;
+      color: #e0e7ff !important;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+    }
+    .dark-mode .flatpickr-day {
+      color: #e0e7ff !important;
+    }
+    .dark-mode .flatpickr-day:hover {
+      background: #312e81 !important;
+    }
+    .dark-mode span.flatpickr-weekday {
+      color: #a5b4fc !important;
+    }
+    .dark-mode .flatpickr-current-month .flatpickr-monthDropdown-months {
+      background: #4f46e5 !important;
+    }
+    .quick-date-chips .btn {
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+    .quick-date-chips .btn:active {
+      transform: scale(0.95);
+    }
     .scanner-page #removeStockModal .modal-dialog { width: min(100% - 1.25rem, 540px); max-width: 540px; margin: 1rem auto; }
     .scanner-page #removeStockModal .modal-content { overflow: hidden; }
     .scanner-page #removeStockModal .modal-header { align-items: flex-start; padding: 1rem 1.15rem; background: var(--scanner-soft); }
@@ -638,9 +707,67 @@
                 <input type="number" name="quantity" id="add_quantity" class="form-control" required min="0.01" step="0.01" inputmode="decimal" pattern="[0-9]+([.][0-9]+)?" autocomplete="off" placeholder="0.00">
               </div>
               <div class="col-12 col-sm-6" id="add_production_date_container">
-                <label class="form-label" for="add_production_date">Production date</label>
-                <input type="date" name="production_date" id="add_production_date" class="form-control" required>
-                <div class="form-text">The date this batch was produced</div>
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <label class="form-label mb-0" for="add_production_date">
+                    Production date <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.65rem;">MM/DD/YYYY</span>
+                  </label>
+                  <div class="btn-group btn-group-sm picker-mode-group" role="group" aria-label="Picker Mode">
+                    <button type="button" class="btn btn-xs btn-primary active py-0 px-2" id="prod_mode_cal_btn" onclick="togglePickerStyle('calendar')" title="Calendar picker format" style="font-size: 0.68rem; border-radius: 4px 0 0 4px;">
+                      <i class="fas fa-calendar-days me-1"></i>Calendar
+                    </button>
+                    <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2" id="prod_mode_drop_btn" onclick="togglePickerStyle('dropdowns')" title="Month/Day/Year Dropdowns format" style="font-size: 0.68rem; border-radius: 0 4px 4px 0;">
+                      <i class="fas fa-sliders-h me-1"></i>Selects
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Format 1: Calendar Input (Flatpickr) -->
+                <div id="prod_calendar_view">
+                  <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-calendar-day"></i></span>
+                    <input type="text" name="production_date" id="add_production_date" class="form-control border-start-0" placeholder="MM/DD/YYYY" autocomplete="off" required>
+                  </div>
+                </div>
+
+                <!-- Format 2: 3-Dropdown Selectors (Month / Day / Year) -->
+                <div id="prod_dropdowns_view" class="d-none">
+                  <div class="row g-1">
+                    <div class="col-5">
+                      <select id="prod_sel_month" class="form-select form-select-sm" onchange="onProdDropdownChanged()" aria-label="Production Month">
+                        <option value="01">01 - Jan</option>
+                        <option value="02">02 - Feb</option>
+                        <option value="03">03 - Mar</option>
+                        <option value="04">04 - Apr</option>
+                        <option value="05">05 - May</option>
+                        <option value="06">06 - Jun</option>
+                        <option value="07">07 - Jul</option>
+                        <option value="08">08 - Aug</option>
+                        <option value="09">09 - Sep</option>
+                        <option value="10">10 - Oct</option>
+                        <option value="11">11 - Nov</option>
+                        <option value="12">12 - Dec</option>
+                      </select>
+                    </div>
+                    <div class="col-3">
+                      <select id="prod_sel_day" class="form-select form-select-sm" onchange="onProdDropdownChanged()" aria-label="Production Day">
+                      </select>
+                    </div>
+                    <div class="col-4">
+                      <select id="prod_sel_year" class="form-select form-select-sm" onchange="onProdDropdownChanged()" aria-label="Production Year">
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Quick Date / Year Jump Chips -->
+                <div class="quick-date-chips d-flex flex-wrap gap-1 mt-1 pt-1 align-items-center">
+                  <span class="text-muted small me-1" style="font-size: 0.65rem;"><i class="fas fa-bolt text-warning me-1"></i>Quick:</span>
+                  <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="quickSetProductionDate(0)" style="font-size: 0.68rem;">Today</button>
+                  <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="quickSetProductionDate(-1)" style="font-size: 0.68rem;">Yesterday</button>
+                  <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="quickShiftProductionMonths(-1)" style="font-size: 0.68rem;">-1 Mo</button>
+                  <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="quickShiftProductionYears(-1)" style="font-size: 0.68rem;">-1 Yr</button>
+                </div>
+                <div class="form-text">Date this batch was produced <span class="text-primary fw-semibold">(MM/DD/YYYY)</span></div>
               </div>
               <div class="col-12" id="add_shelf_life_container">
                 <label class="form-label" for="add_shelf_life">Shelf life</label>
@@ -652,7 +779,7 @@
                 </select>
                 <div class="expiry-preview" id="add_expiry_preview" title="Double-click to switch to Dry Goods (Direct Expiration Date)" style="cursor: pointer; user-select: none;">
                   <i class="fas fa-calendar-check"></i>
-                  <span>Expiration date: <strong>—</strong></span>
+                  <span>Expiration date: <strong>—</strong> <small class="text-muted ms-1" id="add_expiry_format_tag" style="font-size: 0.7rem;">(MM/DD/YYYY)</small></span>
                   <span id="dry_goods_badge" class="badge bg-secondary-subtle text-secondary ms-auto small" style="font-size: 0.68rem;">
                     <i class="fas fa-hand-pointer me-1"></i>Double-click for Dry Goods
                   </span>
@@ -663,16 +790,77 @@
               <div class="col-12 d-none" id="add_direct_expiry_container">
                 <div class="p-3 rounded-3 border border-warning-subtle" style="background: rgba(245, 158, 11, 0.08);">
                   <div class="d-flex align-items-center justify-content-between mb-2">
-                    <label class="form-label mb-0 fw-bold text-warning-emphasis" for="add_direct_exp_date">
-                      <i class="fas fa-box me-1"></i> Actual Expiration Date (Dry Goods)
-                    </label>
-                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="toggleDryGoodsMode(false)" style="font-size: 0.72rem;">
-                      <i class="fas fa-rotate-left me-1"></i> Re-enable Production Date
-                    </button>
+                    <div>
+                      <label class="form-label mb-0 fw-bold text-warning-emphasis" for="add_direct_exp_date">
+                        <i class="fas fa-box me-1"></i> Actual Expiration Date (Dry Goods)
+                      </label>
+                      <span class="badge bg-warning-subtle text-warning border border-warning-subtle ms-1" style="font-size: 0.65rem;">MM/DD/YYYY</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                      <div class="btn-group btn-group-sm picker-mode-group" role="group" aria-label="Expiry Picker Mode">
+                        <button type="button" class="btn btn-xs btn-warning active py-0 px-2" id="exp_mode_cal_btn" onclick="toggleExpiryPickerStyle('calendar')" title="Calendar picker" style="font-size: 0.68rem; border-radius: 4px 0 0 4px;">
+                          <i class="fas fa-calendar-days me-1"></i>Calendar
+                        </button>
+                        <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2" id="exp_mode_drop_btn" onclick="toggleExpiryPickerStyle('dropdowns')" title="Month/Day/Year Dropdowns" style="font-size: 0.68rem; border-radius: 0 4px 4px 0;">
+                          <i class="fas fa-sliders-h me-1"></i>Selects
+                        </button>
+                      </div>
+                      <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 ms-1" onclick="toggleDryGoodsMode(false)" style="font-size: 0.72rem;">
+                        <i class="fas fa-rotate-left me-1"></i> Re-enable Production Date
+                      </button>
+                    </div>
                   </div>
-                  <input type="date" name="direct_exp_date" id="add_direct_exp_date" class="form-control border-warning fw-semibold">
+
+                  <!-- Format 1: Calendar Input (Flatpickr) -->
+                  <div id="exp_calendar_view">
+                    <div class="input-group">
+                      <span class="input-group-text bg-white border-end-0 border-warning text-warning"><i class="fas fa-calendar-check"></i></span>
+                      <input type="text" name="direct_exp_date" id="add_direct_exp_date" class="form-control border-warning fw-semibold border-start-0" placeholder="MM/DD/YYYY" autocomplete="off">
+                    </div>
+                  </div>
+
+                  <!-- Format 2: 3-Dropdown Selectors (Month / Day / Year) -->
+                  <div id="exp_dropdowns_view" class="d-none">
+                    <div class="row g-1">
+                      <div class="col-5">
+                        <select id="exp_sel_month" class="form-select form-select-sm border-warning" onchange="onExpDropdownChanged()" aria-label="Expiry Month">
+                          <option value="01">01 - Jan</option>
+                          <option value="02">02 - Feb</option>
+                          <option value="03">03 - Mar</option>
+                          <option value="04">04 - Apr</option>
+                          <option value="05">05 - May</option>
+                          <option value="06">06 - Jun</option>
+                          <option value="07">07 - Jul</option>
+                          <option value="08">08 - Aug</option>
+                          <option value="09">09 - Sep</option>
+                          <option value="10">10 - Oct</option>
+                          <option value="11">11 - Nov</option>
+                          <option value="12">12 - Dec</option>
+                        </select>
+                      </div>
+                      <div class="col-3">
+                        <select id="exp_sel_day" class="form-select form-select-sm border-warning" onchange="onExpDropdownChanged()" aria-label="Expiry Day">
+                        </select>
+                      </div>
+                      <div class="col-4">
+                        <select id="exp_sel_year" class="form-select form-select-sm border-warning" onchange="onExpDropdownChanged()" aria-label="Expiry Year">
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Quick Year & Expiry Jump Chips -->
+                  <div class="quick-date-chips d-flex flex-wrap gap-1 mt-2 align-items-center">
+                    <span class="text-warning-emphasis small me-1 fw-semibold" style="font-size: 0.65rem;"><i class="fas fa-bolt text-warning me-1"></i>Quick Expiry:</span>
+                    <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2 fw-semibold" onclick="quickShiftExpiryMonths(6)" style="font-size: 0.68rem;">+6 Mos</button>
+                    <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2 fw-semibold" onclick="quickShiftExpiryYears(1)" style="font-size: 0.68rem;">+1 Yr</button>
+                    <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2 fw-semibold" onclick="quickShiftExpiryYears(2)" style="font-size: 0.68rem;">+2 Yrs</button>
+                    <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2 fw-semibold" onclick="quickShiftExpiryYears(3)" style="font-size: 0.68rem;">+3 Yrs</button>
+                    <button type="button" class="btn btn-xs btn-outline-warning py-0 px-2 fw-semibold" onclick="quickShiftExpiryYears(5)" style="font-size: 0.68rem;">+5 Yrs</button>
+                  </div>
+
                   <div class="form-text text-warning-emphasis small mt-1">
-                    <i class="fas fa-info-circle me-1"></i> Dry goods mode: Production date &amp; shelf life are disabled. Select the printed expiration date.
+                    <i class="fas fa-info-circle me-1"></i> Dry goods mode: Select or jump to the printed expiration date <span class="fw-bold">(MM/DD/YYYY)</span>.
                   </div>
                 </div>
               </div>
@@ -848,11 +1036,61 @@
     let currentTorchState = false;
     let isProcessingScan = false;
 
+    // Flatpickr instances and state
+    let prodFlatpickr = null;
+    let expFlatpickr = null;
+    let isDryGoodsMode = false;
+
     function formatDateForInput(date) {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
+      if (!date) return '';
+      const d = (date instanceof Date) ? date : new Date(date);
+      if (isNaN(d.getTime())) return '';
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
+    }
+
+    function formatDateMMDDYYYY(date) {
+      if (!date) return '—';
+      let d;
+      if (date instanceof Date) {
+        d = date;
+      } else if (typeof date === 'string') {
+        const s = date.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+          d = new Date(`${s}T00:00:00`);
+        } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+          const parts = s.split('/');
+          d = new Date(parseInt(parts[2], 10), parseInt(parts[0], 10) - 1, parseInt(parts[1], 10));
+        } else {
+          d = new Date(s);
+        }
+      } else {
+        d = new Date(date);
+      }
+      if (!d || isNaN(d.getTime())) return '—';
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${month}/${day}/${year}`;
+    }
+
+    function parseDateAny(val) {
+      if (!val) return null;
+      if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+      const s = String(val).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        const d = new Date(`${s}T00:00:00`);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+        const parts = s.split('/');
+        const d = new Date(parseInt(parts[2], 10), parseInt(parts[0], 10) - 1, parseInt(parts[1], 10));
+        return isNaN(d.getTime()) ? null : d;
+      }
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? null : d;
     }
 
     function addCalendarMonths(date, months) {
@@ -865,11 +1103,246 @@
       return result;
     }
 
-    let isDryGoodsMode = false;
+    function updateDayDropdown(selectId, year, month, selectedDay) {
+      const daySelect = document.getElementById(selectId);
+      if (!daySelect) return;
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const currentVal = selectedDay || parseInt(daySelect.value, 10) || 1;
+      const targetDay = Math.min(currentVal, daysInMonth);
+      daySelect.innerHTML = '';
+      for (let i = 1; i <= daysInMonth; i++) {
+        const opt = document.createElement('option');
+        const val = String(i).padStart(2, '0');
+        opt.value = val;
+        opt.textContent = val;
+        if (i === targetDay) opt.selected = true;
+        daySelect.appendChild(opt);
+      }
+    }
+
+    function populateYearDropdown(selectId, startYear, endYear, selectedYear) {
+      const yearSelect = document.getElementById(selectId);
+      if (!yearSelect) return;
+      yearSelect.innerHTML = '';
+      for (let y = startYear; y <= endYear; y++) {
+        const opt = document.createElement('option');
+        opt.value = String(y);
+        opt.textContent = String(y);
+        if (y === selectedYear) opt.selected = true;
+        yearSelect.appendChild(opt);
+      }
+    }
+
+    function syncProdDateToDropdowns(dateObj) {
+      const d = dateObj || getProductionDateObj() || new Date();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = d.getDate();
+      const y = d.getFullYear();
+      const selM = document.getElementById('prod_sel_month');
+      const selY = document.getElementById('prod_sel_year');
+      if (selM) selM.value = m;
+      if (selY) selY.value = String(y);
+      updateDayDropdown('prod_sel_day', y, d.getMonth() + 1, day);
+    }
+
+    function syncExpDateToDropdowns(dateObj) {
+      const d = dateObj || getDirectExpDateObj() || new Date();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = d.getDate();
+      const y = d.getFullYear();
+      const selM = document.getElementById('exp_sel_month');
+      const selY = document.getElementById('exp_sel_year');
+      if (selM) selM.value = m;
+      if (selY) selY.value = String(y);
+      updateDayDropdown('exp_sel_day', y, d.getMonth() + 1, day);
+    }
+
+    function onProdDropdownChanged() {
+      const m = parseInt(document.getElementById('prod_sel_month')?.value || '1', 10);
+      const y = parseInt(document.getElementById('prod_sel_year')?.value || '2026', 10);
+      const dSel = document.getElementById('prod_sel_day');
+      let dayVal = dSel ? parseInt(dSel.value, 10) : 1;
+      const maxDays = new Date(y, m, 0).getDate();
+      if (dayVal > maxDays) dayVal = maxDays;
+      updateDayDropdown('prod_sel_day', y, m, dayVal);
+
+      const finalDate = new Date(y, m - 1, dayVal);
+      if (prodFlatpickr) {
+        prodFlatpickr.setDate(finalDate, false);
+      }
+      const input = document.getElementById('add_production_date');
+      if (input) input.value = formatDateForInput(finalDate);
+      updateAddStockExpiryPreview();
+    }
+
+    function onExpDropdownChanged() {
+      const m = parseInt(document.getElementById('exp_sel_month')?.value || '1', 10);
+      const y = parseInt(document.getElementById('exp_sel_year')?.value || '2026', 10);
+      const dSel = document.getElementById('exp_sel_day');
+      let dayVal = dSel ? parseInt(dSel.value, 10) : 1;
+      const maxDays = new Date(y, m, 0).getDate();
+      if (dayVal > maxDays) dayVal = maxDays;
+      updateDayDropdown('exp_sel_day', y, m, dayVal);
+
+      const finalDate = new Date(y, m - 1, dayVal);
+      if (expFlatpickr) {
+        expFlatpickr.setDate(finalDate, false);
+      }
+      const input = document.getElementById('add_direct_exp_date');
+      if (input) input.value = formatDateForInput(finalDate);
+      updateAddStockExpiryPreview();
+    }
+
+    function togglePickerStyle(mode) {
+      const calView = document.getElementById('prod_calendar_view');
+      const dropView = document.getElementById('prod_dropdowns_view');
+      const calBtn = document.getElementById('prod_mode_cal_btn');
+      const dropBtn = document.getElementById('prod_mode_drop_btn');
+
+      if (mode === 'dropdowns') {
+        if (calView) calView.classList.add('d-none');
+        if (dropView) dropView.classList.remove('d-none');
+        if (calBtn) { calBtn.classList.remove('btn-primary', 'active'); calBtn.classList.add('btn-outline-primary'); }
+        if (dropBtn) { dropBtn.classList.add('btn-primary', 'active'); dropBtn.classList.remove('btn-outline-primary'); }
+        syncProdDateToDropdowns();
+        try { localStorage.setItem('scanner_prod_picker_style', 'dropdowns'); } catch(e){}
+      } else {
+        if (calView) calView.classList.remove('d-none');
+        if (dropView) dropView.classList.add('d-none');
+        if (calBtn) { calBtn.classList.add('btn-primary', 'active'); calBtn.classList.remove('btn-outline-primary'); }
+        if (dropBtn) { dropBtn.classList.remove('btn-primary', 'active'); dropBtn.classList.add('btn-outline-primary'); }
+        try { localStorage.setItem('scanner_prod_picker_style', 'calendar'); } catch(e){}
+      }
+    }
+    window.togglePickerStyle = togglePickerStyle;
+
+    function toggleExpiryPickerStyle(mode) {
+      const calView = document.getElementById('exp_calendar_view');
+      const dropView = document.getElementById('exp_dropdowns_view');
+      const calBtn = document.getElementById('exp_mode_cal_btn');
+      const dropBtn = document.getElementById('exp_mode_drop_btn');
+
+      if (mode === 'dropdowns') {
+        if (calView) calView.classList.add('d-none');
+        if (dropView) dropView.classList.remove('d-none');
+        if (calBtn) { calBtn.classList.remove('btn-warning', 'active'); calBtn.classList.add('btn-outline-warning'); }
+        if (dropBtn) { dropBtn.classList.add('btn-warning', 'active'); dropBtn.classList.remove('btn-outline-warning'); }
+        syncExpDateToDropdowns();
+        try { localStorage.setItem('scanner_exp_picker_style', 'dropdowns'); } catch(e){}
+      } else {
+        if (calView) calView.classList.remove('d-none');
+        if (dropView) dropView.classList.add('d-none');
+        if (calBtn) { calBtn.classList.add('btn-warning', 'active'); calBtn.classList.remove('btn-outline-warning'); }
+        if (dropBtn) { dropBtn.classList.remove('btn-warning', 'active'); dropBtn.classList.add('btn-outline-warning'); }
+        try { localStorage.setItem('scanner_exp_picker_style', 'calendar'); } catch(e){}
+      }
+    }
+    window.toggleExpiryPickerStyle = toggleExpiryPickerStyle;
+
+    function setProductionDate(d) {
+      if (!d || isNaN(d.getTime())) return;
+      if (prodFlatpickr) {
+        prodFlatpickr.setDate(d, true);
+      } else {
+        const input = document.getElementById('add_production_date');
+        if (input) input.value = formatDateForInput(d);
+      }
+      syncProdDateToDropdowns(d);
+      updateAddStockExpiryPreview();
+    }
+
+    function quickSetProductionDate(offsetDays) {
+      const d = new Date();
+      if (offsetDays !== 0) d.setDate(d.getDate() + offsetDays);
+      setProductionDate(d);
+    }
+    window.quickSetProductionDate = quickSetProductionDate;
+
+    function quickShiftProductionMonths(offsetMonths) {
+      const current = getProductionDateObj() || new Date();
+      const d = addCalendarMonths(current, offsetMonths);
+      setProductionDate(d);
+    }
+    window.quickShiftProductionMonths = quickShiftProductionMonths;
+
+    function quickShiftProductionYears(offsetYears) {
+      const current = getProductionDateObj() || new Date();
+      const d = new Date(current.getTime());
+      d.setFullYear(d.getFullYear() + offsetYears);
+      setProductionDate(d);
+    }
+    window.quickShiftProductionYears = quickShiftProductionYears;
+
+    function setDirectExpiryDate(d) {
+      if (!d || isNaN(d.getTime())) return;
+      if (expFlatpickr) {
+        expFlatpickr.setDate(d, true);
+      } else {
+        const input = document.getElementById('add_direct_exp_date');
+        if (input) input.value = formatDateForInput(d);
+      }
+      syncExpDateToDropdowns(d);
+      updateAddStockExpiryPreview();
+    }
+
+    function quickShiftExpiryMonths(months) {
+      const base = getProductionDateObj() || new Date();
+      const d = addCalendarMonths(base, months);
+      setDirectExpiryDate(d);
+    }
+    window.quickShiftExpiryMonths = quickShiftExpiryMonths;
+
+    function quickShiftExpiryYears(years) {
+      const base = getProductionDateObj() || new Date();
+      const d = new Date(base.getTime());
+      d.setFullYear(d.getFullYear() + years);
+      setDirectExpiryDate(d);
+    }
+    window.quickShiftExpiryYears = quickShiftExpiryYears;
+
+    function getProductionDateObj() {
+      if (prodFlatpickr && prodFlatpickr.selectedDates && prodFlatpickr.selectedDates.length > 0) {
+        return prodFlatpickr.selectedDates[0];
+      }
+      const input = document.getElementById('add_production_date');
+      if (input && input.value) {
+        const parsed = parseDateAny(input.value);
+        if (parsed) return parsed;
+      }
+      const m = parseInt(document.getElementById('prod_sel_month')?.value || '1', 10);
+      const d = parseInt(document.getElementById('prod_sel_day')?.value || '1', 10);
+      const y = parseInt(document.getElementById('prod_sel_year')?.value || '2026', 10);
+      return new Date(y, m - 1, d);
+    }
+
+    function getDirectExpDateObj() {
+      if (expFlatpickr && expFlatpickr.selectedDates && expFlatpickr.selectedDates.length > 0) {
+        return expFlatpickr.selectedDates[0];
+      }
+      const input = document.getElementById('add_direct_exp_date');
+      if (input && input.value) {
+        const parsed = parseDateAny(input.value);
+        if (parsed) return parsed;
+      }
+      const m = parseInt(document.getElementById('exp_sel_month')?.value || '1', 10);
+      const d = parseInt(document.getElementById('exp_sel_day')?.value || '1', 10);
+      const y = parseInt(document.getElementById('exp_sel_year')?.value || '2026', 10);
+      return new Date(y, m - 1, d);
+    }
+
+    function getProductionDateValue() {
+      const d = getProductionDateObj();
+      return d ? formatDateForInput(d) : '';
+    }
+
+    function getDirectExpDateValue() {
+      const d = getDirectExpDateObj();
+      return d ? formatDateForInput(d) : '';
+    }
 
     function updateAddStockExpiryPreview() {
       const preview = document.querySelector('#add_expiry_preview strong');
-      const productionInput = document.getElementById('add_production_date');
+      const formatTag = document.getElementById('add_expiry_format_tag');
       const shelfLifeInput = document.getElementById('add_shelf_life');
       const prodContainer = document.getElementById('add_production_date_container');
       const badge = document.getElementById('dry_goods_badge');
@@ -879,14 +1352,11 @@
         if (isDryGoodsMode) {
           toggleDryGoodsMode(false);
         }
-        if (productionInput) {
-          productionInput.disabled = true;
-          productionInput.required = false;
-        }
         if (prodContainer) prodContainer.classList.add('opacity-50');
         if (preview) {
           preview.innerHTML = '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0" style="font-size: 0.8rem;"><i class="fas fa-infinity me-1"></i>No Expiry</span>';
         }
+        if (formatTag) formatTag.classList.add('d-none');
         if (badge) {
           badge.className = 'badge bg-success-subtle text-success ms-auto small';
           badge.innerHTML = '<i class="fas fa-ban me-1"></i>No Expiration';
@@ -894,14 +1364,9 @@
         return;
       }
 
+      if (formatTag) formatTag.classList.remove('d-none');
+
       // Restore fields if returning from No Expiry
-      if (productionInput && !isDryGoodsMode) {
-        productionInput.disabled = false;
-        productionInput.required = true;
-        if (!productionInput.value) {
-          productionInput.value = formatDateForInput(new Date());
-        }
-      }
       if (prodContainer && !isDryGoodsMode) prodContainer.classList.remove('opacity-50');
       if (badge && !isDryGoodsMode) {
         badge.className = 'badge bg-secondary-subtle text-secondary ms-auto small';
@@ -909,20 +1374,21 @@
       }
 
       if (isDryGoodsMode) {
-        const directInput = document.getElementById('add_direct_exp_date');
+        const directDateVal = getDirectExpDateValue();
         if (preview) {
-          preview.textContent = (directInput && directInput.value) ? directInput.value : 'Select date below';
+          preview.textContent = directDateVal ? formatDateMMDDYYYY(directDateVal) : 'Select date below';
         }
         return;
       }
 
-      if (!productionInput || !shelfLifeInput || !preview || !productionInput.value) {
+      const prodDate = getProductionDateObj();
+      if (!prodDate || !shelfLifeInput || !preview) {
         if (preview) preview.textContent = '—';
         return;
       }
-      const productionDate = new Date(`${productionInput.value}T00:00:00`);
-      const expiryDate = addCalendarMonths(productionDate, Number(shelfLifeInput.value || 3));
-      preview.textContent = formatDateForInput(expiryDate);
+
+      const expiryDate = addCalendarMonths(prodDate, Number(shelfLifeInput.value || 3));
+      preview.textContent = formatDateMMDDYYYY(expiryDate);
     }
 
     function toggleDryGoodsMode(forceState) {
@@ -950,6 +1416,9 @@
           prodInput.disabled = true;
           prodInput.required = false;
         }
+        if (prodFlatpickr && prodFlatpickr.altInput) {
+          prodFlatpickr.altInput.disabled = true;
+        }
         if (shelfInput) {
           shelfInput.disabled = true;
           shelfInput.required = false;
@@ -961,16 +1430,23 @@
         if (directContainer) directContainer.classList.remove('d-none');
         if (directInput) {
           directInput.required = true;
-          if (directInput.value && preview) {
-            preview.textContent = directInput.value;
-          } else if (preview && preview.textContent !== '—' && preview.textContent !== 'Select date below') {
-            directInput.value = preview.textContent;
+          if (expFlatpickr && expFlatpickr.altInput) {
+            expFlatpickr.altInput.disabled = false;
           }
-          // Focus and open date picker
+          let currentExp = getDirectExpDateObj();
+          if (!currentExp) {
+            const baseProd = getProductionDateObj() || new Date();
+            currentExp = addCalendarMonths(baseProd, 12);
+            setDirectExpiryDate(currentExp);
+          }
+          if (preview) {
+            preview.textContent = formatDateMMDDYYYY(currentExp);
+          }
           setTimeout(() => {
-            directInput.focus();
-            if (typeof directInput.showPicker === 'function') {
-              try { directInput.showPicker(); } catch (e) {}
+            if (expFlatpickr && expFlatpickr.altInput) {
+              expFlatpickr.altInput.focus();
+            } else {
+              directInput.focus();
             }
           }, 150);
         }
@@ -987,6 +1463,9 @@
           prodInput.disabled = false;
           prodInput.required = true;
         }
+        if (prodFlatpickr && prodFlatpickr.altInput) {
+          prodFlatpickr.altInput.disabled = false;
+        }
         if (shelfInput) {
           shelfInput.disabled = false;
           shelfInput.required = true;
@@ -998,7 +1477,6 @@
         if (directContainer) directContainer.classList.add('d-none');
         if (directInput) {
           directInput.required = false;
-          directInput.value = '';
         }
 
         if (badge) {
@@ -1011,21 +1489,84 @@
     }
     window.toggleDryGoodsMode = toggleDryGoodsMode;
 
+    function initDatePickers() {
+      // 1. Populate Dropdown Years (Production: 2020-2035, Expiry: 2024-2040)
+      const thisYear = new Date().getFullYear();
+      populateYearDropdown('prod_sel_year', 2020, 2035, thisYear);
+      populateYearDropdown('exp_sel_year', 2024, 2040, thisYear + 1);
+
+      // 2. Initialize Flatpickr for Production Date
+      if (typeof flatpickr !== 'undefined') {
+        const prodEl = document.getElementById('add_production_date');
+        if (prodEl && !prodFlatpickr) {
+          prodFlatpickr = flatpickr(prodEl, {
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "m/d/Y",
+            altInputClass: "form-control border-start-0",
+            defaultDate: new Date(),
+            disableMobile: true,
+            allowInput: true,
+            monthSelectorType: "dropdown",
+            onChange: function(selectedDates) {
+              if (selectedDates && selectedDates.length > 0) {
+                syncProdDateToDropdowns(selectedDates[0]);
+              }
+              updateAddStockExpiryPreview();
+            }
+          });
+        }
+
+        // 3. Initialize Flatpickr for Direct Expiration Date
+        const expEl = document.getElementById('add_direct_exp_date');
+        if (expEl && !expFlatpickr) {
+          expFlatpickr = flatpickr(expEl, {
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "m/d/Y",
+            altInputClass: "form-control border-warning fw-semibold border-start-0",
+            disableMobile: true,
+            allowInput: true,
+            monthSelectorType: "dropdown",
+            onChange: function(selectedDates) {
+              if (selectedDates && selectedDates.length > 0) {
+                syncExpDateToDropdowns(selectedDates[0]);
+              }
+              updateAddStockExpiryPreview();
+            }
+          });
+        }
+      }
+
+      // Initial sync to dropdowns
+      syncProdDateToDropdowns(new Date());
+      const nextYear = new Date();
+      nextYear.setFullYear(nextYear.getFullYear() + 1);
+      syncExpDateToDropdowns(nextYear);
+
+      // Restore saved picker style preferences
+      try {
+        const savedProdStyle = localStorage.getItem('scanner_prod_picker_style');
+        if (savedProdStyle === 'dropdowns') togglePickerStyle('dropdowns');
+        const savedExpStyle = localStorage.getItem('scanner_exp_picker_style');
+        if (savedExpStyle === 'dropdowns') toggleExpiryPickerStyle('dropdowns');
+      } catch(e){}
+
+      updateAddStockExpiryPreview();
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
       const quantityInput = document.getElementById('add_quantity');
-      const productionInput = document.getElementById('add_production_date');
       const shelfLifeInput = document.getElementById('add_shelf_life');
+
       if (quantityInput) {
         quantityInput.addEventListener('input', function() {
           const parts = this.value.replace(/[^0-9.]/g, '').split('.');
           this.value = parts[0] + (parts.length > 1 ? `.${parts.slice(1).join('')}` : '');
         });
       }
-      if (productionInput) {
-        productionInput.addEventListener('change', updateAddStockExpiryPreview);
-      }
+
       if (shelfLifeInput) shelfLifeInput.addEventListener('change', updateAddStockExpiryPreview);
-      updateAddStockExpiryPreview();
 
       // Setup double-click and mobile double-tap on Expiration Date preview
       const expiryPreviewEl = document.getElementById('add_expiry_preview');
@@ -1056,27 +1597,29 @@
         });
       }
 
-      // Sync direct expiration date picker changes to preview
-      const directDateInput = document.getElementById('add_direct_exp_date');
-      if (directDateInput) {
-        directDateInput.addEventListener('change', function() {
-          const preview = document.querySelector('#add_expiry_preview strong');
-          if (preview) {
-            preview.textContent = this.value || '—';
-          }
-        });
-      }
+      // Initialize date pickers
+      initDatePickers();
 
-      // Reset dry goods mode when modal is closed
+      // Reset and re-sync when modal is shown or closed
       const addStockModalEl = document.getElementById('addStockModal');
       if (addStockModalEl) {
+        addStockModalEl.addEventListener('show.bs.modal', function() {
+          if (!prodFlatpickr) initDatePickers();
+          else {
+            prodFlatpickr.setDate(new Date(), false);
+            syncProdDateToDropdowns(new Date());
+            updateAddStockExpiryPreview();
+          }
+        });
+
         addStockModalEl.addEventListener('hidden.bs.modal', function() {
           toggleDryGoodsMode(false);
           const shelfLifeInput = document.getElementById('add_shelf_life');
           if (shelfLifeInput && shelfLifeInput.value === '0') {
             shelfLifeInput.value = '3';
-            updateAddStockExpiryPreview();
           }
+          setProductionDate(new Date());
+          updateAddStockExpiryPreview();
         });
       }
     });
@@ -2005,14 +2548,19 @@
         formData.set('exp_date', '2099-12-31');
       } else if (isDryGoodsMode) {
         formData.set('is_dry_goods', 'true');
-        const directDate = document.getElementById('add_direct_exp_date');
-        if (directDate && directDate.value) {
-          formData.set('direct_exp_date', directDate.value);
-          formData.set('exp_date', directDate.value);
+        const directDateVal = getDirectExpDateValue();
+        if (directDateVal) {
+          formData.set('direct_exp_date', directDateVal);
+          formData.set('exp_date', directDateVal);
         } else {
           showFlashAlert('Please select the expiration date for dry goods.', 'warning');
           if (submitBtn) submitBtn.disabled = false;
           return;
+        }
+      } else {
+        const prodDateVal = getProductionDateValue();
+        if (prodDateVal) {
+          formData.set('production_date', prodDateVal);
         }
       }
 

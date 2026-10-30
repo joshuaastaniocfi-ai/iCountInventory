@@ -742,6 +742,18 @@ def update_batch():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+def parse_date_flexibly(date_str):
+    if not date_str:
+        return None
+    cleaned = date_str.strip()
+    for fmt in ('%Y-%m-%d', '%m/%d/%Y', '%m-%d-%Y'):
+        try:
+            return datetime.strptime(cleaned, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(f'Invalid date format: {date_str}')
+
+
 @products.route('/add_stock', methods=['POST'])
 @login_required
 @user_redirect_to_requisition
@@ -773,13 +785,13 @@ def add_stock():
         shelf_life_months = 0
     elif is_dry_goods and direct_exp_date_str:
         try:
-            exp_date = datetime.strptime(direct_exp_date_str, '%Y-%m-%d').date()
+            exp_date = parse_date_flexibly(direct_exp_date_str)
         except (TypeError, ValueError):
             return jsonify({'message': 'Enter a valid expiration date for dry goods.'}), 400
         # For dry goods, production_date is optional
         prod_date_str = request.form.get('production_date', '').strip()
         try:
-            production_date = datetime.strptime(prod_date_str, '%Y-%m-%d').date() if prod_date_str else None
+            production_date = parse_date_flexibly(prod_date_str) if prod_date_str else None
         except (TypeError, ValueError):
             production_date = None
     else:
@@ -787,12 +799,12 @@ def add_stock():
         production_date_str = request.form.get('production_date', '').strip()
 
         try:
-            production_date = datetime.strptime(production_date_str, '%Y-%m-%d').date()
+            production_date = parse_date_flexibly(production_date_str)
         except (TypeError, ValueError):
             # Keep accepting direct exp_date as fallback
             if direct_exp_date_str:
                 try:
-                    exp_date = datetime.strptime(direct_exp_date_str, '%Y-%m-%d').date()
+                    exp_date = parse_date_flexibly(direct_exp_date_str)
                     production_date = None
                 except (TypeError, ValueError):
                     return jsonify({'message': 'Production date is required.'}), 400
