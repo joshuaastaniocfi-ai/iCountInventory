@@ -758,12 +758,20 @@ def add_stock():
 
     supplier_name = request.form.get('supplier_name', '').strip() or None
 
+    shelf_life_raw = request.form.get('shelf_life_months', '3').strip()
+    is_no_expiry = (shelf_life_raw in ('0', 'no_expiry', 'none', 'no-expiry') or 
+                    request.form.get('no_expiry', '').lower() in ('true', '1', 'yes'))
+
     is_dry_goods = (request.form.get('is_dry_goods', '').lower() in ('true', '1', 'yes') or 
                     bool(request.form.get('direct_exp_date', '').strip()))
     direct_exp_date_str = request.form.get('direct_exp_date', '').strip() or request.form.get('exp_date', '').strip()
 
     shelf_life_months = None
-    if is_dry_goods and direct_exp_date_str:
+    if is_no_expiry:
+        production_date = None
+        exp_date = datetime(2099, 12, 31).date()
+        shelf_life_months = 0
+    elif is_dry_goods and direct_exp_date_str:
         try:
             exp_date = datetime.strptime(direct_exp_date_str, '%Y-%m-%d').date()
         except (TypeError, ValueError):
@@ -777,7 +785,6 @@ def add_stock():
     else:
         # Standard perishable goods workflow: production_date + shelf_life_months
         production_date_str = request.form.get('production_date', '').strip()
-        shelf_life_raw = request.form.get('shelf_life_months', '3').strip()
 
         try:
             production_date = datetime.strptime(production_date_str, '%Y-%m-%d').date()
@@ -878,8 +885,12 @@ def add_stock():
     # Determine expiry date for logging
     exp_date_str = exp_date.strftime('%Y-%m-%d')
 
-    prod_date_display = production_date.strftime('%Y-%m-%d') if production_date else 'N/A (Dry Goods)'
-    shelf_life_display = f"{shelf_life_months} months" if shelf_life_months else "N/A (Dry Goods - Direct Expiry)"
+    if is_no_expiry:
+        prod_date_display = 'N/A (No Expiry)'
+        shelf_life_display = 'No Expiry'
+    else:
+        prod_date_display = production_date.strftime('%Y-%m-%d') if production_date else 'N/A (Dry Goods)'
+        shelf_life_display = f"{shelf_life_months} months" if shelf_life_months else "N/A (Dry Goods - Direct Expiry)"
     log_activity(
         action="Add Stock",
         details=f"<strong>{add_qty} {product.uom}</strong> added to "

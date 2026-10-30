@@ -579,6 +579,7 @@
                   <option value="3" selected>3 months (default)</option>
                   <option value="6">6 months</option>
                   <option value="12">12 months</option>
+                  <option value="0">No Expiry (Non-expiring)</option>
                 </select>
                 <div class="expiry-preview" id="add_expiry_preview" title="Double-click to switch to Dry Goods (Direct Expiration Date)" style="cursor: pointer; user-select: none;">
                   <i class="fas fa-calendar-check"></i>
@@ -792,6 +793,45 @@
 
     function updateAddStockExpiryPreview() {
       const preview = document.querySelector('#add_expiry_preview strong');
+      const productionInput = document.getElementById('add_production_date');
+      const shelfLifeInput = document.getElementById('add_shelf_life');
+      const prodContainer = document.getElementById('add_production_date_container');
+      const badge = document.getElementById('dry_goods_badge');
+
+      // Check if "No Expiry" option is selected
+      if (shelfLifeInput && shelfLifeInput.value === '0') {
+        if (isDryGoodsMode) {
+          toggleDryGoodsMode(false);
+        }
+        if (productionInput) {
+          productionInput.disabled = true;
+          productionInput.required = false;
+        }
+        if (prodContainer) prodContainer.classList.add('opacity-50');
+        if (preview) {
+          preview.innerHTML = '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0" style="font-size: 0.8rem;"><i class="fas fa-infinity me-1"></i>No Expiry</span>';
+        }
+        if (badge) {
+          badge.className = 'badge bg-success-subtle text-success ms-auto small';
+          badge.innerHTML = '<i class="fas fa-ban me-1"></i>No Expiration';
+        }
+        return;
+      }
+
+      // Restore fields if returning from No Expiry
+      if (productionInput && !isDryGoodsMode) {
+        productionInput.disabled = false;
+        productionInput.required = true;
+        if (!productionInput.value) {
+          productionInput.value = formatDateForInput(new Date());
+        }
+      }
+      if (prodContainer && !isDryGoodsMode) prodContainer.classList.remove('opacity-50');
+      if (badge && !isDryGoodsMode) {
+        badge.className = 'badge bg-secondary-subtle text-secondary ms-auto small';
+        badge.innerHTML = '<i class="fas fa-hand-pointer me-1"></i>Double-click for Dry Goods';
+      }
+
       if (isDryGoodsMode) {
         const directInput = document.getElementById('add_direct_exp_date');
         if (preview) {
@@ -799,8 +839,7 @@
         }
         return;
       }
-      const productionInput = document.getElementById('add_production_date');
-      const shelfLifeInput = document.getElementById('add_shelf_life');
+
       if (!productionInput || !shelfLifeInput || !preview || !productionInput.value) {
         if (preview) preview.textContent = '—';
         return;
@@ -917,6 +956,11 @@
       if (expiryPreviewEl) {
         expiryPreviewEl.addEventListener('dblclick', function(e) {
           e.preventDefault();
+          const shelfLifeInput = document.getElementById('add_shelf_life');
+          if (shelfLifeInput && shelfLifeInput.value === '0') {
+            showFlashAlert('Product is set to No Expiry. Select a shelf life to set an expiration date.', 'info');
+            return;
+          }
           toggleDryGoodsMode();
         });
 
@@ -925,6 +969,11 @@
           const now = Date.now();
           if (now - lastTap < 350 && now - lastTap > 0) {
             e.preventDefault();
+            const shelfLifeInput = document.getElementById('add_shelf_life');
+            if (shelfLifeInput && shelfLifeInput.value === '0') {
+              showFlashAlert('Product is set to No Expiry. Select a shelf life to set an expiration date.', 'info');
+              return;
+            }
             toggleDryGoodsMode();
           }
           lastTap = now;
@@ -947,6 +996,11 @@
       if (addStockModalEl) {
         addStockModalEl.addEventListener('hidden.bs.modal', function() {
           toggleDryGoodsMode(false);
+          const shelfLifeInput = document.getElementById('add_shelf_life');
+          if (shelfLifeInput && shelfLifeInput.value === '0') {
+            shelfLifeInput.value = '3';
+            updateAddStockExpiryPreview();
+          }
         });
       }
     });
@@ -1760,7 +1814,14 @@
         return;
       }
 
-      if (isDryGoodsMode) {
+      const shelfLifeSelect = document.getElementById('add_shelf_life');
+      const isNoExpiry = (shelfLifeSelect && shelfLifeSelect.value === '0');
+
+      if (isNoExpiry) {
+        formData.set('shelf_life_months', '0');
+        formData.set('no_expiry', 'true');
+        formData.set('exp_date', '2099-12-31');
+      } else if (isDryGoodsMode) {
         formData.set('is_dry_goods', 'true');
         const directDate = document.getElementById('add_direct_exp_date');
         if (directDate && directDate.value) {
