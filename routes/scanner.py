@@ -244,7 +244,12 @@ def search_product_by_barcode():
         return jsonify({'success': False, 'message': 'Product not found'})
     
     # Get batches for this product
-    batches = WarehouseProductBatch.query.filter_by(product_id=product.id).all()
+    # Depleted batches are removed automatically after stock transactions.
+    # Keep this filter for legacy zero-quantity rows as well.
+    batches = (WarehouseProductBatch.query
+               .filter_by(product_id=product.id)
+               .filter(WarehouseProductBatch.quantity > 0)
+               .all())
     
     # Format batch data
     batch_data = []

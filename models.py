@@ -8,6 +8,7 @@ from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 import secrets
 import json
+from sqlalchemy import event
 
 # Local imports
 from extensions import db
@@ -169,6 +170,25 @@ class StoreProductBatch(db.Model):
     added_on = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
     sub_barcode = db.Column(db.String(30), nullable=True)
     product = db.relationship('Product', backref='store_batches')
+
+
+@event.listens_for(db.session, 'before_flush')
+def remove_depleted_product_batches(session, flush_context, instances):
+    """Remove batches as soon as a stock transaction depletes them.
+
+    Batch history is kept in ProductHistory, so a zero-quantity batch does not
+    need to remain in the inventory tables. Pending removal requests are kept
+    intact; their foreign key still requires the batch to exist until the
+    request is reviewed.
+    """
+    for batch in tuple(session.dirty):
+        if not isinstance(batch, (WarehouseProductBatch, StoreProductBatch)):
+            continue
+        if batch.quantity is None or batch.quantity > 0:
+            continue
+        if isinstance(batch, WarehouseProductBatch) and batch.pending_removals:
+            continue
+        session.delete(batch)
 
 
 # Backward-compatible alias — existing code that imports ProductBatch still works

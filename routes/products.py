@@ -1157,6 +1157,7 @@ def get_product_batches(product_id):
     # Get all batches ordered by expiration date
     batches = (WarehouseProductBatch.query
                .filter_by(product_id=product_id)
+               .filter(WarehouseProductBatch.quantity > 0)
                .order_by(WarehouseProductBatch.exp_date)
                .all())
 
