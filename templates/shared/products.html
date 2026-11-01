@@ -339,6 +339,7 @@
 
   <!-- Product Details Modal -->
   {% for product in products %}
+    {% set active_batches = product.warehouse_batches|selectattr('quantity', 'gt', 0)|sort(attribute='exp_date')|list %}
     <div class="modal fade product-view-modal" id="viewProductModal{{ product.id }}" tabindex="-1" aria-labelledby="productViewTitle{{ product.id }}" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable product-view-dialog">
         <div class="modal-content border-0 shadow product-view-content">
