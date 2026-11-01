@@ -131,7 +131,8 @@
             {% set init_qty = product.initial_quantity if product.initial_quantity is defined else qty %}
             {% set threshold = product.low_stock_threshold if product.low_stock_threshold is defined else 10 %}
             {% set is_low = product.is_low_stock %}
-            {% set nearest_batch = product.warehouse_batches|sort(attribute='exp_date')|first if product.warehouse_batches else none %}
+            {% set active_batches = product.warehouse_batches|selectattr('quantity', 'gt', 0)|sort(attribute='exp_date')|list %}
+            {% set nearest_batch = active_batches|first if active_batches else none %}
             {% if nearest_batch and nearest_batch.exp_date.year < 2099 %}
               {% set days_until = (nearest_batch.exp_date - now.date()).days if now is defined else 0 %}
             {% else %}
@@ -498,7 +499,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {% for batch in product.warehouse_batches|sort(attribute='exp_date') %}
+                      {% for batch in active_batches %}
                         {% set qty = batch.quantity or 0 %}
                         {% set int_qty = batch.int_quantity if batch.int_quantity is not none else 0 %}
                         {% set pct = (qty / int_qty * 100) if int_qty > 0 else 0 %}
