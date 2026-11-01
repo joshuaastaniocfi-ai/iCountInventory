@@ -1922,7 +1922,13 @@ def product_history(product_id):
 
     page = max(request.args.get('page', 1, type=int), 1)
     page_size = 30
-    history_query = ProductHistory.query.filter_by(product_id=product_id)
+    # Product History on the warehouse Products page should show warehouse
+    # stock movements only. Receiving confirmations belong to the delivery /
+    # store-receiving workflow and remain available through receiving reports.
+    history_query = (ProductHistory.query
+                     .filter_by(product_id=product_id)
+                     .filter(~ProductHistory.reference_type.in_(
+                         ['receiving', 'receiving_optional'])))
     history_count = history_query.count()
     history_records = history_query.order_by(
         ProductHistory.trxn_date.desc(), ProductHistory.id.desc()
