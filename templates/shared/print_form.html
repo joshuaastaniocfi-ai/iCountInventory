@@ -281,12 +281,12 @@
     <table>
         <thead>
             <tr>
-                <th>Product / UOM Description</th>
-                <th>Batch Date</th>
+                <th>Product / OUM Description</th>
+                <th>Batch</th>
                 <th>Requested</th>
                 <th>Batch Stock</th>
                 <th>Deduction</th>
-                <th>Unit of Measure</th>
+                <th>OUM</th>
             </tr>
         </thead>
         <tbody>
@@ -301,9 +301,9 @@
                         <td>{{ item.product.name }}{% if item.product.item_uom_desc %}<br><span class="print-muted">{{ item.product.item_uom_desc }}</span>{% endif %}</td>
                         <td>
                             {% if batch.production_date %}
-                                Production date: {{ batch.production_date.strftime('%B %d, %Y') }}
+                                PD: {{ batch.production_date.strftime('%b %d, %Y') }}
                             {% elif batch.exp_date %}
-                                Expiry: {{ batch.exp_date.strftime('%B %d, %Y') }}
+                                EXP: {{ batch.exp_date.strftime('%b %d, %Y') }}
                             {% else %}
                                 No expiry
                             {% endif %}
@@ -311,14 +311,14 @@
                         <td style="text-align: center; font-weight: bold;">{{ item.quantity }}</td>
                         <td style="text-align: center; font-weight: bold;">{{ '%.1f'|format(batch.quantity) }}/{{ '%.1f'|format(batch_total) }}</td>
                         <td style="text-align: center; font-weight: bold; color: #b91c1c;">−{{ '%.1f'|format(batch_deduction) }}</td>
-                        <td style="text-align: center;">{{ item.uom }}</td>
+                <td style="text-align: center;">{{ item.uom }}</td>
                     </tr>
                     {% endif %}
                 {% endfor %}
             {% else %}
                 <tr>
                     <td>{{ item.product.name }}{% if item.product.item_uom_desc %}<br><span class="print-muted">{{ item.product.item_uom_desc }}</span>{% endif %}</td>
-                    <td>No expiry</td>
+                    <td>EXP: No expiry</td>
                     <td style="text-align: center; font-weight: bold;">{{ item.quantity }}</td>
                     <td style="text-align: center;">—</td>
                     <td style="text-align: center; font-weight: bold; color: #b91c1c;">−{{ item.quantity }}</td>
@@ -352,11 +352,32 @@
     </div>
 
     <style>
-        .print-muted { color: #666; font-size: 11px; }
+        .print-muted { color: #666; font-size: 9px; }
+        .info-section table {
+            table-layout: fixed;
+            margin: 12px 0 0;
+            font-size: 10px;
+        }
         .info-section table th,
-        .info-section table td { white-space: nowrap; }
-        .info-section table td:first-child,
-        .info-section table td:nth-child(2) { white-space: normal; }
+        .info-section table td {
+            padding: 7px 5px;
+            overflow-wrap: anywhere;
+            white-space: normal;
+            line-height: 1.25;
+        }
+        .info-section table th { font-size: 9px; letter-spacing: 0; }
+        .info-section table th:nth-child(1),
+        .info-section table td:nth-child(1) { width: 29%; }
+        .info-section table th:nth-child(2),
+        .info-section table td:nth-child(2) { width: 21%; }
+        .info-section table th:nth-child(3),
+        .info-section table td:nth-child(3) { width: 12%; }
+        .info-section table th:nth-child(4),
+        .info-section table td:nth-child(4) { width: 16%; }
+        .info-section table th:nth-child(5),
+        .info-section table td:nth-child(5) { width: 12%; }
+        .info-section table th:nth-child(6),
+        .info-section table td:nth-child(6) { width: 10%; }
     </style>
 
     <script>
