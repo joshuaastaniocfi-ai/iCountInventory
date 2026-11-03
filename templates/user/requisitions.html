@@ -419,6 +419,7 @@
                               {% set theoretical_deduction = [batch.quantity, ns.remaining]|min if modal_status == 'pending' else 0 %}
                               {% set theoretical_remaining = batch.quantity - theoretical_deduction %}
                               {% set batch_total = batch.int_quantity or batch.quantity %}
+                              {% set batch_deduction = theoretical_deduction if modal_status == 'pending' else [batch_total - batch.quantity, 0]|max %}
                               <div class="req-batch req-batch-card">
                                 <div class="req-batch-quantity">
                                   <i class="fas fa-box-open" aria-hidden="true"></i>
@@ -430,7 +431,7 @@
                                   </div>
                                   <div class="req-batch-deduction">
                                     <span class="req-batch-label">Deduction</span>
-                                    <strong>−{{ '%.1f'|format(theoretical_deduction) }} {{ item.uom }}</strong>
+                                    <strong>−{{ '%.1f'|format(batch_deduction) }} {{ item.uom }}</strong>
                                   </div>
                                 </div>
                                 <div class="req-production-date">

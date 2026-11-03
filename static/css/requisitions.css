@@ -636,6 +636,11 @@ html:not(.dark-mode) .requisitions-page .req-stat--rejected .req-stat-value { co
   max-height: min(90vh, 760px);
 }
 
+.req-modal .modal-dialog {
+  width: calc(100% - 2rem);
+  max-width: 1120px;
+}
+
 .req-modal .modal-header {
   align-items: flex-start;
   padding: 1rem 1.35rem;
@@ -814,7 +819,7 @@ html:not(.dark-mode) .requisitions-page .req-stat--rejected .req-stat-value { co
 
 .req-allocation-item {
   display: grid;
-  grid-template-columns: minmax(150px, .72fr) minmax(0, 2fr) auto;
+  grid-template-columns: minmax(190px, .8fr) minmax(0, 3fr) auto;
   align-items: stretch;
   border: 1px solid var(--border);
   background: var(--card-bg);
@@ -875,7 +880,7 @@ html:not(.dark-mode) .requisitions-page .req-stat--rejected .req-stat-value { co
 
 .req-batch-card {
   display: grid;
-  grid-template-columns: minmax(90px, .75fr) minmax(150px, 1.25fr) minmax(60px, .42fr);
+  grid-template-columns: minmax(185px, 1.05fr) minmax(185px, 1.15fr) minmax(90px, .5fr);
   align-items: center;
   gap: .8rem;
   min-height: 52px;
@@ -895,6 +900,13 @@ html:not(.dark-mode) .requisitions-page .req-stat--rejected .req-stat-value { co
   column-gap: .35rem;
   color: var(--text-primary);
   font-size: .77rem;
+}
+
+.req-batch-quantity > strong,
+.req-batch-deduction strong,
+.req-production-date strong,
+.req-days-left > span:not(.req-batch-label) {
+  white-space: nowrap;
 }
 
 .req-batch-quantity i { margin-right: .1rem; }

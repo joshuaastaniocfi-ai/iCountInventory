@@ -281,18 +281,50 @@
     <table>
         <thead>
             <tr>
-                <th>Item/UOM Description</th>
-                        <th>Quantity</th>
-                        <th>Unit of Measure</th>
+                <th>Product / UOM Description</th>
+                <th>Batch Date</th>
+                <th>Requested</th>
+                <th>Batch Stock</th>
+                <th>Deduction</th>
+                <th>Unit of Measure</th>
             </tr>
         </thead>
         <tbody>
         {% for item in requisition.items %}
-            <tr>
-                <td>{{ item.product.item_uom_desc }}</td>
+            {% set sorted_batches = (item.product.warehouse_batches or item.product.batches)|sort(attribute='exp_date') %}
+            {% if sorted_batches %}
+                {% for batch in sorted_batches %}
+                    {% set batch_total = batch.int_quantity or batch.quantity %}
+                    {% set batch_deduction = [batch_total - batch.quantity, 0]|max %}
+                    {% if batch_total > 0 %}
+                    <tr>
+                        <td>{{ item.product.name }}{% if item.product.item_uom_desc %}<br><span class="print-muted">{{ item.product.item_uom_desc }}</span>{% endif %}</td>
+                        <td>
+                            {% if batch.production_date %}
+                                Production date: {{ batch.production_date.strftime('%B %d, %Y') }}
+                            {% elif batch.exp_date %}
+                                Expiry: {{ batch.exp_date.strftime('%B %d, %Y') }}
+                            {% else %}
+                                No expiry
+                            {% endif %}
+                        </td>
                         <td style="text-align: center; font-weight: bold;">{{ item.quantity }}</td>
+                        <td style="text-align: center; font-weight: bold;">{{ '%.1f'|format(batch.quantity) }}/{{ '%.1f'|format(batch_total) }}</td>
+                        <td style="text-align: center; font-weight: bold; color: #b91c1c;">−{{ '%.1f'|format(batch_deduction) }}</td>
                         <td style="text-align: center;">{{ item.uom }}</td>
-            </tr>
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td>{{ item.product.name }}{% if item.product.item_uom_desc %}<br><span class="print-muted">{{ item.product.item_uom_desc }}</span>{% endif %}</td>
+                    <td>No expiry</td>
+                    <td style="text-align: center; font-weight: bold;">{{ item.quantity }}</td>
+                    <td style="text-align: center;">—</td>
+                    <td style="text-align: center; font-weight: bold; color: #b91c1c;">−{{ item.quantity }}</td>
+                    <td style="text-align: center;">{{ item.uom }}</td>
+                </tr>
+            {% endif %}
         {% endfor %}
         </tbody>
     </table>
@@ -318,6 +350,14 @@
 
 
     </div>
+
+    <style>
+        .print-muted { color: #666; font-size: 11px; }
+        .info-section table th,
+        .info-section table td { white-space: nowrap; }
+        .info-section table td:first-child,
+        .info-section table td:nth-child(2) { white-space: normal; }
+    </style>
 
     <script>
         // Auto-print functionality
