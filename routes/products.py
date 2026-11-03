@@ -776,12 +776,14 @@ def add_stock():
     supplier_name = request.form.get('supplier_name', '').strip() or None
 
     shelf_life_raw = request.form.get('shelf_life_months', '3').strip()
-    is_no_expiry = (shelf_life_raw in ('0', 'no_expiry', 'none', 'no-expiry') or 
-                    request.form.get('no_expiry', '').lower() in ('true', '1', 'yes'))
+    explicit_no_expiry = request.form.get('no_expiry', '').lower() in ('true', '1', 'yes')
+    direct_exp_date_str = request.form.get('direct_exp_date', '').strip() or request.form.get('exp_date', '').strip()
+    # An explicitly supplied expiry date wins over a stale/default shelf-life value
+    # from older forms. This prevents a valid date from being saved as NULL.
+    is_no_expiry = explicit_no_expiry or (shelf_life_raw in ('0', 'no_expiry', 'none', 'no-expiry') and not direct_exp_date_str)
 
     is_dry_goods = (request.form.get('is_dry_goods', '').lower() in ('true', '1', 'yes') or 
-                    bool(request.form.get('direct_exp_date', '').strip()))
-    direct_exp_date_str = request.form.get('direct_exp_date', '').strip() or request.form.get('exp_date', '').strip()
+                    bool(direct_exp_date_str))
 
     shelf_life_months = None
     production_date = None

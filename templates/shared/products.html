@@ -709,6 +709,12 @@
         <div class="modal-body p-4">
           <form id="addBatchForm" method="POST" action="{{ url_for('products.add_stock') }}">
             <input type="hidden" id="batchProductId" name="product_id">
+            <!-- Keep the same add-stock field contract as the mobile scanner. -->
+            <input type="hidden" id="batchProductionDate" name="production_date" value="">
+            <input type="hidden" id="batchShelfLifeMonths" name="shelf_life_months" value="3">
+            <input type="hidden" id="batchNoExpiry" name="no_expiry" value="false">
+            <input type="hidden" id="batchDirectExpDate" name="direct_exp_date" value="">
+            <input type="hidden" id="batchIsDryGoods" name="is_dry_goods" value="true">
 
             <!-- Quantity -->
             <div class="mb-3">
@@ -730,8 +736,31 @@
               <div class="form-text mt-1" style="font-size:0.75rem">Enter the quantity to add to current stock</div>
             </div>
 
-            <!-- Expiry Date -->
+            <!-- Batch date mode, matching the mobile scanner Add Stock flow -->
             <div class="mb-3">
+              <label for="batchDateMode" class="form-label fw-semibold" style="font-size:0.82rem;color:var(--text-primary)">
+                <i class="fas fa-calendar-alt me-1" style="color:var(--accent)"></i>Batch date mode
+              </label>
+              <select id="batchDateMode" class="form-select form-control-lg" style="border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
+                <option value="direct">Direct expiry</option>
+                <option value="production">Production date + shelf life</option>
+                <option value="no_expiry">No expiry</option>
+              </select>
+            </div>
+
+            <div class="mb-3" id="batchProductionGroup" style="display:none">
+              <label for="batchProductionDatePicker" class="form-label fw-semibold" style="font-size:0.82rem;color:var(--text-primary)">Production Date</label>
+              <input type="date" class="form-control form-control-lg" id="batchProductionDatePicker" style="border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
+              <label for="batchShelfLifeVisible" class="form-label fw-semibold mt-2" style="font-size:0.82rem;color:var(--text-primary)">Shelf Life</label>
+              <select id="batchShelfLifeVisible" class="form-select form-control-lg" style="border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
+                <option value="3">3 months</option>
+                <option value="6">6 months</option>
+                <option value="12">12 months</option>
+              </select>
+            </div>
+
+            <!-- Expiry Date -->
+            <div class="mb-3" id="batchDirectExpiryGroup">
               <label for="batchExpDate" class="form-label fw-semibold" style="font-size:0.82rem;color:var(--text-primary)">
                 <i class="fas fa-calendar-alt me-1" style="color:var(--accent)"></i>Expiry Date
               </label>
@@ -947,6 +976,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const productId = formData.get('product_id');
         const quantity = formData.get('quantity');
         const expDate = formData.get('exp_date');
+        const dateMode = document.getElementById('batchDateMode')?.value || 'direct';
+        const productionDate = document.getElementById('batchProductionDatePicker')?.value || '';
+        const shelfLife = document.getElementById('batchShelfLifeVisible')?.value || '3';
+
+        // Keep the Products-page request compatible with the mobile scanner
+        // contract: an explicitly entered expiry is a direct-expiry batch.
+        if (expDate) {
+          formData.set('direct_exp_date', expDate);
+          formData.set('is_dry_goods', 'true');
+          formData.set('no_expiry', 'false');
+          formData.set('shelf_life_months', '3');
+          formData.set('production_date', '');
+        }
 
         console.log('Form data:', { productId, quantity, expDate });
 
@@ -962,7 +1004,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const accountTitle = accountTitleCell ? accountTitleCell.textContent.trim() : '';
         const isSuppliesProduct = accountTitle.toLowerCase().startsWith('supplies');
 
-        if (!isSuppliesProduct) {
+        if (dateMode === 'production' && !productionDate) {
+          showNotification('Please select a production date', 'error');
+          return;
+        }
+
+        if (dateMode === 'direct' && !isSuppliesProduct) {
           if (!expDate) {
             showNotification('❌ Please select an expiry date', 'error');
             return;
@@ -977,6 +1024,28 @@ document.addEventListener('DOMContentLoaded', function() {
             showNotification('❌ Expiry date cannot be in the past', 'error');
             return;
           }
+        }
+
+        if (dateMode === 'production') {
+          formData.set('production_date', productionDate);
+          formData.set('shelf_life_months', shelfLife);
+          formData.set('no_expiry', 'false');
+          formData.set('is_dry_goods', 'false');
+          formData.delete('direct_exp_date');
+          formData.delete('exp_date');
+        } else if (dateMode === 'no_expiry' || isSuppliesProduct) {
+          formData.set('production_date', '');
+          formData.set('shelf_life_months', '0');
+          formData.set('no_expiry', 'true');
+          formData.set('is_dry_goods', 'false');
+          formData.set('direct_exp_date', '');
+          formData.set('exp_date', '2099-12-31');
+        } else {
+          formData.set('production_date', '');
+          formData.set('shelf_life_months', '3');
+          formData.set('no_expiry', 'false');
+          formData.set('direct_exp_date', expDate);
+          formData.set('is_dry_goods', 'true');
         }
 
         // Show loading state
@@ -1031,6 +1100,19 @@ document.addEventListener('DOMContentLoaded', function() {
 // JS Filtering - Removed as filtering is now handled server-side
 
 // Batch Management Functions
+function updateBatchDateMode() {
+  const mode = document.getElementById('batchDateMode')?.value || 'direct';
+  const productionGroup = document.getElementById('batchProductionGroup');
+  const directGroup = document.getElementById('batchDirectExpiryGroup');
+  const expiryInput = document.getElementById('batchExpDate');
+  const productionInput = document.getElementById('batchProductionDatePicker');
+
+  if (productionGroup) productionGroup.style.display = mode === 'production' ? '' : 'none';
+  if (directGroup) directGroup.style.display = mode === 'direct' ? '' : 'none';
+  if (expiryInput) expiryInput.required = mode === 'direct';
+  if (productionInput) productionInput.required = mode === 'production';
+}
+
 function addBatch(productId) {
   try {
     console.log('Opening add stock modal for product:', productId);
@@ -1095,6 +1177,9 @@ function addBatch(productId) {
     const form = document.getElementById('addBatchForm');
     if (form) {
       form.reset();
+      const dateModeInput = document.getElementById('batchDateMode');
+      if (dateModeInput) dateModeInput.value = accountTitle.toLowerCase().startsWith('supplies') ? 'no_expiry' : 'direct';
+      updateBatchDateMode();
       console.log('Form reset');
     } else {
       console.error('Add batch form not found');
