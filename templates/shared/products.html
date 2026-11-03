@@ -741,7 +741,7 @@
               <label for="batchDateMode" class="form-label fw-semibold" style="font-size:0.82rem;color:var(--text-primary)">
                 <i class="fas fa-calendar-alt me-1" style="color:var(--accent)"></i>Batch date mode
               </label>
-              <select id="batchDateMode" class="form-select form-control-lg" style="border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
+              <select id="batchDateMode" class="form-select form-control-lg" onchange="updateBatchDateMode()" style="border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
                 <option value="direct">Direct expiry</option>
                 <option value="production">Production date + shelf life</option>
                 <option value="no_expiry">No expiry</option>
@@ -749,13 +749,16 @@
             </div>
 
             <div class="mb-3" id="batchProductionGroup" style="display:none">
-              <label for="batchProductionDatePicker" class="form-label fw-semibold" style="font-size:0.82rem;color:var(--text-primary)">Production Date</label>
-              <input type="date" class="form-control form-control-lg" id="batchProductionDatePicker" style="border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
+              <div id="batchProductionDateWrap">
+                <label for="batchProductionDatePicker" class="form-label fw-semibold" style="font-size:0.82rem;color:var(--text-primary)">Production Date</label>
+                <input type="date" class="form-control form-control-lg" id="batchProductionDatePicker" onchange="updateBatchDateMode()" style="border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
+              </div>
               <label for="batchShelfLifeVisible" class="form-label fw-semibold mt-2" style="font-size:0.82rem;color:var(--text-primary)">Shelf Life</label>
-              <select id="batchShelfLifeVisible" class="form-select form-control-lg" style="border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
+              <select id="batchShelfLifeVisible" class="form-select form-control-lg" onchange="updateBatchDateMode()" style="border-radius:10px;border:1.5px solid var(--border);background:var(--input-bg)">
                 <option value="3">3 months</option>
                 <option value="6">6 months</option>
                 <option value="12">12 months</option>
+                <option value="0">No expiry</option>
               </select>
             </div>
 
@@ -1102,15 +1105,32 @@ document.addEventListener('DOMContentLoaded', function() {
 // Batch Management Functions
 function updateBatchDateMode() {
   const mode = document.getElementById('batchDateMode')?.value || 'direct';
+  const shelfLife = document.getElementById('batchShelfLifeVisible')?.value || '3';
   const productionGroup = document.getElementById('batchProductionGroup');
+  const productionDateWrap = document.getElementById('batchProductionDateWrap');
   const directGroup = document.getElementById('batchDirectExpiryGroup');
   const expiryInput = document.getElementById('batchExpDate');
   const productionInput = document.getElementById('batchProductionDatePicker');
 
   if (productionGroup) productionGroup.style.display = mode === 'production' ? '' : 'none';
-  if (directGroup) directGroup.style.display = mode === 'direct' ? '' : 'none';
-  if (expiryInput) expiryInput.required = mode === 'direct';
-  if (productionInput) productionInput.required = mode === 'production';
+  if (productionDateWrap) productionDateWrap.style.display = mode === 'production' && shelfLife !== '0' ? '' : 'none';
+  if (directGroup) directGroup.style.display = mode === 'direct' || (mode === 'production' && shelfLife !== '0') ? '' : 'none';
+  if (expiryInput) {
+    expiryInput.required = mode === 'direct';
+    expiryInput.disabled = mode === 'production';
+    if (mode === 'production' && shelfLife === '0') expiryInput.value = '';
+  }
+  if (productionInput) productionInput.required = mode === 'production' && shelfLife !== '0';
+
+  if (mode === 'production' && shelfLife !== '0' && productionInput?.value) {
+    const parts = productionInput.value.split('-').map(Number);
+    const expiry = new Date(parts[0], parts[1] - 1, parts[2]);
+    expiry.setMonth(expiry.getMonth() + Number(shelfLife));
+    const yyyy = expiry.getFullYear();
+    const mm = String(expiry.getMonth() + 1).padStart(2, '0');
+    const dd = String(expiry.getDate()).padStart(2, '0');
+    if (expiryInput) expiryInput.value = `${yyyy}-${mm}-${dd}`;
+  }
 }
 
 function addBatch(productId) {
