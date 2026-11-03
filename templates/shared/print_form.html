@@ -292,11 +292,12 @@
         <tbody>
         {% for item in requisition.items %}
             {% set sorted_batches = (item.product.warehouse_batches or item.product.batches)|sort(attribute='exp_date') %}
-            {% if sorted_batches %}
-                {% for batch in sorted_batches %}
-                    {% set batch_total = batch.int_quantity or batch.quantity %}
-                    {% set batch_deduction = [batch_total - batch.quantity, 0]|max %}
-                    {% if batch_total > 0 %}
+            {% set rendered_batches = namespace(any=false) %}
+            {% for batch in sorted_batches %}
+                {% set batch_total = batch.int_quantity or batch.quantity %}
+                {% set batch_deduction = [batch_total - batch.quantity, 0]|max %}
+                {% if batch_total > 0 %}
+                    {% set rendered_batches.any = true %}
                     <tr>
                         <td>{{ item.product.name }}{% if item.product.item_uom_desc %}<br><span class="print-muted">{{ item.product.item_uom_desc }}</span>{% endif %}</td>
                         <td>
@@ -311,17 +312,20 @@
                         <td style="text-align: center; font-weight: bold;">{{ item.quantity }}</td>
                         <td style="text-align: center; font-weight: bold;">{{ '%.1f'|format(batch.quantity) }}/{{ '%.1f'|format(batch_total) }}</td>
                         <td style="text-align: center; font-weight: bold; color: #b91c1c;">−{{ '%.1f'|format(batch_deduction) }}</td>
-                <td style="text-align: center;">{{ item.uom }}</td>
+                        <td style="text-align: center;">{{ item.uom }}</td>
                     </tr>
-                    {% endif %}
-                {% endfor %}
-            {% else %}
+                {% endif %}
+            {% endfor %}
+            {% if not rendered_batches.any %}
+                {% set historical_deduction = item.deductions[0] if item.deductions and item.deductions|length > 0 else none %}
+                {% set original_stock = historical_deduction.total_current_qty if historical_deduction else none %}
+                {% set historical_quantity = historical_deduction.requested_qty if historical_deduction else item.quantity %}
                 <tr>
                     <td>{{ item.product.name }}{% if item.product.item_uom_desc %}<br><span class="print-muted">{{ item.product.item_uom_desc }}</span>{% endif %}</td>
                     <td>EXP: No expiry</td>
-                    <td style="text-align: center; font-weight: bold;">{{ item.quantity }}</td>
-                    <td style="text-align: center;">—</td>
-                    <td style="text-align: center; font-weight: bold; color: #b91c1c;">−{{ item.quantity }}</td>
+                    <td style="text-align: center; font-weight: bold;">{{ historical_quantity }}</td>
+                    <td style="text-align: center; font-weight: bold;">{% if original_stock is not none %}Original {{ '%.1f'|format(original_stock) }}{% else %}—{% endif %}</td>
+                    <td style="text-align: center; font-weight: bold; color: #b91c1c;">−{{ historical_quantity }}</td>
                     <td style="text-align: center;">{{ item.uom }}</td>
                 </tr>
             {% endif %}
