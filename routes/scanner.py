@@ -2,6 +2,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import os
+import json
 
 # Third-party imports
 from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, jsonify, current_app
@@ -825,12 +826,15 @@ def api_update_requisition_status():
                             break
 
                         if batch.quantity > 0:  # Only use batches that have stock
+                            original_quantity = batch.quantity
                             deduct_amount = min(batch.quantity, remaining_quantity)
                             batch.quantity = batch.quantity - deduct_amount
                             remaining_quantity -= deduct_amount
                             updated_batches.append({
                                 'batch_id': batch.id,
+                                'original_quantity': original_quantity,
                                 'exp_date': batch.exp_date.strftime('%Y-%m-%d'),
+                                'production_date': batch.production_date.strftime('%Y-%m-%d') if batch.production_date else None,
                                 'deducted': deduct_amount,
                                 'remaining': batch.quantity
                             })
@@ -848,7 +852,8 @@ def api_update_requisition_status():
                             requisition_item_id=req_item.id,
                             total_current_qty=warehouse_before,
                             requested_qty=req_item.quantity,
-                            remaining_qty=product.warehouse_qty
+                            remaining_qty=product.warehouse_qty,
+                            batch_snapshot=json.dumps(updated_batches)
                         )
                     )
 

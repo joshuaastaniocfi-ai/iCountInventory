@@ -626,6 +626,16 @@ def create_app(config_name='default'):
                 db.session.rollback()
                 app.logger.warning(f"Requisition item/variance migration note: {e}")
 
+            try:
+                deduction_cols = [c['name'] for c in inspector.get_columns('requisition_batch_deduction')]
+                if 'batch_snapshot' not in deduction_cols:
+                    db.session.execute(text('ALTER TABLE requisition_batch_deduction ADD COLUMN batch_snapshot TEXT'))
+                    db.session.commit()
+                    app.logger.info("Added batch_snapshot to requisition_batch_deduction table")
+            except Exception as e:
+                db.session.rollback()
+                app.logger.warning(f"Requisition batch snapshot migration note: {e}")
+
             # ── Create user_companies table if not exists ──
             try:
                 db.session.execute(text('''

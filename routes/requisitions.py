@@ -403,14 +403,24 @@ def update_status(requisition_id):
             warehouse_before = product.warehouse_qty
 
             batches = sorted(product.warehouse_batches, key=lambda x: x.exp_date)
+            batch_snapshot = []
 
             for batch in batches:
                 if remaining_quantity <= 0:
                     break
                 if batch.quantity > 0:
+                    original_quantity = batch.quantity
                     deduct_amount = min(batch.quantity, remaining_quantity)
                     batch.quantity = batch.quantity - deduct_amount
                     remaining_quantity -= deduct_amount
+                    batch_snapshot.append({
+                        'batch_id': batch.id,
+                        'original_quantity': original_quantity,
+                        'deducted': deduct_amount,
+                        'remaining': batch.quantity,
+                        'production_date': batch.production_date.isoformat() if batch.production_date else None,
+                        'exp_date': batch.exp_date.isoformat() if batch.exp_date else None,
+                    })
 
             # Transfer from warehouse to store
             product.warehouse_qty -= release_qty
@@ -449,7 +459,8 @@ def update_status(requisition_id):
                     requisition_item_id=req_item.id,
                     total_current_qty=warehouse_before,
                     requested_qty=req_item.quantity,
-                    remaining_qty=product.warehouse_qty
+                    remaining_qty=product.warehouse_qty,
+                    batch_snapshot=json.dumps(batch_snapshot)
                 )
             )
 
@@ -535,15 +546,35 @@ def update_status(requisition_id):
             # Deduct stock
             remaining_opt = opt_release_qty
             opt_batches = sorted(product.warehouse_batches, key=lambda x: x.exp_date)
+            opt_batch_snapshot = []
             for batch in opt_batches:
                 if remaining_opt <= 0:
                     break
                 if batch.quantity > 0:
+                    original_quantity = batch.quantity
                     deduct = min(batch.quantity, remaining_opt)
                     batch.quantity -= deduct
                     remaining_opt -= deduct
+                    opt_batch_snapshot.append({
+                        'batch_id': batch.id,
+                        'original_quantity': original_quantity,
+                        'deducted': deduct,
+                        'remaining': batch.quantity,
+                        'production_date': batch.production_date.isoformat() if batch.production_date else None,
+                        'exp_date': batch.exp_date.isoformat() if batch.exp_date else None,
+                    })
 
             product.quantity -= opt_release_qty
+
+            db.session.add(
+                RequisitionBatchDeduction(
+                    requisition_item_id=opt_item.id,
+                    total_current_qty=product.quantity + opt_release_qty,
+                    requested_qty=opt_release_qty,
+                    remaining_qty=product.quantity,
+                    batch_snapshot=json.dumps(opt_batch_snapshot)
+                )
+            )
 
             # ProductHistory
             opt_history = ProductHistory(

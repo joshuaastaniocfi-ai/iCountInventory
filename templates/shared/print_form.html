@@ -320,6 +320,27 @@
                 {% set historical_deduction = item.deductions[0] if item.deductions and item.deductions|length > 0 else none %}
                 {% set original_stock = historical_deduction.total_current_qty if historical_deduction else none %}
                 {% set historical_quantity = historical_deduction.requested_qty if historical_deduction else item.quantity %}
+                {% set snapshot_batches = historical_deduction.batch_snapshot_data if historical_deduction else [] %}
+                {% if snapshot_batches %}
+                    {% for snapshot in snapshot_batches %}
+                <tr>
+                    <td>{{ item.product.name }}{% if item.product.item_uom_desc %}<br><span class="print-muted">{{ item.product.item_uom_desc }}</span>{% endif %}</td>
+                    <td>
+                        {% if snapshot.production_date %}
+                            PD: {{ snapshot.production_date }}
+                        {% elif snapshot.exp_date %}
+                            EXP: {{ snapshot.exp_date }}
+                        {% else %}
+                            EXP: No expiry
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center; font-weight: bold;">{{ snapshot.deducted }}</td>
+                    <td style="text-align: center; font-weight: bold;">{{ '%.1f'|format(snapshot.original_quantity) }}/{{ '%.1f'|format(snapshot.remaining) }}</td>
+                    <td style="text-align: center; font-weight: bold; color: #b91c1c;">−{{ '%.1f'|format(snapshot.deducted) }}</td>
+                    <td style="text-align: center;">{{ item.uom }}</td>
+                </tr>
+                    {% endfor %}
+                {% else %}
                 <tr>
                     <td>{{ item.product.name }}{% if item.product.item_uom_desc %}<br><span class="print-muted">{{ item.product.item_uom_desc }}</span>{% endif %}</td>
                     <td>EXP: No expiry</td>
@@ -328,6 +349,7 @@
                     <td style="text-align: center; font-weight: bold; color: #b91c1c;">−{{ historical_quantity }}</td>
                     <td style="text-align: center;">{{ item.uom }}</td>
                 </tr>
+                {% endif %}
             {% endif %}
         {% endfor %}
         </tbody>

@@ -246,6 +246,17 @@ class RequisitionBatchDeduction(db.Model):
     total_current_qty = db.Column(db.Float, nullable=False, default=0.0)  # Total quantity from all batches before deduction
     requested_qty = db.Column(db.Float, nullable=False, default=0.0)      # Amount requested
     remaining_qty = db.Column(db.Float, nullable=False, default=0.0)      # Amount left after deduction
+    batch_snapshot = db.Column(db.Text, nullable=True)                    # JSON snapshot of batches used for deduction
+
+    @property
+    def batch_snapshot_data(self):
+        if not self.batch_snapshot:
+            return []
+        try:
+            value = json.loads(self.batch_snapshot)
+            return value if isinstance(value, list) else []
+        except (TypeError, ValueError):
+            return []
     # Note: Inherits company_id through requisition_item -> requisition relationship
 
 
