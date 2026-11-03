@@ -415,7 +415,7 @@
                           {% set ns = namespace(remaining=requested, shown=0) %}
                           {% for batch in sorted_batches %}
                             {% if batch.quantity > 0 and (modal_status != 'pending' or ns.remaining > 0) %}
-                              {% set days_until = (batch.exp_date - now.date()).days if now is defined else 0 %}
+                              {% set days_until = (batch.exp_date - now.date()).days if batch.exp_date and now is defined else 0 %}
                               {% set theoretical_deduction = [batch.quantity, ns.remaining]|min if modal_status == 'pending' else 0 %}
                               {% set theoretical_remaining = batch.quantity - theoretical_deduction %}
                               {% set batch_total = batch.int_quantity or batch.quantity %}
@@ -428,13 +428,29 @@
                                        aria-valuemin="0" aria-valuemax="{{ batch_total }}" aria-valuenow="{{ theoretical_remaining }}">
                                     <span style="width: {{ ((theoretical_remaining / batch_total) * 100)|round(1) if batch_total else 0 }}%"></span>
                                   </div>
+                                  <div class="req-batch-deduction">
+                                    <span class="req-batch-label">Deduction</span>
+                                    <strong>−{{ '%.1f'|format(theoretical_deduction) }} {{ item.uom }}</strong>
+                                  </div>
                                 </div>
                                 <div class="req-production-date">
-                                  <span class="req-batch-label">Production date</span>
-                                  <strong>{% if batch.production_date %}{{ batch.production_date.strftime('%b %d, %Y') }}{% else %}Not recorded{% endif %}</strong>
+                                  {% if batch.production_date %}
+                                    <span class="req-batch-label">Production date</span>
+                                    <strong>{{ batch.production_date.strftime('%b %d, %Y') }}</strong>
+                                  {% elif batch.exp_date %}
+                                    <span class="req-batch-label">Expiry</span>
+                                    <strong>{{ batch.exp_date.strftime('%b %d, %Y') }}</strong>
+                                  {% else %}
+                                    <span class="req-batch-label">Expiry</span>
+                                    <strong>No expiry</strong>
+                                  {% endif %}
                                 </div>
                                 <div class="req-days-left text-end">
-                                  <span class="req-batch-label">Days left</span>
+                                  {% if not batch.exp_date %}
+                                    <span class="req-batch-label">Expiry</span>
+                                    <span class="req-tone-ok fw-semibold">No expiry</span>
+                                  {% else %}
+                                    <span class="req-batch-label">Days left</span>
                                   {% if days_until <= 0 %}
                                     <span class="req-tone-bad fw-semibold">Expired</span>
                                   {% elif days_until <= 30 %}
@@ -443,6 +459,7 @@
                                     <span class="req-tone-warn fw-semibold">{{ days_until }}d</span>
                                   {% else %}
                                     <span class="req-tone-ok fw-semibold">{{ days_until }}d</span>
+                                  {% endif %}
                                   {% endif %}
                                 </div>
                               </div>

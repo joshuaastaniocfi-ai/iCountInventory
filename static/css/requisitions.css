@@ -916,6 +916,22 @@ html:not(.dark-mode) .requisitions-page .req-stat--rejected .req-stat-value { co
   transition: width .2s ease;
 }
 
+.req-batch-deduction {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .4rem;
+  flex: 0 0 100%;
+  margin-top: .22rem;
+}
+
+.req-batch-deduction strong {
+  color: var(--req-red, #b91c1c);
+  font-size: .68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .req-batch-quantity span {
   color: var(--text-muted);
   font-size: .66rem;
