@@ -784,6 +784,8 @@ def add_stock():
     direct_exp_date_str = request.form.get('direct_exp_date', '').strip() or request.form.get('exp_date', '').strip()
 
     shelf_life_months = None
+    production_date = None
+    exp_date = None
     if is_no_expiry:
         production_date = None
         exp_date = datetime(2099, 12, 31).date()
@@ -863,17 +865,24 @@ def add_stock():
     # sub_barcode is now generated above, so we don't need to generate it here
     # new_batch.sub_barcode = generate_sub_barcode(product.barcode, new_batch.exp_date)
     
-    db.session.add(new_batch)
-    db.session.flush()  # Flush to get the batch ID
+    try:
+        db.session.add(new_batch)
+        db.session.flush()  # Flush to get the batch ID
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception('add_stock failed saving batch')
+        return jsonify({'message': f'Could not save batch: {e}'}), 500
 
     # Now recalculate product warehouse quantity from all batches and sync total
     all_batches = WarehouseProductBatch.query.filter_by(product_id=product_id).all()
     total_batch_quantity = sum(batch.quantity for batch in all_batches)
 
     product.warehouse_qty = total_batch_quantity
-    product.warehouse_initial_qty = max(product.warehouse_initial_qty or 0, total_batch_quantity)
+    product.warehouse_initial_qty = max(float(product.warehouse_initial_qty or 0), total_batch_quantity)
+    product.store_qty = float(product.store_qty or 0)
+    product.store_initial_qty = float(product.store_initial_qty or 0)
     product.quantity = product.warehouse_qty + product.store_qty
-    product.initial_quantity = product.warehouse_initial_qty + (product.store_initial_qty or 0)
+    product.initial_quantity = product.warehouse_initial_qty + product.store_initial_qty
     product.last_updated = current_time
 
     # Create ProductHistory record for TRANS IN (manual addition)
@@ -892,9 +901,13 @@ def add_stock():
         reference_type='batch',
         company_id=product.company_id
     )
-    db.session.add(history_record)
-
-    db.session.commit()
+    try:
+        db.session.add(history_record)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception('add_stock failed committing transaction')
+        return jsonify({'message': f'Could not complete stock addition: {e}'}), 500
 
     # Format the time for logging
     formatted_time = current_time.strftime('%Y-%m-%d %I:%M:%S %p')
