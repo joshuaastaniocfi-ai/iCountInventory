@@ -1002,7 +1002,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // Reload after a short delay to show the new stock
             setTimeout(() => location.reload(), 1500);
           } else {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            return response.text().then(raw => {
+              let message = `HTTP ${response.status}: ${response.statusText}`;
+              try {
+                const payload = JSON.parse(raw);
+                if (payload.message) message = payload.message;
+              } catch (parseError) {
+                // Keep the HTTP status when the server returned a non-JSON error page.
+              }
+              throw new Error(message);
+            });
           }
         })
         .catch(error => {

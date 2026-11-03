@@ -1,9 +1,8 @@
-const CACHE_NAME = 'icebergINV-v1.0.2-pwa-layout';
+const CACHE_NAME = 'icebergINV-v1.0.3-pwa-layout';
 const urlsToCache = [
   '/',
-  '/static/css/style.css',
+  '/static/main.css',
   '/static/css/flatpickr.min.css',
-  '/static/js/app.js',
   '/static/js/flatpickr.min.js',
   '/static/icons/icon_logo.png',
   '/scanner/mobile-scanner',
