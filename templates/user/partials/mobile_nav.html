@@ -69,8 +69,24 @@
     <a href="{{ url_for('trans_in.index') }}" class="more-card">
       <div class="more-card-icon icon-emerald"><i class="fas fa-cart-plus"></i></div>
       <div class="more-card-info">
-        <div class="more-card-title">Trans-In</div>
+        <div class="more-card-title">Trans - In</div>
         <div class="more-card-desc">Input &amp; finalize purchases</div>
+      </div>
+      <i class="fas fa-chevron-right more-card-arr"></i>
+    </a>
+    <a href="{{ url_for('trans_out.index') }}" class="more-card">
+      <div class="more-card-icon icon-amber"><i class="fas fa-right-from-bracket"></i></div>
+      <div class="more-card-info">
+        <div class="more-card-title">Trans - Out</div>
+        <div class="more-card-desc">Input &amp; finalize transfers out</div>
+      </div>
+      <i class="fas fa-chevron-right more-card-arr"></i>
+    </a>
+    <a href="{{ url_for('wastage_spoilage.index') }}" class="more-card">
+      <div class="more-card-icon icon-slate"><i class="fas fa-triangle-exclamation"></i></div>
+      <div class="more-card-info">
+        <div class="more-card-title">Wastage / Spoilage</div>
+        <div class="more-card-desc">Input &amp; finalize wastage</div>
       </div>
       <i class="fas fa-chevron-right more-card-arr"></i>
     </a>

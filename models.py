@@ -688,3 +688,83 @@ class TransInRecord(db.Model):
             'created_by': self.created_by or '',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else '',
         }
+
+
+class TransOutRecord(db.Model):
+    """Transfer-Out entries stored in invensync.db."""
+    __bind_key__ = 'inventory_db'
+    __tablename__ = 'trans_out'
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, nullable=True, index=True)
+    trans_date = db.Column(
+        db.Date,
+        nullable=False,
+        default=lambda: datetime.now(ZoneInfo("Asia/Manila")).date(),
+        index=True
+    )
+    raw_item_id = db.Column(db.Integer, nullable=True, index=True)
+    raw_item_name = db.Column(db.String(255), nullable=False)
+    qty = db.Column(db.Float, nullable=False, default=0.0)
+    uom = db.Column(db.String(60), nullable=True)
+    cost = db.Column(db.Float, nullable=False, default=0.0)
+    total_cost = db.Column(db.Float, nullable=False, default=0.0)
+    remarks = db.Column(db.Text, nullable=True)
+    created_by = db.Column(db.String(150), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'company_id': self.company_id,
+            'trans_date': self.trans_date.strftime('%Y-%m-%d') if self.trans_date else '',
+            'raw_item_id': self.raw_item_id,
+            'raw_item_name': self.raw_item_name or '',
+            'qty': float(self.qty or 0),
+            'uom': self.uom or '',
+            'cost': float(self.cost or 0),
+            'total_cost': float(self.total_cost or 0),
+            'remarks': self.remarks or '',
+            'created_by': self.created_by or '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else '',
+        }
+
+
+class WastageSpoilageRecord(db.Model):
+    """Wastage / Spoilage entries stored in invensync.db."""
+    __bind_key__ = 'inventory_db'
+    __tablename__ = 'wastage_spoilage'
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, nullable=True, index=True)
+    trans_date = db.Column(
+        db.Date,
+        nullable=False,
+        default=lambda: datetime.now(ZoneInfo("Asia/Manila")).date(),
+        index=True
+    )
+    raw_item_id = db.Column(db.Integer, nullable=True, index=True)
+    raw_item_name = db.Column(db.String(255), nullable=False)
+    qty = db.Column(db.Float, nullable=False, default=0.0)
+    uom = db.Column(db.String(60), nullable=True)
+    cost = db.Column(db.Float, nullable=False, default=0.0)
+    total_cost = db.Column(db.Float, nullable=False, default=0.0)
+    remarks = db.Column(db.Text, nullable=True)
+    created_by = db.Column(db.String(150), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'company_id': self.company_id,
+            'trans_date': self.trans_date.strftime('%Y-%m-%d') if self.trans_date else '',
+            'raw_item_id': self.raw_item_id,
+            'raw_item_name': self.raw_item_name or '',
+            'qty': float(self.qty or 0),
+            'uom': self.uom or '',
+            'cost': float(self.cost or 0),
+            'total_cost': float(self.total_cost or 0),
+            'remarks': self.remarks or '',
+            'created_by': self.created_by or '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else '',
+        }

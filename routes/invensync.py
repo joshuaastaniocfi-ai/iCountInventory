@@ -177,13 +177,7 @@ def save_rows():
             continue
 
         beg = _to_float(r.get('beg'), 0.0)
-        trans_in = _to_float(r.get('trans_in'), 0.0)
-        trans_out = _to_float(r.get('trans_out'), 0.0)
-        wastage = _to_float(r.get('wastage'), 0.0)
-        sold = _to_float(r.get('sold'), 0.0)
-        theoretical_ending = beg + trans_in - trans_out - wastage - sold
         actual_ending = _to_nullable_float(r.get('actual_ending'))
-        variance = (actual_ending - theoretical_ending) if actual_ending is not None else None
         remarks = (r.get('remarks') or '').strip()
 
         existing = None
@@ -199,6 +193,14 @@ def save_rows():
                 inventory_date=target_date,
                 raw_item_name=raw_item_name
             ).first()
+
+        # Trans-In, Trans-Out, Wastage, and Sold are auto-synced from their respective modules
+        trans_in = float(existing.trans_in or 0) if existing else _to_float(r.get('trans_in'), 0.0)
+        trans_out = float(existing.trans_out or 0) if existing else _to_float(r.get('trans_out'), 0.0)
+        wastage = float(existing.wastage or 0) if existing else _to_float(r.get('wastage'), 0.0)
+        sold = float(existing.sold or 0) if existing else _to_float(r.get('sold'), 0.0)
+        theoretical_ending = beg + trans_in - trans_out - wastage - sold
+        variance = (actual_ending - theoretical_ending) if actual_ending is not None else None
 
         if existing:
             existing.beg = beg

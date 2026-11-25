@@ -142,6 +142,16 @@
   z-index: 3;
 }
 
+.excel-auto-cell {
+  padding: 0 8px !important;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #64748b;
+  background: #f8fafc !important;
+  user-select: none;
+}
+
 .excel-theo-cell {
   padding: 0 10px !important;
   text-align: right;
@@ -233,6 +243,7 @@ html.dark-mode .excel-grid tbody td {
 }
 html.dark-mode .excel-row-num,
 html.dark-mode .excel-fixed-item,
+html.dark-mode .excel-auto-cell,
 html.dark-mode .raw-pagination-bar {
   background: #141416 !important;
   border-color: #27272a !important;
@@ -243,7 +254,17 @@ html.dark-mode .excel-grid tbody td:focus-within {
   background: #18181b !important;
   box-shadow: inset 0 0 0 2px #10b981;
 }
-html.dark-mode .excel-theo-cell {
+html.dark-mode .excel-auto-cell {
+  padding: 0 8px !important;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #64748b;
+  background: #f8fafc !important;
+  user-select: none;
+}
+
+.excel-theo-cell {
   background: rgba(16, 185, 129, 0.12) !important;
   color: #34d399 !important;
 }
@@ -512,7 +533,7 @@ function onFieldChange(rowIndex, field, value) {
 function onCellKeydown(e, idx, col) {
   if (e.key !== 'Enter') return;
   e.preventDefault();
-  const order = ['beg', 'trans_in', 'trans_out', 'wastage', 'sold', 'actual_ending', 'remarks'];
+  const order = ['beg', 'actual_ending', 'remarks'];
   const pos = order.indexOf(col);
   if (pos >= 0 && pos < order.length - 1) {
     document.getElementById(`cell-${idx}-${order[pos + 1]}`)?.focus();
@@ -572,10 +593,10 @@ function renderTable() {
         <td class="excel-row-num">${idx + 1}</td>
         <td class="excel-fixed-item" title="${escHtml(r.raw_item_name)}">${escHtml(r.raw_item_name)}</td>
         <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-beg" value="${formatInputVal(r.beg)}" oninput="onFieldChange(${idx}, 'beg', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'beg')"></td>
-        <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-trans_in" value="${formatInputVal(r.trans_in)}" oninput="onFieldChange(${idx}, 'trans_in', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'trans_in')"></td>
-        <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-trans_out" value="${formatInputVal(r.trans_out)}" oninput="onFieldChange(${idx}, 'trans_out', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'trans_out')"></td>
-        <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-wastage" value="${formatInputVal(r.wastage)}" oninput="onFieldChange(${idx}, 'wastage', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'wastage')"></td>
-        <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-sold" value="${formatInputVal(r.sold)}" oninput="onFieldChange(${idx}, 'sold', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'sold')"></td>
+        <td class="excel-auto-cell" title="Auto-synced from Trans - In">${formatInputVal(r.trans_in) || '0'}</td>
+        <td class="excel-auto-cell" title="Auto-synced from Trans - Out">${formatInputVal(r.trans_out) || '0'}</td>
+        <td class="excel-auto-cell" title="Auto-synced from Wastage / Spoilage">${formatInputVal(r.wastage) || '0'}</td>
+        <td class="excel-auto-cell" title="Auto-synced from POS Sold">${formatInputVal(r.sold) || '0'}</td>
         <td class="excel-theo-cell ${theo < 0 ? 'negative' : ''}" id="theo-${idx}">${formatNum(theo)}</td>
         <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-actual_ending" value="${actualVal}" oninput="onFieldChange(${idx}, 'actual_ending', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'actual_ending')"></td>
         <td class="excel-var-cell ${varInfo.cls}" id="var-${idx}">${varInfo.text}</td>

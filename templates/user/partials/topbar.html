@@ -9,28 +9,35 @@
   </div>
   <div class="tr2">
     <div class="topbar-page-actions" id="topbarPageActions" aria-label="Page actions">
-      <button type="button" class="topbar-action" data-topbar-panel="storeinv" onclick="showPanel('inventory')" title="View Full Inventory" hidden>
+      <button type="button" class="topbar-action" data-topbar-panel="storeinv" onclick="showPanel('inventory')"
+        title="View Full Inventory" hidden>
         <i class="fas fa-warehouse"></i><span>Full Inventory</span>
       </button>
-      <button type="button" class="topbar-action" data-topbar-panel="inventory" onclick="showPanel('requisition')" title="New Request" hidden>
+      <button type="button" class="topbar-action" data-topbar-panel="inventory" onclick="showPanel('requisition')"
+        title="New Request" hidden>
         <i class="fas fa-plus"></i><span>New Request</span>
       </button>
-      <button type="button" class="topbar-action" data-topbar-panel="history" onclick="showPanel('requisition')" title="New Request" hidden>
+      <button type="button" class="topbar-action" data-topbar-panel="history" onclick="showPanel('requisition')"
+        title="New Request" hidden>
         <i class="fas fa-plus"></i><span>New Request</span>
       </button>
-      <button type="button" class="topbar-action" data-topbar-panel="receiving" onclick="loadReceivingList()" title="Refresh shipments" hidden>
+      <button type="button" class="topbar-action" data-topbar-panel="receiving" onclick="loadReceivingList()"
+        title="Refresh shipments" hidden>
         <i class="fas fa-rotate"></i><span>Refresh</span>
       </button>
-      <a href="{{ url_for('receiving.deliveries_page') }}" class="topbar-action" data-topbar-panel="receiving" title="Full Deliveries Hub" hidden>
+      <a href="{{ url_for('receiving.deliveries_page') }}" class="topbar-action" data-topbar-panel="receiving"
+        title="Full Deliveries Hub" hidden>
         <i class="fas fa-truck-ramp-box"></i><span>Deliveries Hub</span>
       </a>
-      <button type="button" class="topbar-action" data-topbar-panel="receiving" onclick="showPanel('requisition')" title="New Requisition" hidden>
+      <button type="button" class="topbar-action" data-topbar-panel="receiving" onclick="showPanel('requisition')"
+        title="New Requisition" hidden>
         <i class="fas fa-plus"></i><span>New Requisition</span>
       </button>
-      {% if active_page == 'trans_in' %}
+      {% if active_page in ('trans_in', 'trans_out', 'wastage_spoilage') %}
       <div class="d-flex align-items-center gap-2">
         <label for="transDatePicker" class="small fw-semibold text-muted mb-0 d-none d-sm-inline">Date:</label>
-        <input type="date" id="transDatePicker" class="form-control form-control-sm" value="{{ trans_date }}" onchange="changeDate()" style="width:auto;border-radius:8px;min-height:32px;font-size:0.8rem;">
+        <input type="date" id="transDatePicker" class="form-control form-control-sm" value="{{ trans_date }}"
+          onchange="changeDate()" style="width:auto;border-radius:8px;min-height:32px;font-size:0.8rem;">
       </div>
       {% endif %}
     </div>
@@ -40,6 +47,7 @@
       <span class="rbadge">{{ current_user.role }}</span>
     </div>
     <button class="bti" onclick="toggleTheme()" id="themeToggle" title="Theme"><i class="fas fa-sun"></i></button>
-    <a href="{{ url_for('auth.logout') }}" class="bti bti-danger" title="Sign out"><i class="fas fa-sign-out-alt"></i></a>
+    <a href="{{ url_for('auth.logout') }}" class="bti bti-danger" title="Sign out"><i
+        class="fas fa-sign-out-alt"></i></a>
   </div>
 </header>

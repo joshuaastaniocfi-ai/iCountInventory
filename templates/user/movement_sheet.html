@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>{{ page_title }} — iCount</title>
+
+<script>
+(function() {
+  var isDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+  document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+  if (isDark) document.documentElement.classList.add('dark-mode');
+})();
+</script>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/app-system.css') }}?v=20261125-movement-grid" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/requisition-form.css') }}?v=20261125-movement-grid" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/products-page.css') }}?v=20261125-movement-grid" rel="stylesheet">
+<style>
+.fa, .fas, .far, .fal, .fab, .fad, .fak, .fa-solid, .fa-regular, .fa-light, .fa-thin, .fa-duotone, .fa-brands, [class*="fa-"], i.fas, i.far, i.fab, i.fa {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", "Font Awesome 5 Free", "FontAwesome" !important;
+  font-style: normal !important;
+  display: inline-block;
+  line-height: 1;
+}
+.fab, .fa-brands { font-family: "Font Awesome 6 Brands" !important; }
+
+#mainContent { padding: 1.5rem clamp(1rem, 2.4vw, 2rem) 2rem !important; }
+.products-page { padding: 0 !important; }
+.products-page-icon { flex-shrink: 0; }
+@media (max-width: 768px) { #mainContent { padding: 1rem 1rem 5.5rem !important; } }
+
+.excel-card {
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04) !important;
+}
+
+.excel-grid-wrap { width: 100%; overflow-x: auto; }
+
+.excel-grid {
+  width: 100%;
+  min-width: 780px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.excel-grid thead th {
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 10px;
+  height: 36px;
+  border-right: 1px solid #cbd5e1;
+  border-bottom: 1px solid #cbd5e1;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.excel-grid thead th:last-child { border-right: 0; }
+
+.excel-grid tbody td {
+  height: 38px;
+  padding: 0;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  vertical-align: middle;
+  position: relative;
+}
+
+.excel-grid tbody td:last-child { border-right: 0; }
+.excel-grid tbody tr:last-child td { border-bottom: 0; }
+
+.excel-row-num {
+  background: #f8fafc !important;
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-align: center;
+  user-select: none;
+}
+
+.excel-cell-input {
+  width: 100%;
+  height: 38px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  padding: 0 10px;
+  font-size: 0.85rem;
+  color: #0f172a;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: inherit;
+}
+
+.excel-cell-input.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.excel-cell-input[type="number"]::-webkit-inner-spin-button,
+.excel-cell-input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.excel-cell-input[type="number"] { -moz-appearance: textfield; }
+
+.excel-grid tbody td:focus-within {
+  box-shadow: inset 0 0 0 2px #10b981;
+  background: #f0fdf4 !important;
+  z-index: 3;
+}
+
+.excel-cell-readonly {
+  padding: 0 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: #059669;
+  background: #f8fafc !important;
+  user-select: none;
+}
+
+.excel-cell-uom {
+  padding: 0 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  color: #64748b;
+  background: #f8fafc !important;
+  user-select: none;
+}
+
+.excel-del-btn {
+  width: 100%;
+  height: 38px;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.excel-del-btn:hover { color: #dc2626; background: #fef2f2; }
+
+.combo-dropdown {
+  position: fixed;
+  z-index: 2000;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+  max-height: 240px;
+  overflow-y: auto;
+  display: none;
+}
+
+.combo-option {
+  padding: 8px 12px;
+  font-size: 0.84rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.combo-option:last-child { border-bottom: 0; }
+.combo-option:hover,
+.combo-option.active { background: #ecfdf5; color: #065f46; }
+
+.combo-option-uom {
+  font-size: 0.72rem;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.excel-footer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0.65rem 1rem;
+  background: #f8fafc;
+  border-top: 1px solid #cbd5e1;
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+.raw-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2080;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #18181b;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.22);
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+.raw-toast.show { display: inline-flex; }
+.raw-toast.error { background: #dc2626; }
+.raw-toast.success { background: #059669; }
+
+html.dark-mode .products-page-title { color: #f4f4f5; }
+html.dark-mode .products-count-badge {
+  background: rgba(37, 99, 235, 0.15) !important;
+  color: #93c5fd !important;
+  border-color: rgba(37, 99, 235, 0.3) !important;
+}
+html.dark-mode .excel-card { background: #101012 !important; border-color: #27272a !important; }
+html.dark-mode .excel-grid thead th { background: #141416 !important; color: #a1a1aa !important; border-color: #27272a !important; }
+html.dark-mode .excel-grid tbody td { background: #101012 !important; border-color: #27272a !important; }
+html.dark-mode .excel-row-num,
+html.dark-mode .excel-cell-uom,
+html.dark-mode .excel-cell-readonly,
+html.dark-mode .excel-footer-bar {
+  background: #141416 !important;
+  border-color: #27272a !important;
+  color: #a1a1aa !important;
+}
+html.dark-mode .excel-cell-readonly { color: #34d399 !important; }
+html.dark-mode .excel-cell-input { color: #f4f4f5 !important; }
+html.dark-mode .excel-grid tbody td:focus-within {
+  background: #18181b !important;
+  box-shadow: inset 0 0 0 2px #10b981;
+}
+html.dark-mode .combo-dropdown { background: #141416; border-color: #27272a; color: #f4f4f5; }
+html.dark-mode .combo-option { border-bottom-color: #1f1f22; }
+html.dark-mode .combo-option:hover,
+html.dark-mode .combo-option.active { background: rgba(16, 185, 129, 0.16); color: #34d399; }
+html.dark-mode .combo-option-uom { background: #27272a; color: #a1a1aa; }
+</style>
+</head>
+<body>
+{% include 'user/partials/topbar.html' %}
+
+<div class="app-body">
+  {% include 'user/partials/sidebar.html' %}
+
+  <main class="main" id="mainContent">
+    <div class="products-page">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="products-page-icon" style="width:46px;height:46px;">
+            <i class="fas {{ page_icon }} fa-lg"></i>
+          </div>
+          <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <h4 class="products-page-title mb-0">{{ page_title }}</h4>
+              <span id="sheetCountBadge" class="badge products-count-badge rounded-pill px-2.5 py-1 font-monospace">
+                0 items
+              </span>
+            </div>
+            <div class="text-muted small mt-0.5" style="font-size:0.8rem">
+              {{ page_subtitle }}
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+          <button type="button" class="btn btn-filter-toggle btn-sm shadow-sm d-flex align-items-center gap-2" onclick="addEmptyRow(true)">
+            <i class="fas fa-plus"></i> <span>Add Row</span>
+          </button>
+          <button type="button" class="btn btn-emerald-action btn-sm shadow-sm d-flex align-items-center gap-2" onclick="exportSheetExcel()">
+            <i class="fas fa-file-excel"></i> <span>Export Excel</span>
+          </button>
+          <button type="button" class="btn btn-primary-action btn-sm shadow-sm d-flex align-items-center gap-2" id="btnSubmitSheet" onclick="openConfirmSubmit()">
+            <i class="fas fa-check-circle"></i> <span>Submit &amp; Finalize</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="excel-card">
+        <div class="excel-grid-wrap">
+          <table class="excel-grid" id="excelGrid">
+            <thead>
+              <tr>
+                <th style="width:42px;text-align:center;">#</th>
+                <th style="width:36%;">Raw Item</th>
+                <th style="width:82px;text-align:center;">UOM</th>
+                <th style="width:110px;text-align:right;">Qty</th>
+                <th style="width:115px;text-align:right;">Cost</th>
+                <th style="width:125px;text-align:right;">Total Cost</th>
+                <th>Remarks</th>
+                <th style="width:42px;text-align:center;"></th>
+              </tr>
+            </thead>
+            <tbody id="gridBody"></tbody>
+          </table>
+        </div>
+        <div class="excel-footer-bar">
+          <div class="text-muted small">Tip: Type in <strong>Raw Item</strong> to search &amp; select · Use <strong>Tab</strong> or <strong>Enter</strong> to move across cells</div>
+          <div>Grand Total: <strong class="text-success" id="grandTotalLbl">0.00</strong></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="combo-dropdown" id="comboDropdown"></div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmSubmitModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="fas fa-check-circle text-success me-2"></i>Finalize {{ page_title }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3 small text-muted">Please confirm before finalizing. This will save your entries and update <strong>InvenSync (DAILY ENDING INVENTORY)</strong>.</p>
+        <div class="p-3 rounded-3 border" style="background:rgba(16,185,129,0.06);">
+          <div class="d-flex justify-content-between mb-1 small">
+            <span class="text-muted">Date:</span>
+            <strong class="font-monospace" id="confirmDateLbl">—</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-1 small">
+            <span class="text-muted">Total Items:</span>
+            <strong id="confirmCountLbl">0</strong>
+          </div>
+          <div class="d-flex justify-content-between small">
+            <span class="text-muted">Grand Total Cost:</span>
+            <strong class="text-success" id="confirmTotalLbl">0.00</strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary-action btn-sm" id="btnConfirmSubmit" onclick="confirmAndSubmitSheet()">
+          <i class="fas fa-check me-1"></i> Confirm &amp; Submit
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Saved Row Confirmation Modal -->
+<div class="modal fade" id="confirmDeleteRowModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="fas fa-trash-alt text-danger me-2"></i>Delete Saved Entry</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2 small text-muted">This entry is already saved in the database. Deleting it will also update <strong>InvenSync (DAILY ENDING INVENTORY)</strong>.</p>
+        <div class="p-3 rounded-3 border" style="background:rgba(220,38,38,0.06);">
+          <div class="d-flex justify-content-between mb-1 small">
+            <span class="text-muted">Raw Item:</span>
+            <strong id="delRowNameLbl">—</strong>
+          </div>
+          <div class="d-flex justify-content-between small">
+            <span class="text-muted">Qty / Cost:</span>
+            <strong id="delRowQtyCostLbl">—</strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger btn-sm" id="btnConfirmDeleteRow" onclick="confirmDeleteSavedRow()">
+          <i class="fas fa-trash me-1"></i> Delete from DB
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include 'user/partials/mobile_nav.html' %}
+<div class="raw-toast" id="rawToast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const STORE_INV_URL = "{{ url_for('requisitions.store_inventory') }}";
+const SHEET_API = {
+  index: {{ index_url | tojson | safe }},
+  list: {{ list_url | tojson | safe }},
+  submit: {{ submit_url | tojson | safe }},
+  deleteBase: {{ delete_base | tojson | safe }},
+  exportUrl: {{ export_url | tojson | safe }}
+};
+const PAGE_LABEL = {{ page_title | tojson | safe }};
+
+const RAW_ITEMS = {{ raw_items | tojson | safe }};
+let ROWS = {{ sheet_rows | tojson | safe }};
+
+function ensureTrailingEmptyRow() {
+  if (ROWS.length === 0 || (ROWS[ROWS.length - 1].raw_item_name || '').trim() !== '') {
+    ROWS.push({ raw_item_id: null, raw_item_name: '', uom: '', qty: 0, cost: 0, total_cost: 0, remarks: '' });
+  }
+}
+
+let activeComboRow = null;
+let comboMatches = [];
+let comboActiveIdx = -1;
+let confirmSubmitModal = null;
+let confirmDeleteRowModal = null;
+let pendingDeleteIdx = null;
+
+function showPanel(panel) {
+  window.location.href = `${STORE_INV_URL}?panel=${encodeURIComponent(panel)}`;
+}
+
+function setInitials() {
+  const fullName = "{{ current_user.full_name | e }}";
+  const parts = fullName.trim().split(/\s+/);
+  const initials = parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : fullName.slice(0, 2).toUpperCase();
+  const el = document.getElementById('userInitials');
+  if (el) el.textContent = initials || 'U';
+}
+
+function restoreTheme() {
+  const isDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+  document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+  document.documentElement.classList.toggle('dark-mode', isDark);
+  const icon = document.querySelector('#themeToggle i');
+  if (icon) icon.className = isDark ? 'fas fa-moon' : 'fas fa-sun';
+}
+
+function toggleTheme() {
+  const isDark = !document.documentElement.classList.contains('dark-mode');
+  localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  restoreTheme();
+}
+
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('rawToast');
+  el.textContent = msg;
+  el.className = `raw-toast show ${type}`;
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.className = 'raw-toast'; }, 3500);
+}
+
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatInputVal(val) {
+  const n = Number(val);
+  if (isNaN(n) || n === 0) return '';
+  return Number.isInteger(n) ? n.toString() : parseFloat(n.toFixed(4)).toString();
+}
+
+function formatMoney(val) {
+  const n = Number(val) || 0;
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function updateSummary() {
+  const filledCount = ROWS.filter(r => (r.raw_item_name || '').trim() !== '').length;
+  document.getElementById('sheetCountBadge').textContent = `${filledCount} item${filledCount === 1 ? '' : 's'}`;
+  const grand = ROWS.reduce((sum, r) => sum + ((Number(r.qty) || 0) * (Number(r.cost) || 0)), 0);
+  document.getElementById('grandTotalLbl').textContent = formatMoney(grand);
+}
+
+function renderGrid() {
+  ensureTrailingEmptyRow();
+  const tbody = document.getElementById('gridBody');
+  tbody.innerHTML = ROWS.map((r, idx) => {
+    const total = (Number(r.qty) || 0) * (Number(r.cost) || 0);
+    return `
+      <tr>
+        <td class="excel-row-num">${idx + 1}</td>
+        <td>
+          <input type="text"
+                 class="excel-cell-input combo-input"
+                 id="raw-input-${idx}"
+                 placeholder="Search raw item..."
+                 autocomplete="off"
+                 value="${escHtml(r.raw_item_name)}"
+                 onfocus="openCombo(${idx}, this)"
+                 oninput="onComboInput(${idx}, this)"
+                 onkeydown="onComboKeydown(event, ${idx}, this)">
+        </td>
+        <td class="excel-cell-uom" id="uom-${idx}">${escHtml(r.uom || '—')}</td>
+        <td>
+          <input type="number" step="any" min="0"
+                 class="excel-cell-input num"
+                 id="qty-input-${idx}"
+                 value="${formatInputVal(r.qty)}"
+                 oninput="onCellChange(${idx}, 'qty', this.value)"
+                 onkeydown="onCellKeydown(event, ${idx}, 'qty')">
+        </td>
+        <td>
+          <input type="number" step="any" min="0"
+                 class="excel-cell-input num"
+                 id="cost-input-${idx}"
+                 value="${formatInputVal(r.cost)}"
+                 oninput="onCellChange(${idx}, 'cost', this.value)"
+                 onkeydown="onCellKeydown(event, ${idx}, 'cost')">
+        </td>
+        <td class="excel-cell-readonly" id="total-${idx}">${formatMoney(total)}</td>
+        <td>
+          <input type="text"
+                 class="excel-cell-input"
+                 id="rem-input-${idx}"
+                 value="${escHtml(r.remarks)}"
+                 oninput="onCellChange(${idx}, 'remarks', this.value)"
+                 onkeydown="onCellKeydown(event, ${idx}, 'remarks')">
+        </td>
+        <td>
+          <button type="button" class="excel-del-btn" title="Remove row" onclick="removeRow(${idx})">
+            <i class="fas fa-times"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  updateSummary();
+}
+
+function addEmptyRow(focusNew = false) {
+  ROWS.push({ raw_item_id: null, raw_item_name: '', uom: '', qty: 0, cost: 0, total_cost: 0, remarks: '' });
+  renderGrid();
+  if (focusNew) {
+    document.getElementById(`raw-input-${ROWS.length - 1}`)?.focus();
+  }
+}
+
+function removeRow(idx) {
+  const row = ROWS[idx];
+  if (!row) return;
+  closeCombo();
+
+  if (row.id) {
+    pendingDeleteIdx = idx;
+    document.getElementById('delRowNameLbl').textContent = row.raw_item_name || '—';
+    document.getElementById('delRowQtyCostLbl').textContent = `${formatInputVal(row.qty) || 0} × ${formatMoney(row.cost)}`;
+    confirmDeleteRowModal.show();
+    return;
+  }
+
+  ROWS.splice(idx, 1);
+  renderGrid();
+}
+
+async function confirmDeleteSavedRow() {
+  if (pendingDeleteIdx === null) return;
+  const row = ROWS[pendingDeleteIdx];
+  if (!row || !row.id) return;
+
+  const btn = document.getElementById('btnConfirmDeleteRow');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Deleting...';
+  try {
+    const res = await fetch(`${SHEET_API.deleteBase}${row.id}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showToast(data.message || 'Delete failed.', 'error');
+      return;
+    }
+    confirmDeleteRowModal.hide();
+    ROWS.splice(pendingDeleteIdx, 1);
+    pendingDeleteIdx = null;
+    renderGrid();
+    showToast(data.message || 'Deleted from database.', 'success');
+  } catch (err) {
+    showToast('Network error while deleting.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-trash me-1"></i> Delete from DB';
+  }
+}
+
+function onCellChange(idx, field, val) {
+  const row = ROWS[idx];
+  if (!row) return;
+  if (field === 'remarks') {
+    row.remarks = val;
+    return;
+  }
+  row[field] = parseFloat(val) || 0;
+  row.total_cost = (Number(row.qty) || 0) * (Number(row.cost) || 0);
+  const totalEl = document.getElementById(`total-${idx}`);
+  if (totalEl) totalEl.textContent = formatMoney(row.total_cost);
+  updateSummary();
+}
+
+function onCellKeydown(e, idx, col) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (col === 'qty') document.getElementById(`cost-input-${idx}`)?.focus();
+    else if (col === 'cost') document.getElementById(`rem-input-${idx}`)?.focus();
+    else if (col === 'remarks') {
+      if (idx === ROWS.length - 1) addEmptyRow(true);
+      else document.getElementById(`raw-input-${idx + 1}`)?.focus();
+    }
+  }
+}
+
+function positionCombo(inputEl) {
+  const dd = document.getElementById('comboDropdown');
+  const rect = inputEl.getBoundingClientRect();
+  dd.style.left = `${rect.left}px`;
+  dd.style.top = `${rect.bottom + 2}px`;
+  dd.style.width = `${Math.max(rect.width, 280)}px`;
+}
+
+function openCombo(idx, inputEl) {
+  activeComboRow = idx;
+  filterAndShowCombo(inputEl.value, inputEl);
+}
+
+function onComboInput(idx, inputEl) {
+  ROWS[idx].raw_item_name = inputEl.value;
+  ROWS[idx].raw_item_id = null;
+  activeComboRow = idx;
+  filterAndShowCombo(inputEl.value, inputEl);
+  updateSummary();
+}
+
+function filterAndShowCombo(query, inputEl) {
+  const q = (query || '').trim().toLowerCase();
+  comboMatches = RAW_ITEMS.filter(item => !q || item.raw_material.toLowerCase().includes(q)).slice(0, 40);
+  comboActiveIdx = comboMatches.length > 0 ? 0 : -1;
+
+  const dd = document.getElementById('comboDropdown');
+  if (comboMatches.length === 0) {
+    dd.innerHTML = `<div class="combo-option text-muted">No matching raw item</div>`;
+  } else {
+    dd.innerHTML = comboMatches.map((item, i) => `
+      <div class="combo-option ${i === comboActiveIdx ? 'active' : ''}"
+           onmousedown="event.preventDefault(); selectComboItem(${activeComboRow}, ${i})">
+        <span class="text-truncate">${escHtml(item.raw_material)}</span>
+        ${item.uom ? `<span class="combo-option-uom">${escHtml(item.uom)}</span>` : ''}
+      </div>
+    `).join('');
+  }
+  positionCombo(inputEl);
+  dd.style.display = 'block';
+}
+
+function selectComboItem(rowIdx, matchIdx) {
+  const item = comboMatches[matchIdx];
+  if (!item || rowIdx === null) return;
+
+  const wasLast = rowIdx === ROWS.length - 1;
+  ROWS[rowIdx].raw_item_id = item.id;
+  ROWS[rowIdx].raw_item_name = item.raw_material;
+  ROWS[rowIdx].uom = item.uom || '';
+
+  closeCombo();
+  if (wasLast) ensureTrailingEmptyRow();
+  renderGrid();
+  document.getElementById(`qty-input-${rowIdx}`)?.focus();
+}
+
+function onComboKeydown(e, idx, inputEl) {
+  const dd = document.getElementById('comboDropdown');
+  if (dd.style.display !== 'block') return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (comboMatches.length > 0) {
+      comboActiveIdx = (comboActiveIdx + 1) % comboMatches.length;
+      highlightComboOption();
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (comboMatches.length > 0) {
+      comboActiveIdx = (comboActiveIdx - 1 + comboMatches.length) % comboMatches.length;
+      highlightComboOption();
+    }
+  } else if (e.key === 'Enter') {
+    if (comboActiveIdx >= 0 && comboMatches[comboActiveIdx]) {
+      e.preventDefault();
+      selectComboItem(idx, comboActiveIdx);
+    }
+  } else if (e.key === 'Escape') {
+    closeCombo();
+  }
+}
+
+function highlightComboOption() {
+  const opts = document.querySelectorAll('#comboDropdown .combo-option');
+  opts.forEach((el, i) => {
+    el.classList.toggle('active', i === comboActiveIdx);
+    if (i === comboActiveIdx) el.scrollIntoView({ block: 'nearest' });
+  });
+}
+
+function closeCombo() {
+  document.getElementById('comboDropdown').style.display = 'none';
+  activeComboRow = null;
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.classList.contains('combo-input') && !e.target.closest('#comboDropdown')) {
+    closeCombo();
+  }
+});
+
+function changeDate() {
+  const d = document.getElementById('transDatePicker').value;
+  if (d) window.location.href = `${SHEET_API.index}?date=${encodeURIComponent(d)}`;
+}
+
+function openConfirmSubmit() {
+  const dateVal = document.getElementById('transDatePicker').value;
+  if (!dateVal) {
+    showToast('Please select a date.', 'error');
+    return;
+  }
+
+  const validRows = ROWS.filter(r => (r.raw_item_name || '').trim() !== '');
+  if (validRows.length === 0) {
+    showToast('Please select at least one raw item.', 'error');
+    return;
+  }
+
+  for (let i = 0; i < ROWS.length; i++) {
+    const r = ROWS[i];
+    const name = (r.raw_item_name || '').trim();
+    if (!name) continue;
+    if ((Number(r.qty) || 0) <= 0) {
+      showToast(`Please enter Qty for "${name}".`, 'error');
+      document.getElementById(`qty-input-${i}`)?.focus();
+      return;
+    }
+    if ((Number(r.cost) || 0) <= 0) {
+      showToast(`Please enter Cost for "${name}".`, 'error');
+      document.getElementById(`cost-input-${i}`)?.focus();
+      return;
+    }
+  }
+
+  const grand = validRows.reduce((sum, r) => sum + ((Number(r.qty) || 0) * (Number(r.cost) || 0)), 0);
+  document.getElementById('confirmDateLbl').textContent = dateVal;
+  document.getElementById('confirmCountLbl').textContent = `${validRows.length} item(s)`;
+  document.getElementById('confirmTotalLbl').textContent = formatMoney(grand);
+  confirmSubmitModal.show();
+}
+
+async function confirmAndSubmitSheet() {
+  const dateVal = document.getElementById('transDatePicker').value;
+  const validRows = ROWS.filter(r => (r.raw_item_name || '').trim() !== '');
+  const btn = document.getElementById('btnConfirmSubmit');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Submitting...';
+
+  try {
+    const res = await fetch(SHEET_API.submit, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: dateVal, items: validRows })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showToast(data.message || 'Submit failed.', 'error');
+      return;
+    }
+    confirmSubmitModal.hide();
+    showToast(data.message || 'Finalized!', 'success');
+    await reloadGridForDate(dateVal);
+  } catch (err) {
+    showToast('Network error while submitting.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check me-1"></i> Confirm &amp; Submit';
+  }
+}
+
+async function reloadGridForDate(dateVal) {
+  try {
+    const res = await fetch(`${SHEET_API.list}?date=${encodeURIComponent(dateVal)}`);
+    const data = await res.json();
+    if (data.success) {
+      ROWS = data.items || [];
+      renderGrid();
+    }
+  } catch (err) { /* ignore */ }
+}
+
+function exportSheetExcel() {
+  const d = document.getElementById('transDatePicker').value;
+  window.location.href = `${SHEET_API.exportUrl}?date=${encodeURIComponent(d)}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setInitials();
+  restoreTheme();
+  const lbl = document.getElementById('pageLabel');
+  if (lbl) lbl.textContent = PAGE_LABEL;
+  confirmSubmitModal = new bootstrap.Modal(document.getElementById('confirmSubmitModal'));
+  confirmDeleteRowModal = new bootstrap.Modal(document.getElementById('confirmDeleteRowModal'));
+  renderGrid();
+});
+</script>
+</body>
+</html>
