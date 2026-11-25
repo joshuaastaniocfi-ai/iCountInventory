@@ -200,9 +200,6 @@ html.dark-mode #posSoldTable tbody tr:hover > * { background: #18181b !important
           <button type="button" class="btn btn-emerald-action btn-sm shadow-sm d-flex align-items-center gap-2" id="btnRefreshPos" onclick="refreshPosData(true)">
             <i class="fas fa-rotate"></i> <span>Refresh</span>
           </button>
-          <button type="button" class="btn btn-outline-danger btn-sm shadow-sm d-flex align-items-center gap-2" id="btnClearPos" onclick="clearPosData()" style="border-radius:10px;padding:0.45rem 0.85rem;font-weight:600;">
-            <i class="fas fa-trash-alt"></i> <span>Clear Data</span>
-          </button>
         </div>
       </div>
 
@@ -314,7 +311,6 @@ const STORE_INV_URL = "{{ url_for('requisitions.store_inventory') }}";
 const POS_API = {
   index: "{{ url_for('pos_sold.index') }}",
   list: "{{ url_for('pos_sold.list_records') }}",
-  clear: "{{ url_for('pos_sold.clear_records') }}",
   exportUrl: "{{ url_for('pos_sold.export_excel') }}"
 };
 
@@ -493,27 +489,6 @@ function exportPosExcel() {
   if (d) params.set('date', d);
   if (q) params.set('q', q);
   window.location.href = `${POS_API.exportUrl}?${params.toString()}`;
-}
-
-async function clearPosData() {
-  const dateVal = document.getElementById('posDatePicker').value;
-  if (!confirm(`Delete all received POS sold records for ${dateVal}?`)) return;
-  try {
-    const res = await fetch(POS_API.clear, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: dateVal })
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      showToast(data.message || 'Failed to clear POS sold data.', 'error');
-      return;
-    }
-    showToast(data.message || 'Cleared.', 'success');
-    await refreshPosData(false);
-  } catch (err) {
-    showToast('Network error while clearing POS sold data.', 'error');
-  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -218,30 +218,6 @@ def list_records():
     return jsonify({'success': True, 'items': [r.to_dict() for r in records], 'total': len(records)})
 
 
-@pos_sold_bp.route('/user/pos-sold/clear', methods=['POST'])
-@login_required
-def clear_records():
-    """Delete received POS sold records for the selected date (or all dates if date='all')."""
-    if not _can_access():
-        return jsonify({'success': False, 'message': 'Access denied.'}), 403
-
-    payload = request.get_json(silent=True) or {}
-    date_val = (payload.get('date') or '').strip()
-
-    query = _scoped_query()
-    if date_val and date_val != 'all':
-        target_date = _parse_date(date_val)
-        query = query.filter(PosSoldRecord.sold_date == target_date)
-
-    deleted = query.delete(synchronize_session=False)
-    db.session.commit()
-    return jsonify({
-        'success': True,
-        'deleted': deleted,
-        'message': f'Deleted {deleted} POS sold record(s).'
-    })
-
-
 @pos_sold_bp.route('/user/pos-sold/sync', methods=['POST'])
 @login_required
 def sync_from_pos():
