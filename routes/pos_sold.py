@@ -1,5 +1,9 @@
 # Standard library imports
 import io
+import json
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -212,6 +216,64 @@ def list_records():
         PosSoldRecord.qty.desc(), PosSoldRecord.product_name.asc()
     ).all()
     return jsonify({'success': True, 'items': [r.to_dict() for r in records], 'total': len(records)})
+
+
+@pos_sold_bp.route('/user/pos-sold/sync', methods=['POST'])
+@login_required
+def sync_from_pos():
+    """Fetch live POS sold data from the configured external POS endpoint and save to invensync.db."""
+    if not _can_access():
+        return jsonify({'success': False, 'message': 'Access denied.'}), 403
+
+    payload = request.get_json(silent=True) or {}
+    pos_url = (payload.get('pos_url') or current_app.config.get('POS_SOLD_API_URL') or '').strip()
+    api_key = (payload.get('api_key') or current_app.config.get('POS_SOLD_API_KEY') or '').strip()
+    client_id = (payload.get('client_id') or current_app.config.get('POS_SOLD_CLIENT_ID') or 'Savore').strip()
+    target_date = _parse_date(payload.get('date')).strftime('%Y-%m-%d')
+
+    if not pos_url:
+        return jsonify({'success': False, 'message': 'POS API URL is not configured.'}), 400
+    if not api_key:
+        return jsonify({'success': False, 'message': 'POS API Key is required. Set it in API Settings or .env.'}), 400
+
+    params = urllib.parse.urlencode({
+        'date': target_date,
+        'client_id': client_id,
+        'grouped': '1',
+    })
+    sep = '&' if '?' in pos_url else '?'
+    full_url = f'{pos_url}{sep}{params}'
+
+    req = urllib.request.Request(
+        full_url,
+        headers={
+            'X-API-Key': api_key,
+            'X-Client-Id': client_id,
+            'Accept': 'application/json',
+        },
+        method='GET'
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw_body = resp.read().decode('utf-8')
+            data = json.loads(raw_body)
+    except urllib.error.HTTPError as err:
+        err_msg = err.read().decode('utf-8', errors='ignore') if hasattr(err, 'read') else str(err)
+        return jsonify({'success': False, 'message': f'POS returned HTTP {err.code}: {err_msg or err.reason}'}), 502
+    except Exception as exc:
+        return jsonify({'success': False, 'message': f'Could not reach POS API: {exc}'}), 502
+
+    items = data.get('items') if isinstance(data, dict) else (data if isinstance(data, list) else [])
+    if not isinstance(items, list):
+        return jsonify({'success': False, 'message': 'Unexpected POS response format (expected items[]).'}), 502
+
+    count = _upsert_pos_items(current_user.company_id, items, client_id, current_user.full_name)
+    return jsonify({
+        'success': True,
+        'synced': count,
+        'message': f'Synced {count} POS sold item(s) for {target_date}.'
+    })
 
 
 @pos_sold_bp.route('/api/pos-sold', methods=['POST'])
