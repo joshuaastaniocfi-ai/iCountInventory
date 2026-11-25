@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Raw Items Catalog — iCount</title>
+
+<script>
+(function() {
+  var isDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+  document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+  if (isDark) document.documentElement.classList.add('dark-mode');
+})();
+</script>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/app-system.css') }}?v=20261124-raw-items-v2" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/requisition-form.css') }}?v=20261124-raw-items-v2" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/products-page.css') }}?v=20261124-raw-items-v2" rel="stylesheet">
+<style>
+.fa, .fas, .far, .fal, .fab, .fad, .fak, .fa-solid, .fa-regular, .fa-light, .fa-thin, .fa-duotone, .fa-brands, [class*="fa-"], i.fas, i.far, i.fab, i.fa {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", "Font Awesome 5 Free", "FontAwesome" !important;
+  font-style: normal !important;
+  display: inline-block;
+  line-height: 1;
+}
+.fab, .fa-brands { font-family: "Font Awesome 6 Brands" !important; }
+
+#mainContent {
+  padding: 1.5rem clamp(1rem, 2.4vw, 2rem) 2rem !important;
+}
+
+.products-page {
+  padding: 0 !important;
+}
+
+@media (max-width: 768px) {
+  #mainContent {
+    padding: 1rem 1rem 5.5rem !important;
+  }
+}
+
+.products-page-icon {
+  flex-shrink: 0;
+}
+
+/* Raw Items table matching #productTable aesthetic from products-page.css */
+#rawItemsTable {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-bottom: 0;
+}
+
+#rawItemsTable thead th {
+  height: 46px;
+  padding: 0.75rem 1rem !important;
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap !important;
+}
+
+#rawItemsTable tbody tr > * {
+  height: 60px;
+  padding: 0.65rem 1rem !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  vertical-align: middle;
+  transition: background-color 0.14s ease;
+}
+
+#rawItemsTable tbody tr:hover > * {
+  background: #f8fafc !important;
+}
+
+#rawItemsTable tbody tr:last-child > * {
+  border-bottom: 0 !important;
+}
+
+.raw-row-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  transition: all 0.15s ease;
+}
+
+.raw-row-action-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.raw-row-action-btn.delete:hover {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.raw-pagination-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.products-table-card {
+  overflow: visible !important;
+}
+
+#rawTableWrap {
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+@media (max-width: 991px) {
+  #rawItemsTable thead th:last-child,
+  #rawItemsTable tbody td:last-child {
+    position: sticky !important;
+    right: 0;
+    border-left: 1px solid #e2e8f0 !important;
+    box-shadow: -4px 0 10px -2px rgba(15, 23, 42, 0.08);
+  }
+  #rawItemsTable thead th:last-child {
+    z-index: 15 !important;
+    background: #f8fafc !important;
+  }
+  #rawItemsTable tbody td:last-child {
+    z-index: 10 !important;
+    background: #ffffff !important;
+  }
+  #rawItemsTable tbody tr:hover td:last-child {
+    background: #f8fafc !important;
+  }
+  html.dark-mode #rawItemsTable thead th:last-child,
+  html.dark-mode #rawItemsTable tbody td:last-child {
+    border-left-color: #27272a !important;
+    box-shadow: -4px 0 10px -2px rgba(0, 0, 0, 0.5);
+  }
+  html.dark-mode #rawItemsTable thead th:last-child {
+    background: #141416 !important;
+  }
+  html.dark-mode #rawItemsTable tbody td:last-child {
+    background: #101012 !important;
+  }
+  html.dark-mode #rawItemsTable tbody tr:hover td:last-child {
+    background: #18181b !important;
+  }
+}
+
+.raw-empty-state {
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.raw-empty-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 0.9rem;
+  border-radius: 14px;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
+.raw-dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 28px 18px;
+  text-align: center;
+  cursor: pointer;
+  background: #f8fafc;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.raw-dropzone.dragover {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.raw-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1080;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #18181b;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.22);
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.raw-toast.show { display: inline-flex; }
+.raw-toast.error { background: #dc2626; }
+.raw-toast.success { background: #059669; }
+
+html.dark-mode .products-page-title { color: #f4f4f5; }
+html.dark-mode .products-count-badge {
+  background: rgba(37, 99, 235, 0.15) !important;
+  color: #93c5fd !important;
+  border-color: rgba(37, 99, 235, 0.3) !important;
+}
+html.dark-mode .products-filter-card,
+html.dark-mode .products-table-card {
+  background: #101012 !important;
+  border-color: #27272a !important;
+}
+html.dark-mode #rawItemsTable thead th,
+html.dark-mode .raw-pagination-bar {
+  background: #141416 !important;
+  border-color: #27272a !important;
+  color: #a1a1aa !important;
+}
+html.dark-mode #rawItemsTable tbody tr > * {
+  background: #101012 !important;
+  border-color: #1f1f22 !important;
+  color: #f4f4f5 !important;
+}
+html.dark-mode #rawItemsTable tbody tr:hover > * {
+  background: #18181b !important;
+}
+html.dark-mode .raw-row-action-btn {
+  background: #141416;
+  border-color: #27272a;
+  color: #a1a1aa;
+}
+html.dark-mode .raw-row-action-btn:hover {
+  background: #18181b;
+  color: #f4f4f5;
+  border-color: #3f3f46;
+}
+html.dark-mode .raw-dropzone {
+  background: #101012;
+  border-color: #27272a;
+}
+
+@media (max-width: 768px) {
+  .products-page { padding-bottom: 5.5rem; }
+}
+</style>
+</head>
+<body>
+{% set active_page = 'raw_items' %}
+{% include 'user/partials/topbar.html' %}
+
+<div class="app-body">
+  {% include 'user/partials/sidebar.html' %}
+
+  <main class="main" id="mainContent">
+    <div class="products-page">
+      <!-- Header & Executive Actions (Admin Products Style) -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="products-page-icon" style="width:46px;height:46px;">
+            <i class="fas fa-cubes fa-lg"></i>
+          </div>
+          <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <h4 class="products-page-title mb-0">Raw Items Catalog</h4>
+              <span id="rawItemsCountBadge" class="badge products-count-badge rounded-pill px-2.5 py-1 font-monospace">
+                {{ raw_items_data|length }} items
+              </span>
+            </div>
+            <div class="text-muted small mt-0.5" style="font-size:0.8rem">
+              Manage raw materials &amp; Excel imports
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+          <button class="btn btn-filter-toggle btn-sm shadow-sm d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true">
+            <i class="fas fa-sliders"></i> <span>Filters</span>
+          </button>
+          <button type="button" class="btn btn-emerald-action btn-sm shadow-sm d-flex align-items-center gap-2" onclick="openUploadModal()">
+            <i class="fas fa-file-excel"></i> <span>Upload Excel</span>
+          </button>
+          <button type="button" class="btn btn-primary-action btn-sm shadow-sm d-flex align-items-center gap-2" onclick="openItemModal()">
+            <i class="fas fa-plus"></i> <span>Add Raw Item</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick UOM Filter Chips Bar -->
+      <div class="quick-status-bar mb-3" id="quickUomBar">
+        <button type="button" class="quick-chip active" data-uom="" onclick="selectUomChip('')">
+          <span class="chip-dot dot-all"></span>
+          <span>All</span>
+          <span class="chip-count" id="chipAllCount">0</span>
+        </button>
+      </div>
+
+      <!-- Collapsible Filter Card -->
+      <div class="collapse show" id="filterCollapse">
+        <div class="card border-0 shadow-sm mb-3 products-filter-card">
+          <div class="card-body">
+            <form class="row g-2 align-items-center products-filter-form" onsubmit="event.preventDefault(); applyFilters();">
+              <div class="col-md-5 products-filter-search">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
+                  <label class="visually-hidden" for="rawSearchInput">Search raw materials</label>
+                  <input id="rawSearchInput" type="text" class="form-control border-start-0 ps-0" placeholder="Search by raw material or UOM..." oninput="applyFilters()">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <label class="visually-hidden" for="rawUomFilter">Filter by UOM</label>
+                <select id="rawUomFilter" class="form-select form-select-sm" onchange="applyFilters()">
+                  <option value="">All UOMs</option>
+                </select>
+              </div>
+              <div class="col-md-auto d-flex gap-2 products-filter-actions ms-md-auto">
+                <button type="button" class="btn btn-filter-reset" aria-label="Reset filters" title="Reset filters" onclick="resetFilters()">
+                  <i class="fas fa-rotate-left"></i>
+                </button>
+                <button type="button" class="btn btn-filter-excel" aria-label="Download Raw Items Excel" title="Download Raw Items Excel" onclick="exportRawItemsExcel()">
+                  <i class="fas fa-file-excel"></i>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table Card -->
+      <div class="card border-0 shadow-sm products-table-card position-relative">
+        <div class="table-responsive" id="rawTableWrap" role="region" tabindex="0" aria-label="Raw items table">
+          <table class="table align-middle mb-0" id="rawItemsTable">
+            <thead>
+              <tr>
+                <th class="px-3 py-3">Raw Material</th>
+                <th class="text-center px-3 py-3">Qty / Rtl</th>
+                <th class="text-center px-3 py-3">UOM</th>
+                <th class="text-center px-3 py-3">Measurement / Order</th>
+                <th class="text-center px-3 py-3">UOM 2</th>
+                <th class="text-center px-2 py-3" style="width:110px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rawItemsBody"></tbody>
+          </table>
+
+          <div class="raw-empty-state" id="rawEmptyState" style="display:none;">
+            <div class="raw-empty-icon"><i class="fas fa-file-excel"></i></div>
+            <h5 class="fw-bold mb-1">No raw items found</h5>
+            <p class="mb-3 small">Upload an Excel file or add a raw item manually.</p>
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+              <button type="button" class="btn btn-emerald-action btn-sm d-inline-flex align-items-center gap-2" onclick="openUploadModal()">
+                <i class="fas fa-file-excel"></i> <span>Upload Excel</span>
+              </button>
+              <button type="button" class="btn btn-primary-action btn-sm d-inline-flex align-items-center gap-2" onclick="openItemModal()">
+                <i class="fas fa-plus"></i> <span>Add Raw Item</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="raw-pagination-bar" id="rawPagination">
+          <div id="rawPageInfo">Showing 0 of 0</div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-filter-toggle btn-sm" id="btnPrevPage" onclick="changePage(-1)">
+              <i class="fas fa-chevron-left me-1"></i>Prev
+            </button>
+            <span class="fw-semibold" id="rawPageNum">Page 1 / 1</span>
+            <button type="button" class="btn btn-filter-toggle btn-sm" id="btnNextPage" onclick="changePage(1)">
+              Next<i class="fas fa-chevron-right ms-1"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+{% include 'user/partials/mobile_nav.html' %}
+
+<!-- Add / Edit Raw Item Modal -->
+<div class="modal fade" id="rawItemModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <form id="rawItemForm" onsubmit="saveRawItem(event)">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="rawItemModalTitle">Add Raw Item</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editItemId" value="">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold small">Raw Material *</label>
+              <input type="text" class="form-control" id="fieldRawMaterial" placeholder="e.g. Ice cream Ube royale (1x3L=32scoops)" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Qty / Rtl</label>
+              <input type="number" step="any" class="form-control" id="fieldQtyRtl" value="0" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">UOM</label>
+              <input type="text" class="form-control" id="fieldUom" placeholder="e.g. Piece, Grams">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Measurement / Order</label>
+              <input type="number" step="any" class="form-control" id="fieldMeasurementOrder" value="0" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">UOM 2</label>
+              <input type="text" class="form-control" id="fieldUom2" placeholder="e.g. Piece, Grams">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary-action btn-sm" id="btnSaveRawItem">Save Raw Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Upload Excel Modal -->
+<div class="modal fade" id="uploadExcelModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <form id="uploadExcelForm" onsubmit="uploadExcelFile(event)">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Upload Raw Items Excel</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="raw-dropzone" id="excelDropzone" onclick="document.getElementById('excelFileInput').click()">
+            <i class="fas fa-file-excel text-success fs-2 mb-2"></i>
+            <div class="fw-semibold" id="excelFileName">Click to choose an Excel file (.xlsx) or drag &amp; drop</div>
+            <div class="text-muted small mt-1">Columns: Raw Material, Qty/Rtl, UOM, Measurement/Order, UOM2</div>
+            <input type="file" id="excelFileInput" accept=".xlsx,.xlsm" hidden onchange="onExcelSelected(this)">
+          </div>
+
+          <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" id="replaceExistingCheck">
+            <label class="form-check-label small" for="replaceExistingCheck">
+              Replace all existing raw items before importing
+            </label>
+          </div>
+
+          <div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center">
+            <span class="small text-muted">Need the exact format?</span>
+            <a href="{{ url_for('raw_items.download_sample') }}" class="btn btn-sm btn-outline-success">
+              <i class="fas fa-download me-1"></i>Download Sample (.xlsx)
+            </a>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-emerald-action btn-sm" id="btnUploadExcel">
+            <i class="fas fa-upload me-1"></i> Import Excel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="raw-toast" id="rawToast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const STORE_INV_URL = "{{ url_for('requisitions.store_inventory') }}";
+const RAW_API = {
+  list: "{{ url_for('raw_items.list_items') }}",
+  add: "{{ url_for('raw_items.add_item') }}",
+  editBase: "/user/raw-items/edit/",
+  deleteBase: "/user/raw-items/delete/",
+  exportUrl: "{{ url_for('raw_items.export_excel') }}",
+  upload: "{{ url_for('raw_items.upload_excel') }}"
+};
+
+let RAW_ITEMS = {{ raw_items_data | tojson | safe }};
+let filteredItems = [...RAW_ITEMS];
+let currentPage = 1;
+const PAGE_SIZE = 50;
+
+let itemModal = null;
+let uploadModal = null;
+
+function showPanel(panel) {
+  window.location.href = `${STORE_INV_URL}?panel=${encodeURIComponent(panel)}`;
+}
+
+function setInitials() {
+  const fullName = "{{ current_user.full_name | e }}";
+  const parts = fullName.trim().split(/\s+/);
+  const initials = parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : fullName.slice(0, 2).toUpperCase();
+  const el = document.getElementById('userInitials');
+  if (el) el.textContent = initials || 'U';
+}
+
+function restoreTheme() {
+  const isDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+  document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+  document.documentElement.classList.toggle('dark-mode', isDark);
+  const icon = document.querySelector('#themeToggle i');
+  if (icon) icon.className = isDark ? 'fas fa-moon' : 'fas fa-sun';
+}
+
+function toggleTheme() {
+  const isDark = !document.documentElement.classList.contains('dark-mode');
+  localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  restoreTheme();
+}
+
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('rawToast');
+  el.textContent = msg;
+  el.className = `raw-toast show ${type}`;
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.className = 'raw-toast'; }, 3500);
+}
+
+function formatNum(val) {
+  const n = Number(val);
+  if (isNaN(n)) return '0';
+  return Number.isInteger(n) ? n.toString() : parseFloat(n.toFixed(4)).toString();
+}
+
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function selectUomChip(uom) {
+  document.getElementById('rawUomFilter').value = uom;
+  applyFilters();
+}
+
+function updateStatsAndDropdowns() {
+  document.getElementById('rawItemsCountBadge').textContent = `${RAW_ITEMS.length.toLocaleString()} items`;
+
+  const uomCounts = {};
+  RAW_ITEMS.forEach(r => {
+    const u = (r.uom || '').trim();
+    if (u) uomCounts[u] = (uomCounts[u] || 0) + 1;
+  });
+
+  const sortedUoms = Object.keys(uomCounts).sort();
+  const uomSel = document.getElementById('rawUomFilter');
+  const prevUom = uomSel.value;
+  uomSel.innerHTML = '<option value="">All UOMs</option>' +
+    sortedUoms.map(u => `<option value="${escHtml(u)}">${escHtml(u)} (${uomCounts[u]})</option>`).join('');
+  if (uomCounts[prevUom]) uomSel.value = prevUom;
+
+  const bar = document.getElementById('quickUomBar');
+  const topUoms = Object.entries(uomCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const currentUom = uomSel.value;
+  bar.innerHTML = `<button type="button" class="quick-chip ${currentUom === '' ? 'active' : ''}" onclick="selectUomChip('')">
+      <span class="chip-dot dot-all"></span>
+      <span>All</span>
+      <span class="chip-count">${RAW_ITEMS.length}</span>
+    </button>` +
+    topUoms.map(([u, cnt]) => `
+      <button type="button" class="quick-chip ${currentUom === u ? 'active' : ''}" onclick="selectUomChip('${escHtml(u)}')">
+        <span class="chip-dot dot-success"></span>
+        <span>${escHtml(u)}</span>
+        <span class="chip-count">${cnt}</span>
+      </button>
+    `).join('');
+}
+
+function applyFilters() {
+  const q = document.getElementById('rawSearchInput').value.trim().toLowerCase();
+  const uom = document.getElementById('rawUomFilter').value;
+
+  filteredItems = RAW_ITEMS.filter(item => {
+    if (uom && item.uom !== uom) return false;
+    if (q) {
+      const hay = `${item.raw_material} ${item.uom} ${item.uom2}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  currentPage = 1;
+  updateStatsAndDropdowns();
+  renderTable();
+}
+
+function resetFilters() {
+  document.getElementById('rawSearchInput').value = '';
+  document.getElementById('rawUomFilter').value = '';
+  applyFilters();
+}
+
+function changePage(delta) {
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  currentPage = Math.min(totalPages, Math.max(1, currentPage + delta));
+  renderTable();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('rawItemsBody');
+  const empty = document.getElementById('rawEmptyState');
+  const table = document.getElementById('rawItemsTable');
+  const pagination = document.getElementById('rawPagination');
+
+  if (filteredItems.length === 0) {
+    tbody.innerHTML = '';
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    pagination.style.display = 'none';
+    return;
+  }
+
+  table.style.display = 'table';
+  empty.style.display = 'none';
+  pagination.style.display = 'flex';
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const slice = filteredItems.slice(startIdx, startIdx + PAGE_SIZE);
+
+  tbody.innerHTML = slice.map((item) => `
+    <tr>
+      <td>
+        <div class="product-info min-w-0">
+          <div class="product-title" title="${escHtml(item.raw_material)}">${escHtml(item.raw_material)}</div>
+        </div>
+      </td>
+      <td class="text-center">
+        <span class="stock-num stock-wh">${formatNum(item.qty_rtl)}</span>
+      </td>
+      <td class="text-center">
+        ${item.uom ? `<span class="station-badge">${escHtml(item.uom)}</span>` : '<span class="text-muted small">—</span>'}
+      </td>
+      <td class="text-center">
+        <span class="stock-num stock-store">${formatNum(item.measurement_order)}</span>
+      </td>
+      <td class="text-center">
+        ${item.uom2 ? `<span class="station-badge">${escHtml(item.uom2)}</span>` : '<span class="text-muted small">—</span>'}
+      </td>
+      <td class="text-center">
+        <div class="d-inline-flex align-items-center gap-1">
+          <button type="button" class="raw-row-action-btn" title="Edit" onclick="openItemModal(${item.id})"><i class="fas fa-pen"></i></button>
+          <button type="button" class="raw-row-action-btn delete" title="Delete" onclick="deleteRawItem(${item.id})"><i class="fas fa-trash"></i></button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  const endIdx = Math.min(startIdx + slice.length, filteredItems.length);
+  document.getElementById('rawPageInfo').textContent = `Showing ${startIdx + 1}–${endIdx} of ${filteredItems.length} items`;
+  document.getElementById('rawPageNum').textContent = `Page ${currentPage} / ${totalPages}`;
+  document.getElementById('btnPrevPage').disabled = currentPage <= 1;
+  document.getElementById('btnNextPage').disabled = currentPage >= totalPages;
+}
+
+async function reloadFromServer() {
+  const res = await fetch(RAW_API.list);
+  const data = await res.json();
+  if (data.success) {
+    RAW_ITEMS = data.items || [];
+    applyFilters();
+  }
+}
+
+function openItemModal(itemId = null) {
+  const form = document.getElementById('rawItemForm');
+  form.reset();
+  document.getElementById('editItemId').value = itemId || '';
+
+  if (itemId) {
+    const item = RAW_ITEMS.find(r => r.id === itemId);
+    if (!item) return;
+    document.getElementById('rawItemModalTitle').textContent = 'Edit Raw Item';
+    document.getElementById('fieldRawMaterial').value = item.raw_material;
+    document.getElementById('fieldQtyRtl').value = item.qty_rtl;
+    document.getElementById('fieldUom').value = item.uom;
+    document.getElementById('fieldMeasurementOrder').value = item.measurement_order;
+    document.getElementById('fieldUom2').value = item.uom2;
+  } else {
+    document.getElementById('rawItemModalTitle').textContent = 'Add Raw Item';
+    document.getElementById('fieldQtyRtl').value = '0';
+    document.getElementById('fieldMeasurementOrder').value = '0';
+  }
+  itemModal.show();
+}
+
+async function saveRawItem(e) {
+  e.preventDefault();
+  const itemId = document.getElementById('editItemId').value;
+  const payload = {
+    raw_material: document.getElementById('fieldRawMaterial').value.trim(),
+    qty_rtl: document.getElementById('fieldQtyRtl').value,
+    uom: document.getElementById('fieldUom').value.trim(),
+    measurement_order: document.getElementById('fieldMeasurementOrder').value,
+    uom2: document.getElementById('fieldUom2').value.trim(),
+  };
+
+  const url = itemId ? `${RAW_API.editBase}${itemId}` : RAW_API.add;
+  const btn = document.getElementById('btnSaveRawItem');
+  btn.disabled = true;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showToast(data.message || 'Could not save raw item.', 'error');
+      return;
+    }
+    itemModal.hide();
+    showToast(data.message || 'Saved.', 'success');
+    await reloadFromServer();
+  } catch (err) {
+    showToast('Network error while saving.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deleteRawItem(itemId) {
+  if (!confirm('Delete this raw item row?')) return;
+  try {
+    const res = await fetch(`${RAW_API.deleteBase}${itemId}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showToast(data.message || 'Delete failed.', 'error');
+      return;
+    }
+    showToast('Raw item deleted.', 'success');
+    await reloadFromServer();
+  } catch (err) {
+    showToast('Network error while deleting.', 'error');
+  }
+}
+
+function exportRawItemsExcel() {
+  const q = document.getElementById('rawSearchInput').value.trim();
+  const uom = document.getElementById('rawUomFilter').value;
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (uom) params.set('uom', uom);
+  const qs = params.toString();
+  window.location.href = qs ? `${RAW_API.exportUrl}?${qs}` : RAW_API.exportUrl;
+}
+
+function openUploadModal() {
+  document.getElementById('uploadExcelForm').reset();
+  document.getElementById('excelFileName').textContent = 'Click to choose an Excel file (.xlsx) or drag & drop';
+  uploadModal.show();
+}
+
+function onExcelSelected(input) {
+  const file = input.files && input.files[0];
+  document.getElementById('excelFileName').textContent = file
+    ? `${file.name} (${(file.size / 1024).toFixed(1)} KB)`
+    : 'Click to choose an Excel file (.xlsx) or drag & drop';
+}
+
+async function uploadExcelFile(e) {
+  e.preventDefault();
+  const input = document.getElementById('excelFileInput');
+  const file = input.files && input.files[0];
+  if (!file) {
+    showToast('Please select an Excel (.xlsx) file first.', 'error');
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('replace_existing', document.getElementById('replaceExistingCheck').checked ? 'true' : 'false');
+
+  const btn = document.getElementById('btnUploadExcel');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Importing...';
+
+  try {
+    const res = await fetch(RAW_API.upload, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showToast(data.message || 'Import failed.', 'error');
+      return;
+    }
+    uploadModal.hide();
+    showToast(data.message || 'Excel imported.', 'success');
+    await reloadFromServer();
+  } catch (err) {
+    showToast('Network error while uploading Excel.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-upload me-1"></i> Import Excel';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setInitials();
+  restoreTheme();
+  const lbl = document.getElementById('pageLabel');
+  if (lbl) lbl.textContent = 'Raw Items';
+
+  itemModal = new bootstrap.Modal(document.getElementById('rawItemModal'));
+  uploadModal = new bootstrap.Modal(document.getElementById('uploadExcelModal'));
+
+  const dz = document.getElementById('excelDropzone');
+  dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dz.classList.remove('dragover');
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const input = document.getElementById('excelFileInput');
+      input.files = e.dataTransfer.files;
+      onExcelSelected(input);
+    }
+  });
+
+  applyFilters();
+});
+</script>
+</body>
+</html>

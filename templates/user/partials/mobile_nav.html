@@ -50,6 +50,46 @@
     <button type="button" class="more-sheet-close" onclick="closeMoreSheet()"><i class="fas fa-times"></i></button>
   </div>
   <div class="more-grid">
+    <a href="{{ url_for('raw_items.index') }}" class="more-card">
+      <div class="more-card-icon icon-emerald"><i class="fas fa-cubes"></i></div>
+      <div class="more-card-info">
+        <div class="more-card-title">Raw Items</div>
+        <div class="more-card-desc">Manage &amp; upload raw items Excel</div>
+      </div>
+      <i class="fas fa-chevron-right more-card-arr"></i>
+    </a>
+    <a href="{{ url_for('invensync.index') }}" class="more-card">
+      <div class="more-card-icon icon-blue"><i class="fas fa-table-list"></i></div>
+      <div class="more-card-info">
+        <div class="more-card-title">InvenSync</div>
+        <div class="more-card-desc">Daily Ending Inventory sheet</div>
+      </div>
+      <i class="fas fa-chevron-right more-card-arr"></i>
+    </a>
+    <a href="{{ url_for('trans_in.index') }}" class="more-card">
+      <div class="more-card-icon icon-emerald"><i class="fas fa-cart-plus"></i></div>
+      <div class="more-card-info">
+        <div class="more-card-title">Trans-In</div>
+        <div class="more-card-desc">Input &amp; finalize purchases</div>
+      </div>
+      <i class="fas fa-chevron-right more-card-arr"></i>
+    </a>
+    <a href="{{ url_for('pos_sold.index') }}" class="more-card">
+      <div class="more-card-icon icon-purple"><i class="fas fa-cash-register"></i></div>
+      <div class="more-card-info">
+        <div class="more-card-title">POS Sold</div>
+        <div class="more-card-desc">Sync &amp; view live POS sales</div>
+      </div>
+      <i class="fas fa-chevron-right more-card-arr"></i>
+    </a>
+    <a href="{{ url_for('product_recipes.index') }}" class="more-card">
+      <div class="more-card-icon icon-amber"><i class="fas fa-utensils"></i></div>
+      <div class="more-card-info">
+        <div class="more-card-title">Product Recipes</div>
+        <div class="more-card-desc">Product &amp; raw material recipes</div>
+      </div>
+      <i class="fas fa-chevron-right more-card-arr"></i>
+    </a>
     <button type="button" class="more-card" onclick="selectFromMore('inventory')">
       <div class="more-card-icon icon-blue"><i class="fas fa-boxes-stacked"></i></div>
       <div class="more-card-info">

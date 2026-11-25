@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>POS Sold — iCount</title>
+
+<script>
+(function() {
+  var isDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+  document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+  if (isDark) document.documentElement.classList.add('dark-mode');
+})();
+</script>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/app-system.css') }}?v=20261125-pos-sold-v2" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/requisition-form.css') }}?v=20261125-pos-sold-v2" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/products-page.css') }}?v=20261125-pos-sold-v2" rel="stylesheet">
+<style>
+.fa, .fas, .far, .fal, .fab, .fad, .fak, .fa-solid, .fa-regular, .fa-light, .fa-thin, .fa-duotone, .fa-brands, [class*="fa-"], i.fas, i.far, i.fab, i.fa {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", "Font Awesome 5 Free", "FontAwesome" !important;
+  font-style: normal !important;
+  display: inline-block;
+  line-height: 1;
+}
+.fab, .fa-brands { font-family: "Font Awesome 6 Brands" !important; }
+
+#mainContent { padding: 1.5rem clamp(1rem, 2.4vw, 2rem) 2rem !important; }
+.products-page { padding: 0 !important; }
+.products-page-icon { flex-shrink: 0; }
+@media (max-width: 768px) { #mainContent { padding: 1rem 1rem 5.5rem !important; } }
+
+.products-table-card { overflow: visible !important; }
+
+#posSoldTableWrap {
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+#posSoldTable {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-bottom: 0;
+}
+
+#posSoldTable thead th {
+  height: 46px;
+  padding: 0.75rem 1rem !important;
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap !important;
+}
+
+#posSoldTable tbody tr > * {
+  height: 56px;
+  padding: 0.6rem 1rem !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  vertical-align: middle;
+}
+
+#posSoldTable tbody tr:hover > * { background: #f8fafc !important; }
+#posSoldTable tbody tr:last-child > * { border-bottom: 0 !important; }
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  display: inline-block;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.raw-pagination-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.raw-empty-state { padding: 3.5rem 1.5rem; text-align: center; color: #64748b; }
+.raw-empty-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 0.9rem;
+  border-radius: 14px;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
+.raw-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1080;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #18181b;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.22);
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+.raw-toast.show { display: inline-flex; }
+.raw-toast.error { background: #dc2626; }
+.raw-toast.success { background: #059669; }
+
+html.dark-mode .products-page-title { color: #f4f4f5; }
+html.dark-mode .products-count-badge {
+  background: rgba(37, 99, 235, 0.15) !important;
+  color: #93c5fd !important;
+  border-color: rgba(37, 99, 235, 0.3) !important;
+}
+html.dark-mode .products-filter-card,
+html.dark-mode .products-table-card {
+  background: #101012 !important;
+  border-color: #27272a !important;
+}
+html.dark-mode #posSoldTable thead th,
+html.dark-mode .raw-pagination-bar {
+  background: #141416 !important;
+  border-color: #27272a !important;
+  color: #a1a1aa !important;
+}
+html.dark-mode #posSoldTable tbody tr > * {
+  background: #101012 !important;
+  border-color: #1f1f22 !important;
+  color: #f4f4f5 !important;
+}
+html.dark-mode #posSoldTable tbody tr:hover > * { background: #18181b !important; }
+</style>
+</head>
+<body>
+{% set active_page = 'pos_sold' %}
+{% include 'user/partials/topbar.html' %}
+
+<div class="app-body">
+  {% include 'user/partials/sidebar.html' %}
+
+  <main class="main" id="mainContent">
+    <div class="products-page">
+      <!-- Header -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="products-page-icon" style="width:46px;height:46px;">
+            <i class="fas fa-cash-register fa-lg"></i>
+          </div>
+          <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <h4 class="products-page-title mb-0">POS Sold</h4>
+              <span id="posCountBadge" class="badge products-count-badge rounded-pill px-2.5 py-1 font-monospace">
+                {{ pos_records|length }} items
+              </span>
+              <span class="badge rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="background:rgba(16,185,129,0.12);color:#059669;border:1px solid rgba(16,185,129,0.25);font-size:0.72rem;">
+                <span class="live-dot"></span> Auto-Push Active
+              </span>
+            </div>
+            <div class="text-muted small mt-0.5" style="font-size:0.8rem">
+              Live POS sales pushed automatically · Last sync: <span id="lastSyncLbl">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+          <input type="date" id="posDatePicker" class="form-control form-control-sm" value="{{ sold_date }}" onchange="changeDate()" style="width:auto;border-radius:10px;min-height:36px;">
+          <button type="button" class="btn btn-filter-toggle btn-sm shadow-sm d-flex align-items-center gap-2" onclick="openEndpointModal()">
+            <i class="fas fa-plug"></i> <span>Endpoint Info</span>
+          </button>
+          <button type="button" class="btn btn-emerald-action btn-sm shadow-sm d-flex align-items-center gap-2" id="btnRefreshPos" onclick="refreshPosData(true)">
+            <i class="fas fa-rotate"></i> <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search & Summary Bar -->
+      <div class="card border-0 shadow-sm mb-3 products-filter-card">
+        <div class="card-body">
+          <form class="row g-2 align-items-center products-filter-form" onsubmit="event.preventDefault(); applyFilter();">
+            <div class="col-md-5 products-filter-search">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
+                <input id="posSearchInput" type="text" class="form-control border-start-0 ps-0" placeholder="Search product name..." oninput="applyFilter()">
+              </div>
+            </div>
+            <div class="col-md-auto ms-md-auto d-flex align-items-center gap-3">
+              <span class="small fw-semibold text-muted">Qty: <strong class="text-primary" id="totalQtyLbl">0</strong></span>
+              <span class="small fw-semibold text-muted">Sales: <strong class="text-success" id="totalAmountLbl">0.00</strong></span>
+              <button type="button" class="btn btn-filter-reset" title="Reset search" onclick="resetFilter()">
+                <i class="fas fa-rotate-left"></i>
+              </button>
+              <button type="button" class="btn btn-filter-excel" title="Export POS Sold Excel" onclick="exportPosExcel()">
+                <i class="fas fa-file-excel"></i>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Table Card -->
+      <div class="card border-0 shadow-sm products-table-card position-relative">
+        <div class="table-responsive" id="posSoldTableWrap">
+          <table class="table align-middle mb-0" id="posSoldTable">
+            <thead>
+              <tr>
+                <th class="px-3 py-3">Date</th>
+                <th class="text-center px-3 py-3">Product ID</th>
+                <th class="px-3 py-3">Product Name</th>
+                <th class="text-center px-3 py-3">Qty Sold</th>
+                <th class="text-end px-3 py-3">Amount</th>
+                <th class="text-center px-3 py-3">Client</th>
+                <th class="text-center px-3 py-3">Synced At</th>
+              </tr>
+            </thead>
+            <tbody id="posBody"></tbody>
+          </table>
+
+          <div class="raw-empty-state" id="posEmptyState" style="display:none;">
+            <div class="raw-empty-icon"><i class="fas fa-cash-register"></i></div>
+            <h5 class="fw-bold mb-1">No POS sold data yet for this date</h5>
+            <p class="mb-3 small">Your local POS pushes sales automatically to <code>POST /api/pos-sold</code> on every settled order.</p>
+            <button type="button" class="btn btn-emerald-action btn-sm d-inline-flex align-items-center gap-2" onclick="refreshPosData(true)">
+              <i class="fas fa-rotate"></i> <span>Check for Updates</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="raw-pagination-bar" id="posPagination">
+          <div id="posPageInfo">Showing 0 of 0</div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-filter-toggle btn-sm" id="btnPrevPage" onclick="changePage(-1)">
+              <i class="fas fa-chevron-left me-1"></i>Prev
+            </button>
+            <span class="fw-semibold" id="posPageNum">Page 1 / 1</span>
+            <button type="button" class="btn btn-filter-toggle btn-sm" id="btnNextPage" onclick="changePage(1)">
+              Next<i class="fas fa-chevron-right ms-1"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+{% include 'user/partials/mobile_nav.html' %}
+
+<!-- Push Endpoint Info Modal -->
+<div class="modal fade" id="endpointInfoModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="fas fa-plug me-2 text-success"></i>POS Push Receiver Info</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-3">Configure these values in your local POS <code>.env</code> so settled orders push automatically:</p>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">INVENTORY_PUSH_URL</label>
+          <input type="text" class="form-control form-control-sm font-monospace" id="pushUrlField" readonly>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Client ID</label>
+          <input type="text" class="form-control form-control-sm font-monospace" value="{{ pos_client_id }}" readonly>
+        </div>
+        <div class="small text-muted mt-2">
+          Header: <code>X-API-Key: &lt;POS_SOLD_API_KEY&gt;</code>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary-action btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="raw-toast" id="rawToast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const STORE_INV_URL = "{{ url_for('requisitions.store_inventory') }}";
+const POS_API = {
+  index: "{{ url_for('pos_sold.index') }}",
+  list: "{{ url_for('pos_sold.list_records') }}",
+  exportUrl: "{{ url_for('pos_sold.export_excel') }}"
+};
+
+let RECORDS = {{ pos_records | tojson | safe }};
+let filteredRecords = [...RECORDS];
+let currentPage = 1;
+const PAGE_SIZE = 50;
+let endpointModal = null;
+
+function showPanel(panel) {
+  window.location.href = `${STORE_INV_URL}?panel=${encodeURIComponent(panel)}`;
+}
+
+function setInitials() {
+  const fullName = "{{ current_user.full_name | e }}";
+  const parts = fullName.trim().split(/\s+/);
+  const initials = parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : fullName.slice(0, 2).toUpperCase();
+  const el = document.getElementById('userInitials');
+  if (el) el.textContent = initials || 'U';
+}
+
+function restoreTheme() {
+  const isDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+  document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+  document.documentElement.classList.toggle('dark-mode', isDark);
+  const icon = document.querySelector('#themeToggle i');
+  if (icon) icon.className = isDark ? 'fas fa-moon' : 'fas fa-sun';
+}
+
+function toggleTheme() {
+  const isDark = !document.documentElement.classList.contains('dark-mode');
+  localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  restoreTheme();
+}
+
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('rawToast');
+  el.textContent = msg;
+  el.className = `raw-toast show ${type}`;
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.className = 'raw-toast'; }, 3500);
+}
+
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatNum(val) {
+  const n = Number(val);
+  if (isNaN(n)) return '0';
+  return Number.isInteger(n) ? n.toString() : parseFloat(n.toFixed(4)).toString();
+}
+
+function formatMoney(val) {
+  const n = Number(val) || 0;
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function changeDate() {
+  const d = document.getElementById('posDatePicker').value;
+  if (d) window.location.href = `${POS_API.index}?date=${encodeURIComponent(d)}`;
+}
+
+function applyFilter() {
+  const q = document.getElementById('posSearchInput').value.trim().toLowerCase();
+  filteredRecords = RECORDS.filter(r => !q || (r.product_name || '').toLowerCase().includes(q));
+  currentPage = 1;
+  renderTable();
+}
+
+function resetFilter() {
+  document.getElementById('posSearchInput').value = '';
+  applyFilter();
+}
+
+function changePage(delta) {
+  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
+  currentPage = Math.min(totalPages, Math.max(1, currentPage + delta));
+  renderTable();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('posBody');
+  const empty = document.getElementById('posEmptyState');
+  const table = document.getElementById('posSoldTable');
+  const pagination = document.getElementById('posPagination');
+
+  document.getElementById('posCountBadge').textContent = `${RECORDS.length.toLocaleString()} items`;
+  const sumQty = filteredRecords.reduce((s, r) => s + (Number(r.qty) || 0), 0);
+  const sumAmt = filteredRecords.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  document.getElementById('totalQtyLbl').textContent = formatNum(sumQty);
+  document.getElementById('totalAmountLbl').textContent = formatMoney(sumAmt);
+
+  const latestSync = RECORDS.reduce((acc, r) => (r.synced_at && r.synced_at > acc ? r.synced_at : acc), '');
+  document.getElementById('lastSyncLbl').textContent = latestSync || 'Waiting for POS push';
+
+  if (filteredRecords.length === 0) {
+    tbody.innerHTML = '';
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    pagination.style.display = 'none';
+    return;
+  }
+
+  table.style.display = 'table';
+  empty.style.display = 'none';
+  pagination.style.display = 'flex';
+
+  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const slice = filteredRecords.slice(startIdx, startIdx + PAGE_SIZE);
+
+  tbody.innerHTML = slice.map(r => `
+    <tr>
+      <td class="font-monospace small">${escHtml(r.date)}</td>
+      <td class="text-center"><span class="station-badge">${r.product_id !== null ? escHtml(r.product_id) : '—'}</span></td>
+      <td><div class="product-title" title="${escHtml(r.product_name)}">${escHtml(r.product_name)}</div></td>
+      <td class="text-center"><span class="stock-num stock-wh">${formatNum(r.qty)}</span></td>
+      <td class="text-end fw-bold text-success">${formatMoney(r.amount)}</td>
+      <td class="text-center"><span class="station-badge">${escHtml(r.client_id || '—')}</span></td>
+      <td class="text-center text-muted small">${escHtml(r.synced_at || '—')}</td>
+    </tr>
+  `).join('');
+
+  const endIdx = Math.min(startIdx + slice.length, filteredRecords.length);
+  document.getElementById('posPageInfo').textContent = `Showing ${startIdx + 1}–${endIdx} of ${filteredRecords.length} items`;
+  document.getElementById('posPageNum').textContent = `Page ${currentPage} / ${totalPages}`;
+  document.getElementById('btnPrevPage').disabled = currentPage <= 1;
+  document.getElementById('btnNextPage').disabled = currentPage >= totalPages;
+}
+
+function openEndpointModal() {
+  document.getElementById('pushUrlField').value = `${window.location.origin}/api/pos-sold`;
+  endpointModal.show();
+}
+
+async function refreshPosData(showFeedback = false) {
+  const dateVal = document.getElementById('posDatePicker').value;
+  const btn = document.getElementById('btnRefreshPos');
+  if (showFeedback) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Refreshing...</span>';
+  }
+  try {
+    const res = await fetch(`${POS_API.list}?date=${encodeURIComponent(dateVal)}`);
+    const data = await res.json();
+    if (data.success) {
+      RECORDS = data.items || [];
+      applyFilter();
+      if (showFeedback) showToast(`Loaded ${RECORDS.length} POS sold item(s).`, 'success');
+    }
+  } catch (err) {
+    if (showFeedback) showToast('Failed to refresh POS sold data.', 'error');
+  } finally {
+    if (showFeedback) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-rotate"></i> <span>Refresh</span>';
+    }
+  }
+}
+
+function exportPosExcel() {
+  const d = document.getElementById('posDatePicker').value;
+  const q = document.getElementById('posSearchInput').value.trim();
+  const params = new URLSearchParams();
+  if (d) params.set('date', d);
+  if (q) params.set('q', q);
+  window.location.href = `${POS_API.exportUrl}?${params.toString()}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setInitials();
+  restoreTheme();
+  const lbl = document.getElementById('pageLabel');
+  if (lbl) lbl.textContent = 'POS Sold';
+  endpointModal = new bootstrap.Modal(document.getElementById('endpointInfoModal'));
+  renderTable();
+
+  // Auto-poll every 30s so live POS pushes appear automatically
+  setInterval(() => refreshPosData(false), 30000);
+});
+</script>
+</body>
+</html>

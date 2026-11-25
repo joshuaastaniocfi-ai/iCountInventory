@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Product Recipes — iCount</title>
+
+<script>
+(function() {
+  var isDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+  document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+  if (isDark) document.documentElement.classList.add('dark-mode');
+})();
+</script>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/app-system.css') }}?v=20261124-recipes-v2" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/requisition-form.css') }}?v=20261124-recipes-v2" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/products-page.css') }}?v=20261124-recipes-v2" rel="stylesheet">
+<style>
+.fa, .fas, .far, .fal, .fab, .fad, .fak, .fa-solid, .fa-regular, .fa-light, .fa-thin, .fa-duotone, .fa-brands, [class*="fa-"], i.fas, i.far, i.fab, i.fa {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", "Font Awesome 5 Free", "FontAwesome" !important;
+  font-style: normal !important;
+  display: inline-block;
+  line-height: 1;
+}
+.fab, .fa-brands { font-family: "Font Awesome 6 Brands" !important; }
+
+#mainContent {
+  padding: 1.5rem clamp(1rem, 2.4vw, 2rem) 2rem !important;
+}
+
+.products-page { padding: 0 !important; }
+.products-page-icon { flex-shrink: 0; }
+
+@media (max-width: 768px) {
+  #mainContent { padding: 1rem 1rem 5.5rem !important; }
+}
+
+.products-table-card { overflow: visible !important; }
+
+#recipesTableWrap {
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+#recipesTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-bottom: 0;
+}
+
+#recipesTable thead th {
+  height: 46px;
+  padding: 0.75rem 1rem !important;
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap !important;
+}
+
+#recipesTable tbody tr > * {
+  height: 58px;
+  padding: 0.65rem 1rem !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  vertical-align: middle;
+  transition: background-color 0.14s ease;
+}
+
+#recipesTable tbody tr:hover > * { background: #f8fafc !important; }
+#recipesTable tbody tr:last-child > * { border-bottom: 0 !important; }
+#recipesTable tbody tr.active-row > * { background: #eff6ff !important; }
+
+.btn-view-recipe {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.36rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.btn-view-recipe:hover {
+  background: #18181b;
+  border-color: #18181b;
+  color: #ffffff;
+}
+
+.raw-row-action-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  transition: all 0.15s ease;
+}
+
+.raw-row-action-btn:hover { background: #f1f5f9; color: #0f172a; border-color: #cbd5e1; }
+.raw-row-action-btn.delete:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+
+.raw-pagination-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+/* Right Sidebar Drawer */
+.recipe-offcanvas {
+  width: min(540px, 100vw) !important;
+  border-left: 1px solid #e2e8f0;
+}
+
+.recipe-offcanvas .offcanvas-header {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1rem 1.25rem;
+}
+
+.recipe-offcanvas .offcanvas-body {
+  padding: 1rem 1.25rem;
+}
+
+.recipe-drawer-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.84rem;
+}
+
+.recipe-drawer-table thead th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.6rem 0.7rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.recipe-drawer-table tbody td {
+  padding: 0.65rem 0.7rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.raw-empty-state { padding: 3.5rem 1.5rem; text-align: center; color: #64748b; }
+.raw-empty-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 0.9rem;
+  border-radius: 14px;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
+.raw-dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 28px 18px;
+  text-align: center;
+  cursor: pointer;
+  background: #f8fafc;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.raw-dropzone.dragover { border-color: #10b981; background: #ecfdf5; }
+
+.raw-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1080;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #18181b;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.22);
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+.raw-toast.show { display: inline-flex; }
+.raw-toast.error { background: #dc2626; }
+.raw-toast.success { background: #059669; }
+
+/* Dark Mode */
+html.dark-mode .products-page-title { color: #f4f4f5; }
+html.dark-mode .products-count-badge {
+  background: rgba(37, 99, 235, 0.15) !important;
+  color: #93c5fd !important;
+  border-color: rgba(37, 99, 235, 0.3) !important;
+}
+html.dark-mode .products-filter-card,
+html.dark-mode .products-table-card {
+  background: #101012 !important;
+  border-color: #27272a !important;
+}
+html.dark-mode #recipesTable thead th,
+html.dark-mode .raw-pagination-bar,
+html.dark-mode .recipe-drawer-table thead th {
+  background: #141416 !important;
+  border-color: #27272a !important;
+  color: #a1a1aa !important;
+}
+html.dark-mode #recipesTable tbody tr > *,
+html.dark-mode .recipe-drawer-table tbody td {
+  background: #101012 !important;
+  border-color: #1f1f22 !important;
+  color: #f4f4f5 !important;
+}
+html.dark-mode #recipesTable tbody tr:hover > * { background: #18181b !important; }
+html.dark-mode #recipesTable tbody tr.active-row > * { background: #1e293b !important; }
+html.dark-mode .btn-view-recipe {
+  background: #141416;
+  border-color: #27272a;
+  color: #f4f4f5;
+}
+html.dark-mode .btn-view-recipe:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+html.dark-mode .recipe-offcanvas {
+  background: #101012 !important;
+  border-left-color: #27272a !important;
+  color: #f4f4f5 !important;
+}
+html.dark-mode .recipe-offcanvas .offcanvas-header {
+  border-bottom-color: #27272a !important;
+}
+html.dark-mode .raw-row-action-btn { background: #141416; border-color: #27272a; color: #a1a1aa; }
+html.dark-mode .raw-row-action-btn:hover { background: #18181b; color: #f4f4f5; border-color: #3f3f46; }
+html.dark-mode .raw-dropzone { background: #101012; border-color: #27272a; }
+</style>
+</head>
+<body>
+{% set active_page = 'product_recipes' %}
+{% include 'user/partials/topbar.html' %}
+
+<div class="app-body">
+  {% include 'user/partials/sidebar.html' %}
+
+  <main class="main" id="mainContent">
+    <div class="products-page">
+      <!-- Header -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="products-page-icon" style="width:46px;height:46px;">
+            <i class="fas fa-utensils fa-lg"></i>
+          </div>
+          <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <h4 class="products-page-title mb-0">Product Recipes</h4>
+              <span id="recipesCountBadge" class="badge products-count-badge rounded-pill px-2.5 py-1 font-monospace">
+                0 products
+              </span>
+            </div>
+            <div class="text-muted small mt-0.5" style="font-size:0.8rem">
+              Select a product to view its raw item ingredients &amp; measurements
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+          <button class="btn btn-filter-toggle btn-sm shadow-sm d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true">
+            <i class="fas fa-sliders"></i> <span>Filters</span>
+          </button>
+          <button type="button" class="btn btn-emerald-action btn-sm shadow-sm d-flex align-items-center gap-2" onclick="openUploadModal()">
+            <i class="fas fa-file-excel"></i> <span>Upload Excel</span>
+          </button>
+          <button type="button" class="btn btn-primary-action btn-sm shadow-sm d-flex align-items-center gap-2" onclick="openRecipeModal()">
+            <i class="fas fa-plus"></i> <span>Add Recipe</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Category Filter Chips -->
+      <div class="quick-status-bar mb-3" id="quickCategoryBar"></div>
+
+      <!-- Collapsible Filter Card -->
+      <div class="collapse show" id="filterCollapse">
+        <div class="card border-0 shadow-sm mb-3 products-filter-card">
+          <div class="card-body">
+            <form class="row g-2 align-items-center products-filter-form" onsubmit="event.preventDefault(); applyFilters();">
+              <div class="col-md-5 products-filter-search">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
+                  <input id="recSearchInput" type="text" class="form-control border-start-0 ps-0" placeholder="Search product name or category..." oninput="applyFilters()">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <select id="recCategoryFilter" class="form-select form-select-sm" onchange="applyFilters()">
+                  <option value="">All Categories</option>
+                </select>
+              </div>
+              <div class="col-md-auto d-flex gap-2 products-filter-actions ms-md-auto">
+                <button type="button" class="btn btn-filter-reset" title="Reset filters" onclick="resetFilters()">
+                  <i class="fas fa-rotate-left"></i>
+                </button>
+                <button type="button" class="btn btn-filter-excel" title="Download Product Recipes Excel" onclick="exportRecipesExcel()">
+                  <i class="fas fa-file-excel"></i>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table Card (Grouped: Category + Product Name + View) -->
+      <div class="card border-0 shadow-sm products-table-card position-relative">
+        <div class="table-responsive" id="recipesTableWrap">
+          <table class="table align-middle mb-0" id="recipesTable">
+            <thead>
+              <tr>
+                <th class="px-3 py-3">Product Name</th>
+                <th class="px-3 py-3" style="width:220px;">Category</th>
+                <th class="text-center px-3 py-3" style="width:140px;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="recipesBody"></tbody>
+          </table>
+
+          <div class="raw-empty-state" id="recipesEmptyState" style="display:none;">
+            <div class="raw-empty-icon"><i class="fas fa-utensils"></i></div>
+            <h5 class="fw-bold mb-1">No product recipes found</h5>
+            <p class="mb-3 small">Upload your product recipe Excel file or add a recipe mapping manually.</p>
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+              <button type="button" class="btn btn-emerald-action btn-sm d-inline-flex align-items-center gap-2" onclick="openUploadModal()">
+                <i class="fas fa-file-excel"></i> <span>Upload Excel</span>
+              </button>
+              <button type="button" class="btn btn-primary-action btn-sm d-inline-flex align-items-center gap-2" onclick="openRecipeModal()">
+                <i class="fas fa-plus"></i> <span>Add Recipe</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="raw-pagination-bar" id="recipesPagination">
+          <div id="recipesPageInfo">Showing 0 of 0</div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-filter-toggle btn-sm" id="btnPrevPage" onclick="changePage(-1)">
+              <i class="fas fa-chevron-left me-1"></i>Prev
+            </button>
+            <span class="fw-semibold" id="recipesPageNum">Page 1 / 1</span>
+            <button type="button" class="btn btn-filter-toggle btn-sm" id="btnNextPage" onclick="changePage(1)">
+              Next<i class="fas fa-chevron-right ms-1"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+{% include 'user/partials/mobile_nav.html' %}
+
+<!-- Right Sidebar Drawer: Recipe Ingredients -->
+<div class="offcanvas offcanvas-end recipe-offcanvas" tabindex="-1" id="recipeDrawer" aria-labelledby="drawerProductTitle">
+  <div class="offcanvas-header d-flex align-items-center justify-content-between gap-2">
+    <h6 class="offcanvas-title fw-bold mb-0 text-truncate" id="drawerProductTitle" style="font-size:1rem;">Product Name</h6>
+    <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
+      <button type="button" class="btn btn-primary-action btn-sm" onclick="addIngredientToCurrentProduct()">
+        <i class="fas fa-plus me-1"></i>Add Item
+      </button>
+      <button type="button" class="btn-close m-0" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+  </div>
+  <div class="offcanvas-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span class="text-muted small fw-semibold" id="drawerIngredientCount">0 ingredients</span>
+    </div>
+    <div class="table-responsive">
+      <table class="recipe-drawer-table">
+        <thead>
+          <tr>
+            <th>Raw Item</th>
+            <th class="text-end">Qty</th>
+            <th class="text-center">UOM</th>
+            <th class="text-center" style="width:76px;"></th>
+          </tr>
+        </thead>
+        <tbody id="drawerRecipeBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Recipe Modal -->
+<div class="modal fade" id="recipeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <form id="recipeForm" onsubmit="saveRecipe(event)">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="recipeModalTitle">Add Product Recipe</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editRecipeId" value="">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Category *</label>
+              <input type="text" class="form-control" id="fieldCategory" placeholder="e.g. Cool Seductions" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Product Name *</label>
+              <input type="text" class="form-control" id="fieldProductName" placeholder="e.g. DRIZZLE" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold small">Raw Material *</label>
+              <input type="text" class="form-control" id="fieldRawMaterial" list="rawMaterialsList" placeholder="Select or type raw material..." required>
+              <datalist id="rawMaterialsList">
+                {% for name in raw_material_names %}
+                <option value="{{ name }}">
+                {% endfor %}
+              </datalist>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Recipe Qty (Measurement/Order)</label>
+              <input type="number" step="any" class="form-control" id="fieldRecipeQty" value="0" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Recipe UOM (UOM2)</label>
+              <input type="text" class="form-control" id="fieldRecipeUom" placeholder="e.g. Piece, Grams">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary-action btn-sm" id="btnSaveRecipe">Save Recipe</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Upload Excel Modal -->
+<div class="modal fade" id="uploadExcelModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <form id="uploadExcelForm" onsubmit="uploadExcelFile(event)">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Upload Product Recipes Excel</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="raw-dropzone" id="excelDropzone" onclick="document.getElementById('excelFileInput').click()">
+            <i class="fas fa-file-excel text-success fs-2 mb-2"></i>
+            <div class="fw-semibold" id="excelFileName">Click to choose an Excel file (.xlsx) or drag &amp; drop</div>
+            <div class="text-muted small mt-1">Columns: Category, Product name, Raw Material, Measurement/Order, UOM2</div>
+            <input type="file" id="excelFileInput" accept=".xlsx,.xlsm" hidden onchange="onExcelSelected(this)">
+          </div>
+
+          <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" id="replaceExistingCheck">
+            <label class="form-check-label small" for="replaceExistingCheck">
+              Replace all existing product recipes before importing
+            </label>
+          </div>
+
+          <div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center">
+            <span class="small text-muted">Need the exact format?</span>
+            <a href="{{ url_for('product_recipes.download_sample') }}" class="btn btn-sm btn-outline-success">
+              <i class="fas fa-download me-1"></i>Download Sample (.xlsx)
+            </a>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-emerald-action btn-sm" id="btnUploadExcel">
+            <i class="fas fa-upload me-1"></i> Import Excel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="raw-toast" id="rawToast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const STORE_INV_URL = "{{ url_for('requisitions.store_inventory') }}";
+const REC_API = {
+  list: "{{ url_for('product_recipes.list_recipes') }}",
+  add: "{{ url_for('product_recipes.add_recipe') }}",
+  editBase: "/user/product-recipes/edit/",
+  deleteBase: "/user/product-recipes/delete/",
+  exportUrl: "{{ url_for('product_recipes.export_excel') }}",
+  upload: "{{ url_for('product_recipes.upload_excel') }}"
+};
+
+let RECIPES = {{ recipes_data | tojson | safe }};
+let groupedProducts = [];
+let filteredProducts = [];
+let currentPage = 1;
+const PAGE_SIZE = 50;
+let activeProductKey = null;
+
+let recipeModal = null;
+let uploadModal = null;
+let recipeDrawer = null;
+
+function showPanel(panel) {
+  window.location.href = `${STORE_INV_URL}?panel=${encodeURIComponent(panel)}`;
+}
+
+function setInitials() {
+  const fullName = "{{ current_user.full_name | e }}";
+  const parts = fullName.trim().split(/\s+/);
+  const initials = parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : fullName.slice(0, 2).toUpperCase();
+  const el = document.getElementById('userInitials');
+  if (el) el.textContent = initials || 'U';
+}
+
+function restoreTheme() {
+  const isDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+  document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+  document.documentElement.classList.toggle('dark-mode', isDark);
+  const icon = document.querySelector('#themeToggle i');
+  if (icon) icon.className = isDark ? 'fas fa-moon' : 'fas fa-sun';
+}
+
+function toggleTheme() {
+  const isDark = !document.documentElement.classList.contains('dark-mode');
+  localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  restoreTheme();
+}
+
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('rawToast');
+  el.textContent = msg;
+  el.className = `raw-toast show ${type}`;
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.className = 'raw-toast'; }, 3500);
+}
+
+function formatNum(val) {
+  const n = Number(val);
+  if (isNaN(n)) return '0';
+  return Number.isInteger(n) ? n.toString() : parseFloat(n.toFixed(4)).toString();
+}
+
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildGroupedProducts() {
+  const map = new Map();
+  RECIPES.forEach(item => {
+    const cat = (item.category || 'Uncategorized').trim();
+    const prod = (item.product_name || '').trim();
+    const key = `${cat.toLowerCase()}||${prod.toLowerCase()}`;
+    if (!map.has(key)) {
+      map.set(key, { key, category: cat, product_name: prod, items: [] });
+    }
+    map.get(key).items.push(item);
+  });
+  groupedProducts = Array.from(map.values()).sort((a, b) =>
+    a.category.localeCompare(b.category) || a.product_name.localeCompare(b.product_name)
+  );
+}
+
+function selectCategoryChip(cat) {
+  document.getElementById('recCategoryFilter').value = cat;
+  applyFilters();
+}
+
+function updateStatsAndDropdowns() {
+  document.getElementById('recipesCountBadge').textContent = `${groupedProducts.length.toLocaleString()} products`;
+
+  const catCounts = {};
+  groupedProducts.forEach(p => {
+    catCounts[p.category] = (catCounts[p.category] || 0) + 1;
+  });
+
+  const catSel = document.getElementById('recCategoryFilter');
+  const prevCat = catSel.value;
+  catSel.innerHTML = '<option value="">All Categories</option>' +
+    Object.keys(catCounts).sort().map(c => `<option value="${escHtml(c)}">${escHtml(c)} (${catCounts[c]})</option>`).join('');
+  if (catCounts[prevCat]) catSel.value = prevCat;
+
+  const bar = document.getElementById('quickCategoryBar');
+  const topCats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const currentCat = catSel.value;
+  bar.innerHTML = `<button type="button" class="quick-chip ${currentCat === '' ? 'active' : ''}" onclick="selectCategoryChip('')">
+      <span class="chip-dot dot-all"></span>
+      <span>All</span>
+      <span class="chip-count">${groupedProducts.length}</span>
+    </button>` +
+    topCats.map(([c, cnt]) => `
+      <button type="button" class="quick-chip ${currentCat === c ? 'active' : ''}" onclick="selectCategoryChip('${escHtml(c)}')">
+        <span class="chip-dot dot-success"></span>
+        <span>${escHtml(c)}</span>
+        <span class="chip-count">${cnt}</span>
+      </button>
+    `).join('');
+}
+
+function applyFilters() {
+  buildGroupedProducts();
+  const q = document.getElementById('recSearchInput').value.trim().toLowerCase();
+  const cat = document.getElementById('recCategoryFilter').value;
+
+  filteredProducts = groupedProducts.filter(p => {
+    if (cat && p.category !== cat) return false;
+    if (q) {
+      const hay = `${p.category} ${p.product_name}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  currentPage = 1;
+  updateStatsAndDropdowns();
+  renderTable();
+  refreshDrawerIfOpen();
+}
+
+function resetFilters() {
+  document.getElementById('recSearchInput').value = '';
+  document.getElementById('recCategoryFilter').value = '';
+  applyFilters();
+}
+
+function changePage(delta) {
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
+  currentPage = Math.min(totalPages, Math.max(1, currentPage + delta));
+  renderTable();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('recipesBody');
+  const empty = document.getElementById('recipesEmptyState');
+  const table = document.getElementById('recipesTable');
+  const pagination = document.getElementById('recipesPagination');
+
+  if (filteredProducts.length === 0) {
+    tbody.innerHTML = '';
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    pagination.style.display = 'none';
+    return;
+  }
+
+  table.style.display = 'table';
+  empty.style.display = 'none';
+  pagination.style.display = 'flex';
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const slice = filteredProducts.slice(startIdx, startIdx + PAGE_SIZE);
+
+  tbody.innerHTML = slice.map((p) => `
+    <tr class="${activeProductKey === p.key ? 'active-row' : ''}">
+      <td>
+        <div class="product-info min-w-0">
+          <div class="product-title" title="${escHtml(p.product_name)}">${escHtml(p.product_name)}</div>
+        </div>
+      </td>
+      <td><span class="station-badge">${escHtml(p.category)}</span></td>
+      <td class="text-center">
+        <button type="button" class="btn-view-recipe" onclick="openRecipeDrawer('${escHtml(p.key)}')">
+          <i class="fas fa-eye"></i> <span>View (${p.items.length})</span>
+        </button>
+      </td>
+    </tr>
+  `).join('');
+
+  const endIdx = Math.min(startIdx + slice.length, filteredProducts.length);
+  document.getElementById('recipesPageInfo').textContent = `Showing ${startIdx + 1}–${endIdx} of ${filteredProducts.length} products`;
+  document.getElementById('recipesPageNum').textContent = `Page ${currentPage} / ${totalPages}`;
+  document.getElementById('btnPrevPage').disabled = currentPage <= 1;
+  document.getElementById('btnNextPage').disabled = currentPage >= totalPages;
+}
+
+function openRecipeDrawer(key) {
+  activeProductKey = key;
+  renderTable();
+  refreshDrawerIfOpen();
+  recipeDrawer.show();
+}
+
+function refreshDrawerIfOpen() {
+  if (!activeProductKey) return;
+  const prod = groupedProducts.find(p => p.key === activeProductKey);
+  if (!prod) return;
+
+  document.getElementById('drawerProductTitle').textContent = prod.product_name;
+  document.getElementById('drawerIngredientCount').textContent = `${prod.items.length} raw item(s)`;
+
+  const body = document.getElementById('drawerRecipeBody');
+  body.innerHTML = prod.items.map(item => `
+    <tr>
+      <td class="fw-medium">${escHtml(item.raw_material)}</td>
+      <td class="text-end fw-bold" style="font-variant-numeric:tabular-nums;">${formatNum(item.recipe_qty)}</td>
+      <td class="text-center">${item.recipe_uom ? `<span class="station-badge">${escHtml(item.recipe_uom)}</span>` : '—'}</td>
+      <td class="text-center">
+        <div class="d-inline-flex gap-1">
+          <button type="button" class="raw-row-action-btn" title="Edit" onclick="openRecipeModal(${item.id})"><i class="fas fa-pen"></i></button>
+          <button type="button" class="raw-row-action-btn delete" title="Delete" onclick="deleteRecipe(${item.id})"><i class="fas fa-trash"></i></button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function addIngredientToCurrentProduct() {
+  const prod = groupedProducts.find(p => p.key === activeProductKey);
+  openRecipeModal(null, prod ? prod.category : '', prod ? prod.product_name : '');
+}
+
+async function reloadFromServer() {
+  const res = await fetch(REC_API.list);
+  const data = await res.json();
+  if (data.success) {
+    RECIPES = data.items || [];
+    applyFilters();
+  }
+}
+
+function openRecipeModal(itemId = null, presetCategory = '', presetProduct = '') {
+  const form = document.getElementById('recipeForm');
+  form.reset();
+  document.getElementById('editRecipeId').value = itemId || '';
+
+  if (itemId) {
+    const item = RECIPES.find(r => r.id === itemId);
+    if (!item) return;
+    document.getElementById('recipeModalTitle').textContent = 'Edit Recipe Ingredient';
+    document.getElementById('fieldCategory').value = item.category;
+    document.getElementById('fieldProductName').value = item.product_name;
+    document.getElementById('fieldRawMaterial').value = item.raw_material;
+    document.getElementById('fieldRecipeQty').value = item.recipe_qty;
+    document.getElementById('fieldRecipeUom').value = item.recipe_uom;
+  } else {
+    document.getElementById('recipeModalTitle').textContent = 'Add Product Recipe';
+    document.getElementById('fieldCategory').value = presetCategory;
+    document.getElementById('fieldProductName').value = presetProduct;
+    document.getElementById('fieldRecipeQty').value = '0';
+  }
+  recipeModal.show();
+}
+
+async function saveRecipe(e) {
+  e.preventDefault();
+  const itemId = document.getElementById('editRecipeId').value;
+  const payload = {
+    category: document.getElementById('fieldCategory').value.trim(),
+    product_name: document.getElementById('fieldProductName').value.trim(),
+    raw_material: document.getElementById('fieldRawMaterial').value.trim(),
+    recipe_qty: document.getElementById('fieldRecipeQty').value,
+    recipe_uom: document.getElementById('fieldRecipeUom').value.trim(),
+  };
+
+  const url = itemId ? `${REC_API.editBase}${itemId}` : REC_API.add;
+  const btn = document.getElementById('btnSaveRecipe');
+  btn.disabled = true;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showToast(data.message || 'Could not save recipe.', 'error');
+      return;
+    }
+    recipeModal.hide();
+    showToast(data.message || 'Saved.', 'success');
+    await reloadFromServer();
+  } catch (err) {
+    showToast('Network error while saving.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deleteRecipe(itemId) {
+  if (!confirm('Delete this recipe ingredient?')) return;
+  try {
+    const res = await fetch(`${REC_API.deleteBase}${itemId}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showToast(data.message || 'Delete failed.', 'error');
+      return;
+    }
+    showToast('Recipe ingredient deleted.', 'success');
+    await reloadFromServer();
+  } catch (err) {
+    showToast('Network error while deleting.', 'error');
+  }
+}
+
+function openUploadModal() {
+  document.getElementById('uploadExcelForm').reset();
+  document.getElementById('excelFileName').textContent = 'Click to choose an Excel file (.xlsx) or drag & drop';
+  uploadModal.show();
+}
+
+function onExcelSelected(input) {
+  const file = input.files && input.files[0];
+  document.getElementById('excelFileName').textContent = file
+    ? `${file.name} (${(file.size / 1024).toFixed(1)} KB)`
+    : 'Click to choose an Excel file (.xlsx) or drag & drop';
+}
+
+async function uploadExcelFile(e) {
+  e.preventDefault();
+  const input = document.getElementById('excelFileInput');
+  const file = input.files && input.files[0];
+  if (!file) {
+    showToast('Please select an Excel (.xlsx) file first.', 'error');
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('replace_existing', document.getElementById('replaceExistingCheck').checked ? 'true' : 'false');
+
+  const btn = document.getElementById('btnUploadExcel');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Importing...';
+
+  try {
+    const res = await fetch(REC_API.upload, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showToast(data.message || 'Import failed.', 'error');
+      return;
+    }
+    uploadModal.hide();
+    showToast(data.message || 'Excel imported.', 'success');
+    await reloadFromServer();
+  } catch (err) {
+    showToast('Network error while uploading Excel.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-upload me-1"></i> Import Excel';
+  }
+}
+
+function exportRecipesExcel() {
+  const q = document.getElementById('recSearchInput').value.trim();
+  const cat = document.getElementById('recCategoryFilter').value;
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (cat) params.set('category', cat);
+  const qs = params.toString();
+  window.location.href = qs ? `${REC_API.exportUrl}?${qs}` : REC_API.exportUrl;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setInitials();
+  restoreTheme();
+  const lbl = document.getElementById('pageLabel');
+  if (lbl) lbl.textContent = 'Product Recipes';
+
+  recipeModal = new bootstrap.Modal(document.getElementById('recipeModal'));
+  uploadModal = new bootstrap.Modal(document.getElementById('uploadExcelModal'));
+  recipeDrawer = new bootstrap.Offcanvas(document.getElementById('recipeDrawer'));
+
+  document.getElementById('recipeDrawer').addEventListener('hidden.bs.offcanvas', () => {
+    activeProductKey = null;
+    renderTable();
+  });
+
+  const dz = document.getElementById('excelDropzone');
+  dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dz.classList.remove('dragover');
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const input = document.getElementById('excelFileInput');
+      input.files = e.dataTransfer.files;
+      onExcelSelected(input);
+    }
+  });
+
+  applyFilters();
+});
+</script>
+</body>
+</html>

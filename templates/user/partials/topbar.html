@@ -27,6 +27,12 @@
       <button type="button" class="topbar-action" data-topbar-panel="receiving" onclick="showPanel('requisition')" title="New Requisition" hidden>
         <i class="fas fa-plus"></i><span>New Requisition</span>
       </button>
+      {% if active_page == 'trans_in' %}
+      <div class="d-flex align-items-center gap-2">
+        <label for="transDatePicker" class="small fw-semibold text-muted mb-0 d-none d-sm-inline">Date:</label>
+        <input type="date" id="transDatePicker" class="form-control form-control-sm" value="{{ trans_date }}" onchange="changeDate()" style="width:auto;border-radius:8px;min-height:32px;font-size:0.8rem;">
+      </div>
+      {% endif %}
     </div>
     <div class="uchip">
       <div class="av" id="userInitials">UN</div>

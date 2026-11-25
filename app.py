@@ -29,6 +29,11 @@ from routes.routes import receiving_bp
 from routes.reports import reports
 from routes.spoilage import spoilage
 from routes.oth import oth_bp
+from routes.raw_items import raw_items_bp
+from routes.invensync import invensync_bp
+from routes.product_recipes import product_recipes_bp
+from routes.trans_in import trans_in_bp
+from routes.pos_sold import pos_sold_bp
 
 
 # Import user loader function
@@ -169,6 +174,11 @@ def create_app(config_name='default'):
     app.register_blueprint(store)
     app.register_blueprint(spoilage)
     app.register_blueprint(oth_bp)
+    app.register_blueprint(raw_items_bp)
+    app.register_blueprint(invensync_bp)
+    app.register_blueprint(product_recipes_bp)
+    app.register_blueprint(trans_in_bp)
+    app.register_blueprint(pos_sold_bp)
     
     # Enable CORS for static uploads/assets so canvas and clipboard operations never encounter CORS restrictions
     @app.after_request

@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>InvenSync · DAILY ENDING INVENTORY — iCount</title>
+
+<script>
+(function() {
+  var isDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+  document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+  if (isDark) document.documentElement.classList.add('dark-mode');
+})();
+</script>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/app-system.css') }}?v=20261125-invensync-grid" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/requisition-form.css') }}?v=20261125-invensync-grid" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/products-page.css') }}?v=20261125-invensync-grid" rel="stylesheet">
+<style>
+.fa, .fas, .far, .fal, .fab, .fad, .fak, .fa-solid, .fa-regular, .fa-light, .fa-thin, .fa-duotone, .fa-brands, [class*="fa-"], i.fas, i.far, i.fab, i.fa {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", "Font Awesome 5 Free", "FontAwesome" !important;
+  font-style: normal !important;
+  display: inline-block;
+  line-height: 1;
+}
+.fab, .fa-brands { font-family: "Font Awesome 6 Brands" !important; }
+
+#mainContent { padding: 1.5rem clamp(1rem, 2.4vw, 2rem) 2rem !important; }
+.products-page { padding: 0 !important; }
+.products-page-icon { flex-shrink: 0; }
+@media (max-width: 768px) { #mainContent { padding: 1rem 1rem 5.5rem !important; } }
+
+/* ── Excel Spreadsheet Grid ── */
+.excel-card {
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04) !important;
+  overflow: visible !important;
+}
+
+.excel-grid-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+.excel-grid {
+  width: 100%;
+  min-width: 1060px;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.excel-grid thead th {
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.71rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 10px;
+  height: 38px;
+  border-right: 1px solid #cbd5e1;
+  border-bottom: 1px solid #cbd5e1;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.excel-grid thead th:last-child { border-right: 0; }
+
+.excel-grid tbody td {
+  height: 38px;
+  padding: 0;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  vertical-align: middle;
+  position: relative;
+}
+
+.excel-grid tbody td:last-child { border-right: 0; }
+.excel-grid tbody tr:last-child td { border-bottom: 0; }
+
+.excel-row-num {
+  background: #f8fafc !important;
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-align: center;
+  user-select: none;
+  width: 42px;
+}
+
+.excel-fixed-item {
+  padding: 0 10px !important;
+  font-weight: 600;
+  color: #0f172a;
+  background: #f8fafc !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+  user-select: none;
+}
+
+.excel-cell-input {
+  width: 100%;
+  height: 38px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  padding: 0 8px;
+  font-size: 0.84rem;
+  color: #0f172a;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: inherit;
+}
+
+.excel-cell-input.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.excel-cell-input[type="number"]::-webkit-inner-spin-button,
+.excel-cell-input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.excel-cell-input[type="number"] { -moz-appearance: textfield; }
+
+.excel-grid tbody td:focus-within {
+  box-shadow: inset 0 0 0 2px #10b981;
+  background: #f0fdf4 !important;
+  z-index: 3;
+}
+
+.excel-theo-cell {
+  padding: 0 10px !important;
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #059669;
+  background: #f0fdf4 !important;
+  user-select: none;
+}
+
+.excel-theo-cell.negative {
+  color: #dc2626;
+  background: #fef2f2 !important;
+}
+
+.excel-var-cell {
+  padding: 0 10px !important;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.excel-var-cell.short { background: #fef2f2 !important; color: #dc2626; }
+.excel-var-cell.over { background: #fffbeb !important; color: #d97706; }
+.excel-var-cell.match { background: #ecfdf5 !important; color: #059669; }
+.excel-var-cell.empty { background: #f8fafc !important; color: #94a3b8; }
+
+.raw-pagination-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0.65rem 1rem;
+  background: #f8fafc;
+  border-top: 1px solid #cbd5e1;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.raw-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1080;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #18181b;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.22);
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.raw-toast.show { display: inline-flex; }
+.raw-toast.error { background: #dc2626; }
+.raw-toast.success { background: #059669; }
+
+/* Dark Mode */
+html.dark-mode .products-page-title { color: #f4f4f5; }
+html.dark-mode .products-count-badge {
+  background: rgba(37, 99, 235, 0.15) !important;
+  color: #93c5fd !important;
+  border-color: rgba(37, 99, 235, 0.3) !important;
+}
+html.dark-mode .products-filter-card,
+html.dark-mode .excel-card {
+  background: #101012 !important;
+  border-color: #27272a !important;
+}
+html.dark-mode .excel-grid thead th {
+  background: #141416 !important;
+  color: #a1a1aa !important;
+  border-color: #27272a !important;
+}
+html.dark-mode .excel-grid tbody td {
+  background: #101012 !important;
+  border-color: #27272a !important;
+}
+html.dark-mode .excel-row-num,
+html.dark-mode .excel-fixed-item,
+html.dark-mode .raw-pagination-bar {
+  background: #141416 !important;
+  border-color: #27272a !important;
+  color: #e4e4e7 !important;
+}
+html.dark-mode .excel-cell-input { color: #f4f4f5 !important; }
+html.dark-mode .excel-grid tbody td:focus-within {
+  background: #18181b !important;
+  box-shadow: inset 0 0 0 2px #10b981;
+}
+html.dark-mode .excel-theo-cell {
+  background: rgba(16, 185, 129, 0.12) !important;
+  color: #34d399 !important;
+}
+html.dark-mode .excel-theo-cell.negative {
+  background: rgba(239, 68, 68, 0.14) !important;
+  color: #f87171 !important;
+}
+html.dark-mode .excel-var-cell.short { background: rgba(239, 68, 68, 0.14) !important; color: #f87171 !important; }
+html.dark-mode .excel-var-cell.over { background: rgba(245, 158, 11, 0.14) !important; color: #fbbf24 !important; }
+html.dark-mode .excel-var-cell.match { background: rgba(16, 185, 129, 0.14) !important; color: #34d399 !important; }
+html.dark-mode .excel-var-cell.empty { background: #141416 !important; color: #71717a !important; }
+</style>
+</head>
+<body>
+{% set active_page = 'invensync' %}
+{% include 'user/partials/topbar.html' %}
+
+<div class="app-body">
+  {% include 'user/partials/sidebar.html' %}
+
+  <main class="main" id="mainContent">
+    <div class="products-page">
+      <!-- Header -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="products-page-icon" style="width:46px;height:46px;">
+            <i class="fas fa-table-list fa-lg"></i>
+          </div>
+          <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <h4 class="products-page-title mb-0">DAILY ENDING INVENTORY</h4>
+              <span id="invensyncCountBadge" class="badge products-count-badge rounded-pill px-2.5 py-1 font-monospace">
+                {{ inventory_rows|length }} items
+              </span>
+            </div>
+            <div class="text-muted small mt-0.5" style="font-size:0.8rem">
+              InvenSync · Daily raw item movement &amp; ending balance
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+          <input type="date" id="invDatePicker" class="form-control form-control-sm" value="{{ inventory_date }}" onchange="changeDate()" style="width:auto;border-radius:10px;min-height:36px;">
+          <button type="button" class="btn btn-emerald-action btn-sm shadow-sm d-flex align-items-center gap-2" onclick="exportDailyExcel()">
+            <i class="fas fa-file-excel"></i> <span>Export Excel</span>
+          </button>
+          <button type="button" class="btn btn-primary-action btn-sm shadow-sm d-flex align-items-center gap-2" id="btnSaveAll" onclick="openConfirmSave()">
+            <i class="fas fa-floppy-disk"></i> <span>Save Changes</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search Filter -->
+      <div class="card border-0 shadow-sm mb-3 products-filter-card">
+        <div class="card-body">
+          <form class="row g-2 align-items-center products-filter-form" onsubmit="event.preventDefault(); applyFilter();">
+            <div class="col-md-6 products-filter-search">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-muted"></i></span>
+                <input id="invSearchInput" type="text" class="form-control border-start-0 ps-0" placeholder="Search raw item name..." oninput="applyFilter()">
+              </div>
+            </div>
+            <div class="col-md-auto d-flex gap-2 products-filter-actions ms-md-auto">
+              <button type="button" class="btn btn-filter-reset" title="Reset search" onclick="resetFilter()">
+                <i class="fas fa-rotate-left"></i>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Excel Grid Table Card -->
+      <div class="excel-card">
+        <div class="excel-grid-wrap" id="invensyncTableWrap">
+          <table class="excel-grid" id="invensyncTable">
+            <thead>
+              <tr>
+                <th style="width:42px;text-align:center;">#</th>
+                <th style="min-width:240px;">Raw Item</th>
+                <th style="width:86px;text-align:right;">Beg</th>
+                <th style="width:86px;text-align:right;">Trans-In</th>
+                <th style="width:86px;text-align:right;">Trans-Out</th>
+                <th style="width:86px;text-align:right;">Wastage</th>
+                <th style="width:86px;text-align:right;">Sold</th>
+                <th style="width:92px;text-align:right;">THEO</th>
+                <th style="width:105px;text-align:right;">Actual Ending</th>
+                <th style="width:105px;text-align:center;">Variance</th>
+                <th style="min-width:160px;">Remarks</th>
+              </tr>
+            </thead>
+            <tbody id="invensyncBody"></tbody>
+          </table>
+        </div>
+
+        <div class="raw-pagination-bar" id="invPagination">
+          <div id="invPageInfo">Showing 0 of 0</div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-filter-toggle btn-sm" id="btnPrevPage" onclick="changePage(-1)">
+              <i class="fas fa-chevron-left me-1"></i>Prev
+            </button>
+            <span class="fw-semibold" id="invPageNum">Page 1 / 1</span>
+            <button type="button" class="btn btn-filter-toggle btn-sm" id="btnNextPage" onclick="changePage(1)">
+              Next<i class="fas fa-chevron-right ms-1"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+{% include 'user/partials/mobile_nav.html' %}
+
+<!-- Save Changes Confirmation Modal -->
+<div class="modal fade" id="confirmSaveModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="fas fa-floppy-disk text-success me-2"></i>Save Daily Ending Inventory</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3 small text-muted">Confirm saving all changes to <strong>DAILY ENDING INVENTORY</strong>.</p>
+        <div class="p-3 rounded-3 border" style="background:rgba(16,185,129,0.06);">
+          <div class="d-flex justify-content-between mb-1 small">
+            <span class="text-muted">Inventory Date:</span>
+            <strong class="font-monospace" id="confirmInvDateLbl">—</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-1 small">
+            <span class="text-muted">Total Raw Items:</span>
+            <strong id="confirmInvTotalLbl">0</strong>
+          </div>
+          <div class="d-flex justify-content-between small">
+            <span class="text-muted">Items with Actual Ending:</span>
+            <strong class="text-success" id="confirmInvCountedLbl">0</strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary-action btn-sm" id="btnConfirmSave" onclick="confirmSaveAllRows()">
+          <i class="fas fa-check me-1"></i> Confirm &amp; Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="raw-toast" id="rawToast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const STORE_INV_URL = "{{ url_for('requisitions.store_inventory') }}";
+const INV_SAVE_URL = "{{ url_for('invensync.save_rows') }}";
+const INV_EXPORT_URL = "{{ url_for('invensync.export_excel') }}";
+const INV_INDEX_URL = "{{ url_for('invensync.index') }}";
+
+let ALL_ROWS = {{ inventory_rows | tojson | safe }};
+let filteredRows = [...ALL_ROWS];
+let currentPage = 1;
+const PAGE_SIZE = 50;
+
+function showPanel(panel) {
+  window.location.href = `${STORE_INV_URL}?panel=${encodeURIComponent(panel)}`;
+}
+
+function setInitials() {
+  const fullName = "{{ current_user.full_name | e }}";
+  const parts = fullName.trim().split(/\s+/);
+  const initials = parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : fullName.slice(0, 2).toUpperCase();
+  const el = document.getElementById('userInitials');
+  if (el) el.textContent = initials || 'U';
+}
+
+function restoreTheme() {
+  const isDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+  document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+  document.documentElement.classList.toggle('dark-mode', isDark);
+  const icon = document.querySelector('#themeToggle i');
+  if (icon) icon.className = isDark ? 'fas fa-moon' : 'fas fa-sun';
+}
+
+function toggleTheme() {
+  const isDark = !document.documentElement.classList.contains('dark-mode');
+  localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  restoreTheme();
+}
+
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('rawToast');
+  el.textContent = msg;
+  el.className = `raw-toast show ${type}`;
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.className = 'raw-toast'; }, 3500);
+}
+
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatNum(val) {
+  const n = Number(val);
+  if (isNaN(n)) return '0';
+  return Number.isInteger(n) ? n.toString() : parseFloat(n.toFixed(4)).toString();
+}
+
+function formatInputVal(val) {
+  const n = Number(val);
+  if (isNaN(n) || n === 0) return '';
+  return Number.isInteger(n) ? n.toString() : parseFloat(n.toFixed(4)).toString();
+}
+
+function computeTheoretical(row) {
+  return (Number(row.beg) || 0)
+    + (Number(row.trans_in) || 0)
+    - (Number(row.trans_out) || 0)
+    - (Number(row.wastage) || 0)
+    - (Number(row.sold) || 0);
+}
+
+function renderVarianceHtml(row) {
+  if (row.actual_ending === null || row.actual_ending === undefined || row.actual_ending === '') {
+    return { cls: 'empty', text: '—' };
+  }
+  const v = Number(row.actual_ending) - Number(row.theoretical_ending || 0);
+  if (v < 0) return { cls: 'short', text: `${formatNum(v)} Short` };
+  if (v > 0) return { cls: 'over', text: `+${formatNum(v)} Over` };
+  return { cls: 'match', text: '0 Match' };
+}
+
+function onFieldChange(rowIndex, field, value) {
+  const row = filteredRows[rowIndex];
+  if (!row) return;
+  if (field === 'remarks') {
+    row.remarks = value;
+    return;
+  }
+  if (field === 'actual_ending') {
+    row.actual_ending = value.trim() === '' ? null : (parseFloat(value) || 0);
+  } else {
+    row[field] = parseFloat(value) || 0;
+    row.theoretical_ending = computeTheoretical(row);
+    const cell = document.getElementById(`theo-${rowIndex}`);
+    if (cell) {
+      cell.textContent = formatNum(row.theoretical_ending);
+      cell.classList.toggle('negative', row.theoretical_ending < 0);
+    }
+  }
+  row.variance = row.actual_ending !== null ? (row.actual_ending - row.theoretical_ending) : null;
+  const varEl = document.getElementById(`var-${rowIndex}`);
+  if (varEl) {
+    const info = renderVarianceHtml(row);
+    varEl.className = `excel-var-cell ${info.cls}`;
+    varEl.textContent = info.text;
+  }
+}
+
+function onCellKeydown(e, idx, col) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const order = ['beg', 'trans_in', 'trans_out', 'wastage', 'sold', 'actual_ending', 'remarks'];
+  const pos = order.indexOf(col);
+  if (pos >= 0 && pos < order.length - 1) {
+    document.getElementById(`cell-${idx}-${order[pos + 1]}`)?.focus();
+  } else {
+    document.getElementById(`cell-${idx + 1}-beg`)?.focus();
+  }
+}
+
+function applyFilter() {
+  const q = document.getElementById('invSearchInput').value.trim().toLowerCase();
+  filteredRows = ALL_ROWS.filter(r => !q || (r.raw_item_name || '').toLowerCase().includes(q));
+  currentPage = 1;
+  renderTable();
+}
+
+function resetFilter() {
+  document.getElementById('invSearchInput').value = '';
+  applyFilter();
+}
+
+function changeDate() {
+  const d = document.getElementById('invDatePicker').value;
+  if (d) window.location.href = `${INV_INDEX_URL}?date=${encodeURIComponent(d)}`;
+}
+
+function changePage(delta) {
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  currentPage = Math.min(totalPages, Math.max(1, currentPage + delta));
+  renderTable();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('invensyncBody');
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+
+  if (filteredRows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="11" class="text-center py-5 text-muted">No raw items found. Add items in Raw Items first.</td></tr>`;
+    document.getElementById('invPageInfo').textContent = 'Showing 0 of 0';
+    document.getElementById('invPageNum').textContent = 'Page 1 / 1';
+    document.getElementById('btnPrevPage').disabled = true;
+    document.getElementById('btnNextPage').disabled = true;
+    return;
+  }
+
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const slice = filteredRows.slice(startIdx, startIdx + PAGE_SIZE);
+
+  tbody.innerHTML = slice.map((r, i) => {
+    const idx = startIdx + i;
+    const theo = computeTheoretical(r);
+    r.theoretical_ending = theo;
+    const actualVal = (r.actual_ending === null || r.actual_ending === undefined) ? '' : formatNum(r.actual_ending);
+    const varInfo = renderVarianceHtml(r);
+    return `
+      <tr>
+        <td class="excel-row-num">${idx + 1}</td>
+        <td class="excel-fixed-item" title="${escHtml(r.raw_item_name)}">${escHtml(r.raw_item_name)}</td>
+        <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-beg" value="${formatInputVal(r.beg)}" oninput="onFieldChange(${idx}, 'beg', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'beg')"></td>
+        <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-trans_in" value="${formatInputVal(r.trans_in)}" oninput="onFieldChange(${idx}, 'trans_in', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'trans_in')"></td>
+        <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-trans_out" value="${formatInputVal(r.trans_out)}" oninput="onFieldChange(${idx}, 'trans_out', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'trans_out')"></td>
+        <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-wastage" value="${formatInputVal(r.wastage)}" oninput="onFieldChange(${idx}, 'wastage', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'wastage')"></td>
+        <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-sold" value="${formatInputVal(r.sold)}" oninput="onFieldChange(${idx}, 'sold', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'sold')"></td>
+        <td class="excel-theo-cell ${theo < 0 ? 'negative' : ''}" id="theo-${idx}">${formatNum(theo)}</td>
+        <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-actual_ending" value="${actualVal}" oninput="onFieldChange(${idx}, 'actual_ending', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'actual_ending')"></td>
+        <td class="excel-var-cell ${varInfo.cls}" id="var-${idx}">${varInfo.text}</td>
+        <td><input type="text" class="excel-cell-input" id="cell-${idx}-remarks" value="${escHtml(r.remarks)}" oninput="onFieldChange(${idx}, 'remarks', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'remarks')"></td>
+      </tr>
+    `;
+  }).join('');
+
+  const endIdx = Math.min(startIdx + slice.length, filteredRows.length);
+  document.getElementById('invPageInfo').textContent = `Showing ${startIdx + 1}–${endIdx} of ${filteredRows.length} items`;
+  document.getElementById('invPageNum').textContent = `Page ${currentPage} / ${totalPages}`;
+  document.getElementById('btnPrevPage').disabled = currentPage <= 1;
+  document.getElementById('btnNextPage').disabled = currentPage >= totalPages;
+}
+
+let confirmSaveModal = null;
+
+function openConfirmSave() {
+  const dateVal = document.getElementById('invDatePicker').value;
+  if (!dateVal) {
+    showToast('Please select a date.', 'error');
+    return;
+  }
+  const counted = ALL_ROWS.filter(r => r.actual_ending !== null && r.actual_ending !== undefined && r.actual_ending !== '').length;
+  document.getElementById('confirmInvDateLbl').textContent = dateVal;
+  document.getElementById('confirmInvTotalLbl').textContent = `${ALL_ROWS.length} item(s)`;
+  document.getElementById('confirmInvCountedLbl').textContent = `${counted} item(s)`;
+  confirmSaveModal.show();
+}
+
+async function confirmSaveAllRows() {
+  const btn = document.getElementById('btnConfirmSave');
+  const dateVal = document.getElementById('invDatePicker').value;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
+  try {
+    const res = await fetch(INV_SAVE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: dateVal, rows: ALL_ROWS })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showToast(data.message || 'Save failed.', 'error');
+      return;
+    }
+    confirmSaveModal.hide();
+    showToast(data.message || 'Saved.', 'success');
+  } catch (err) {
+    showToast('Network error while saving.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check me-1"></i> Confirm &amp; Save';
+  }
+}
+
+function exportDailyExcel() {
+  const d = document.getElementById('invDatePicker').value;
+  const q = document.getElementById('invSearchInput').value.trim();
+  const params = new URLSearchParams();
+  if (d) params.set('date', d);
+  if (q) params.set('q', q);
+  window.location.href = `${INV_EXPORT_URL}?${params.toString()}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setInitials();
+  restoreTheme();
+  const lbl = document.getElementById('pageLabel');
+  if (lbl) lbl.textContent = 'InvenSync';
+  confirmSaveModal = new bootstrap.Modal(document.getElementById('confirmSaveModal'));
+  renderTable();
+});
+</script>
+</body>
+</html>

@@ -9,6 +9,9 @@ class Config:
     
     # Database configuration
     SQLALCHEMY_DATABASE_URI = 'sqlite:///inventory.db'
+    SQLALCHEMY_BINDS = {
+        'inventory_db': 'sqlite:///invensync.db'
+    }
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Flask-Mail configuration
@@ -25,6 +28,11 @@ class Config:
     EXPIRY_WARNING_DAYS = 90
     EXPIRY_CRITICAL_DAYS = 30
     
+    # POS Sold External API configuration
+    POS_SOLD_API_URL = os.environ.get('POS_SOLD_API_URL', 'http://127.0.0.1:5001/api/external/pos_sold')
+    POS_SOLD_API_KEY = os.environ.get('POS_SOLD_API_KEY', '')
+    POS_SOLD_CLIENT_ID = os.environ.get('POS_SOLD_CLIENT_ID', 'Savore')
+
     # Pagination settings
     PRODUCTS_PER_PAGE = 2
     REQUISITIONS_PER_PAGE = 10
@@ -59,6 +67,9 @@ class TestingConfig(Config):
     TESTING = True
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_BINDS = {
+        'inventory_db': 'sqlite:///:memory:'
+    }
 
 
 # Configuration dictionary

@@ -497,3 +497,194 @@ class StoreProduction(db.Model):
     # Relationships
     product = db.relationship('Product', backref=db.backref('store_productions', lazy='dynamic'))
     producer = db.relationship('User', foreign_keys=[produced_by], backref='store_productions')
+
+
+class RawItem(db.Model):
+    """Raw material inventory items stored in the secondary inventory_db database."""
+    __bind_key__ = 'inventory_db'
+    __tablename__ = 'raw_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, nullable=True, index=True)
+    raw_material = db.Column(db.String(255), nullable=False)
+    qty_rtl = db.Column(db.Float, nullable=False, default=0.0)
+    uom = db.Column(db.String(60), nullable=True)
+    measurement_order = db.Column(db.Float, nullable=False, default=0.0)
+    uom2 = db.Column(db.String(60), nullable=True)
+    created_by = db.Column(db.String(150), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(ZoneInfo("Asia/Manila")),
+        onupdate=lambda: datetime.now(ZoneInfo("Asia/Manila"))
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'company_id': self.company_id,
+            'raw_material': self.raw_material or '',
+            'qty_rtl': float(self.qty_rtl or 0),
+            'uom': self.uom or '',
+            'measurement_order': float(self.measurement_order or 0),
+            'uom2': self.uom2 or '',
+            'created_by': self.created_by or '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else ''
+        }
+
+
+class PosSoldRecord(db.Model):
+    """POS Sold records synced from external POS API, stored in invensync.db."""
+    __bind_key__ = 'inventory_db'
+    __tablename__ = 'pos_sold'
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, nullable=True, index=True)
+    sold_date = db.Column(db.Date, nullable=False, index=True)
+    pos_product_id = db.Column(db.Integer, nullable=True)
+    product_name = db.Column(db.String(200), nullable=False)
+    qty = db.Column(db.Float, nullable=False, default=0.0)
+    amount = db.Column(db.Float, nullable=False, default=0.0)
+    client_id = db.Column(db.String(100), nullable=True)
+    synced_by = db.Column(db.String(150), nullable=True)
+    synced_at = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'company_id': self.company_id,
+            'date': self.sold_date.strftime('%Y-%m-%d') if self.sold_date else '',
+            'product_id': self.pos_product_id,
+            'product_name': self.product_name or '',
+            'qty': float(self.qty or 0),
+            'amount': float(self.amount or 0),
+            'client_id': self.client_id or '',
+            'synced_by': self.synced_by or '',
+            'synced_at': self.synced_at.strftime('%Y-%m-%d %H:%M') if self.synced_at else '',
+        }
+
+
+class DailyEndingInventory(db.Model):
+    """Daily ending inventory sheet stored in invensync.db."""
+    __bind_key__ = 'inventory_db'
+    __tablename__ = 'DAILY ENDING INVENTORY'
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, nullable=True, index=True)
+    inventory_date = db.Column(
+        db.Date,
+        nullable=False,
+        default=lambda: datetime.now(ZoneInfo("Asia/Manila")).date(),
+        index=True
+    )
+    raw_item_id = db.Column(db.Integer, nullable=True, index=True)
+    raw_item_name = db.Column(db.String(255), nullable=False)
+    beg = db.Column(db.Float, nullable=False, default=0.0)
+    trans_in = db.Column(db.Float, nullable=False, default=0.0)
+    trans_out = db.Column(db.Float, nullable=False, default=0.0)
+    wastage = db.Column(db.Float, nullable=False, default=0.0)
+    sold = db.Column(db.Float, nullable=False, default=0.0)
+    theoretical_ending = db.Column(db.Float, nullable=False, default=0.0)
+    actual_ending = db.Column(db.Float, nullable=True)
+    variance = db.Column(db.Float, nullable=True)
+    remarks = db.Column(db.Text, nullable=True)
+    updated_by = db.Column(db.String(150), nullable=True)
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(ZoneInfo("Asia/Manila")),
+        onupdate=lambda: datetime.now(ZoneInfo("Asia/Manila"))
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'company_id': self.company_id,
+            'inventory_date': self.inventory_date.strftime('%Y-%m-%d') if self.inventory_date else '',
+            'raw_item_id': self.raw_item_id,
+            'raw_item_name': self.raw_item_name or '',
+            'beg': float(self.beg or 0),
+            'trans_in': float(self.trans_in or 0),
+            'trans_out': float(self.trans_out or 0),
+            'wastage': float(self.wastage or 0),
+            'sold': float(self.sold or 0),
+            'theoretical_ending': float(self.theoretical_ending or 0),
+            'actual_ending': float(self.actual_ending) if self.actual_ending is not None else None,
+            'variance': float(self.variance) if self.variance is not None else None,
+            'remarks': self.remarks or '',
+            'updated_by': self.updated_by or '',
+        }
+
+
+class ProductRecipe(db.Model):
+    """Product-to-raw-material recipe mapping stored in invensync.db."""
+    __bind_key__ = 'inventory_db'
+    __tablename__ = 'product_recipes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, nullable=True, index=True)
+    category = db.Column(db.String(120), nullable=False)
+    product_name = db.Column(db.String(200), nullable=False)
+    raw_item_id = db.Column(db.Integer, nullable=True, index=True)
+    raw_material = db.Column(db.String(255), nullable=False)
+    recipe_qty = db.Column(db.Float, nullable=False, default=0.0)   # Measurement/Order
+    recipe_uom = db.Column(db.String(60), nullable=True)            # UOM2
+    created_by = db.Column(db.String(150), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(ZoneInfo("Asia/Manila")),
+        onupdate=lambda: datetime.now(ZoneInfo("Asia/Manila"))
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'company_id': self.company_id,
+            'category': self.category or '',
+            'product_name': self.product_name or '',
+            'raw_item_id': self.raw_item_id,
+            'raw_material': self.raw_material or '',
+            'recipe_qty': float(self.recipe_qty or 0),
+            'recipe_uom': self.recipe_uom or '',
+            'created_by': self.created_by or '',
+        }
+
+
+class TransInRecord(db.Model):
+    """Purchase / Trans-In entries stored in invensync.db."""
+    __bind_key__ = 'inventory_db'
+    __tablename__ = 'trans_in'
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, nullable=True, index=True)
+    trans_date = db.Column(
+        db.Date,
+        nullable=False,
+        default=lambda: datetime.now(ZoneInfo("Asia/Manila")).date(),
+        index=True
+    )
+    raw_item_id = db.Column(db.Integer, nullable=True, index=True)
+    raw_item_name = db.Column(db.String(255), nullable=False)
+    qty = db.Column(db.Float, nullable=False, default=0.0)
+    uom = db.Column(db.String(60), nullable=True)
+    cost = db.Column(db.Float, nullable=False, default=0.0)
+    total_cost = db.Column(db.Float, nullable=False, default=0.0)
+    remarks = db.Column(db.Text, nullable=True)
+    created_by = db.Column(db.String(150), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Manila")))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'company_id': self.company_id,
+            'trans_date': self.trans_date.strftime('%Y-%m-%d') if self.trans_date else '',
+            'raw_item_id': self.raw_item_id,
+            'raw_item_name': self.raw_item_name or '',
+            'qty': float(self.qty or 0),
+            'uom': self.uom or '',
+            'cost': float(self.cost or 0),
+            'total_cost': float(self.total_cost or 0),
+            'remarks': self.remarks or '',
+            'created_by': self.created_by or '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else '',
+        }
