@@ -411,15 +411,61 @@
                         <div class="req-product-request">Requested <strong>{{ requested }} {{ item.uom }}</strong></div>
                       </div>
                       <div class="req-allocation-batches">
-                        {% if sorted_batches %}
+                        {% set historical_deduction = item.deductions[0] if item.deductions and item.deductions|length > 0 else none %}
+                        {% set snapshot_batches = historical_deduction.batch_snapshot_data if (modal_status != 'pending' and historical_deduction) else [] %}
+                        {% if snapshot_batches %}
+                          {% set snap_ns = namespace(shown=0) %}
+                          {% for snap in snapshot_batches %}
+                            {% set snap_deducted = (snap.deducted or 0)|float %}
+                            {% if snap_deducted > 0 %}
+                              {% set snap_orig = (snap.original_quantity or 0)|float %}
+                              {% set snap_rem = (snap.remaining if snap.remaining is not none else (snap_orig - snap_deducted))|float %}
+                              <div class="req-batch req-batch-card">
+                                <div class="req-batch-quantity">
+                                  <i class="fas fa-box-open" aria-hidden="true"></i>
+                                  <strong>{{ '%.1f'|format(snap_rem) }}/{{ '%.1f'|format(snap_orig) }} {{ item.uom }}</strong>
+                                  <div class="req-batch-progress" role="progressbar"
+                                       aria-label="{{ '%.1f'|format(snap_rem) }} of {{ '%.1f'|format(snap_orig) }} {{ item.uom }} remaining"
+                                       aria-valuemin="0" aria-valuemax="{{ snap_orig }}" aria-valuenow="{{ snap_rem }}">
+                                    <span style="width: {{ ((snap_rem / snap_orig) * 100)|round(1) if snap_orig else 0 }}%"></span>
+                                  </div>
+                                  <div class="req-batch-deduction">
+                                    <span class="req-batch-label">Deduction</span>
+                                    <strong>−{{ '%.1f'|format(snap_deducted) }} {{ item.uom }}</strong>
+                                  </div>
+                                </div>
+                                <div class="req-production-date">
+                                  {% if snap.production_date %}
+                                    <span class="req-batch-label">Production date</span>
+                                    <strong>{{ snap.production_date }}</strong>
+                                  {% elif snap.exp_date %}
+                                    <span class="req-batch-label">Expiry</span>
+                                    <strong>{{ snap.exp_date }}</strong>
+                                  {% else %}
+                                    <span class="req-batch-label">Expiry</span>
+                                    <strong>No expiry</strong>
+                                  {% endif %}
+                                </div>
+                                <div class="req-days-left text-end">
+                                  <span class="req-batch-label">Status</span>
+                                  <span class="req-tone-ok fw-semibold">Deducted</span>
+                                </div>
+                              </div>
+                              {% set snap_ns.shown = snap_ns.shown + 1 %}
+                            {% endif %}
+                          {% endfor %}
+                          {% if snap_ns.shown == 0 %}
+                            <div class="req-batch-empty">No batches deducted</div>
+                          {% endif %}
+                        {% elif sorted_batches %}
                           {% set ns = namespace(remaining=requested, shown=0) %}
                           {% for batch in sorted_batches %}
-                            {% if batch.quantity > 0 and (modal_status != 'pending' or ns.remaining > 0) %}
+                            {% if batch.quantity > 0 and ns.remaining > 0 %}
                               {% set days_until = (batch.exp_date - now.date()).days if batch.exp_date and now is defined else 0 %}
-                              {% set theoretical_deduction = [batch.quantity, ns.remaining]|min if modal_status == 'pending' else 0 %}
+                              {% set theoretical_deduction = [batch.quantity, ns.remaining]|min %}
                               {% set theoretical_remaining = batch.quantity - theoretical_deduction %}
                               {% set batch_total = batch.int_quantity or batch.quantity %}
-                              {% set batch_deduction = theoretical_deduction if modal_status == 'pending' else [batch_total - batch.quantity, 0]|max %}
+                              {% set batch_deduction = theoretical_deduction %}
                               <div class="req-batch req-batch-card">
                                 <div class="req-batch-quantity">
                                   <i class="fas fa-box-open" aria-hidden="true"></i>
@@ -464,9 +510,7 @@
                                   {% endif %}
                                 </div>
                               </div>
-                              {% if modal_status == 'pending' %}
-                                {% set ns.remaining = ns.remaining - [batch.quantity, ns.remaining]|min %}
-                              {% endif %}
+                              {% set ns.remaining = ns.remaining - [batch.quantity, ns.remaining]|min %}
                               {% set ns.shown = ns.shown + 1 %}
                             {% endif %}
                           {% endfor %}
