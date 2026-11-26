@@ -791,11 +791,11 @@ function handleReqWindowScroll(){
   }
 }
 
-function setProductQty(pid, qty){
+function setProductQty(pid, qty, syncInput = true){
   const p = products.find(item => item.id === pid);
   if(!p) return;
   const num = Math.max(0, parseFloat(qty) || 0);
-  const cleanVal = Number.isInteger(num) ? num : parseFloat(num.toFixed(2));
+  const cleanVal = Number.isInteger(num) ? num : parseFloat(num.toFixed(4));
 
   if(cleanVal > 0){
     reqQuantities[pid] = cleanVal;
@@ -808,7 +808,7 @@ function setProductQty(pid, qty){
   const minusBtn = document.getElementById(`stepMinus_${pid}`);
   const warnEl = document.getElementById(`reqWarn_${pid}`);
 
-  if(inputEl){
+  if(inputEl && syncInput){
     inputEl.value = cleanVal > 0 ? cleanVal : '';
   }
   if(minusBtn){
@@ -840,9 +840,9 @@ function stepQty(pid, delta){
 
 function handleQtyChange(pid, rawVal){
   if(rawVal === '' || rawVal === null || rawVal === undefined){
-    setProductQty(pid, 0);
+    setProductQty(pid, 0, false);
   } else {
-    setProductQty(pid, rawVal);
+    setProductQty(pid, rawVal, false);
   }
 }
 
