@@ -12,12 +12,12 @@
 
 <!-- ═══════ ITEM DETAIL MODAL ═══════ -->
 <div class="moverlay" id="histModal">
-  <div class="mbox" style="max-width:520px;text-align:left;padding: 1.5rem;">
-    <div class="d-flex justify-between align-center mb-3">
-      <div class="mttl m-0" id="histModalTitle">Request Detail</div>
-      <button class="btn-ghost btn-sm" style="padding: 0.35rem 0.6rem;" onclick="closeModal('histModal')"><i class="fas fa-times"></i></button>
+  <div class="mbox hist-mbox">
+    <div class="d-flex justify-content-between align-items-center gap-2 mb-3 flex-shrink-0">
+      <div class="mttl m-0 text-truncate" id="histModalTitle">Request Detail</div>
+      <button type="button" class="btn-ghost btn-sm flex-shrink-0" style="padding: 0.35rem 0.6rem;" onclick="closeModal('histModal')" aria-label="Close"><i class="fas fa-times"></i></button>
     </div>
-    <div id="histModalBody"></div>
+    <div id="histModalBody" class="hist-mbody"></div>
   </div>
 </div>
 

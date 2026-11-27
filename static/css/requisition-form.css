@@ -2743,6 +2743,10 @@ body.in-req-wizard .main {
 /* ══════════════════════════════════════════════════════
    MODALS, OVERLAYS & TOASTS
 ══════════════════════════════════════════════════════ */
+body.moverlay-open {
+  overflow: hidden !important;
+}
+
 .moverlay {
   position: fixed;
   inset: 0;
@@ -2755,6 +2759,8 @@ body.in-req-wizard .main {
   padding: 1rem;
   opacity: 0;
   pointer-events: none;
+  overflow: hidden;
+  overscroll-behavior: contain;
   transition: opacity .2s ease;
 }
 
@@ -2769,10 +2775,30 @@ body.in-req-wizard .main {
   padding: 1.75rem;
   max-width: 440px;
   width: 100%;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   text-align: center;
   box-shadow: var(--shadow-lg);
   transform: scale(.97);
   transition: transform .2s ease;
+}
+
+.mbox.hist-mbox {
+  max-width: 520px;
+  text-align: left;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.hist-mbody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
 }
 
 .moverlay.open .mbox {

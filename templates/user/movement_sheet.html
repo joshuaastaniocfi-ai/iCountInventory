@@ -124,6 +124,39 @@
   z-index: 3;
 }
 
+.excel-grid tbody td.cell-unmatched .excel-cell-input {
+  padding-right: 28px;
+}
+
+.unmatched-badge {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: help;
+}
+
+.excel-grid tbody td.cell-selected {
+  background: rgba(16, 185, 129, 0.14) !important;
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.55);
+}
+
+html.dark-mode .excel-grid tbody td.cell-selected {
+  background: rgba(16, 185, 129, 0.22) !important;
+  box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.55);
+}
+
 .excel-cell-readonly {
   padding: 0 10px;
   font-size: 0.84rem;
@@ -406,8 +439,69 @@ const SHEET_API = {
 };
 const PAGE_LABEL = {{ page_title | tojson | safe }};
 
+const PAGE_KEY = {{ active_page | tojson | safe }};
 const RAW_ITEMS = {{ raw_items | tojson | safe }};
 let ROWS = {{ sheet_rows | tojson | safe }};
+
+const undoStack = [];
+const redoStack = [];
+const MAX_HISTORY = 50;
+
+function getDraftStorageKey() {
+  const d = document.getElementById('transDatePicker')?.value || 'default';
+  return `movement_draft_${PAGE_KEY}_${d}`;
+}
+
+function saveDraftToStorage() {
+  try {
+    const hasData = ROWS.some(r => (r.raw_item_name || '').trim() !== '' || (Number(r.qty) || 0) > 0 || (Number(r.cost) || 0) > 0 || (r.remarks || '').trim() !== '');
+    const key = getDraftStorageKey();
+    if (hasData) {
+      localStorage.setItem(key, JSON.stringify(ROWS));
+    } else {
+      localStorage.removeItem(key);
+    }
+  } catch (e) { /* ignore quota errors */ }
+}
+
+function restoreDraftFromStorage() {
+  try {
+    const raw = localStorage.getItem(getDraftStorageKey());
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      ROWS = parsed;
+    }
+  } catch (e) { /* ignore parse errors */ }
+}
+
+function clearDraftFromStorage() {
+  try { localStorage.removeItem(getDraftStorageKey()); } catch (e) { /* ignore */ }
+}
+
+function pushUndoState() {
+  undoStack.push(JSON.stringify(ROWS));
+  if (undoStack.length > MAX_HISTORY) undoStack.shift();
+  redoStack.length = 0;
+}
+
+function performUndo() {
+  if (undoStack.length === 0) return;
+  redoStack.push(JSON.stringify(ROWS));
+  ROWS = JSON.parse(undoStack.pop());
+  clearSelection();
+  renderGrid();
+  showToast('Undo', 'success');
+}
+
+function performRedo() {
+  if (redoStack.length === 0) return;
+  undoStack.push(JSON.stringify(ROWS));
+  ROWS = JSON.parse(redoStack.pop());
+  clearSelection();
+  renderGrid();
+  showToast('Redo', 'success');
+}
 
 function ensureTrailingEmptyRow() {
   if (ROWS.length === 0 || (ROWS[ROWS.length - 1].raw_item_name || '').trim() !== '') {
@@ -479,11 +573,26 @@ function formatMoney(val) {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function matchRawItem(name) {
+  const key = (name || '').trim().toLowerCase();
+  if (!key) return null;
+  return RAW_ITEMS.find(item => (item.raw_material || '').trim().toLowerCase() === key) || null;
+}
+
 function updateSummary() {
-  const filledCount = ROWS.filter(r => (r.raw_item_name || '').trim() !== '').length;
-  document.getElementById('sheetCountBadge').textContent = `${filledCount} item${filledCount === 1 ? '' : 's'}`;
+  const filledRows = ROWS.filter(r => (r.raw_item_name || '').trim() !== '');
+  const unmatchedCount = filledRows.filter(r => !r.raw_item_id).length;
+  document.getElementById('sheetCountBadge').textContent = `${filledRows.length} item${filledRows.length === 1 ? '' : 's'}`;
   const grand = ROWS.reduce((sum, r) => sum + ((Number(r.qty) || 0) * (Number(r.cost) || 0)), 0);
   document.getElementById('grandTotalLbl').textContent = formatMoney(grand);
+
+  const footerTip = document.querySelector('.excel-footer-bar .text-muted');
+  if (footerTip) {
+    footerTip.innerHTML = unmatchedCount > 0
+      ? `<span class="text-danger fw-semibold"><i class="fas fa-circle-exclamation me-1"></i>${unmatchedCount} raw item(s) not found in Raw Items (circled in red)</span>`
+      : `Tip: Copy rows from Excel (<strong>Raw Item, Qty, Cost, Remarks</strong>) and paste directly into the grid`;
+  }
+  saveDraftToStorage();
 }
 
 function renderGrid() {
@@ -491,44 +600,58 @@ function renderGrid() {
   const tbody = document.getElementById('gridBody');
   tbody.innerHTML = ROWS.map((r, idx) => {
     const total = (Number(r.qty) || 0) * (Number(r.cost) || 0);
+    const hasName = (r.raw_item_name || '').trim() !== '';
+    if (hasName && !r.raw_item_id) {
+      const m = matchRawItem(r.raw_item_name);
+      if (m) {
+        r.raw_item_id = m.id;
+        r.raw_item_name = m.raw_material;
+        r.uom = m.uom || '';
+      }
+    }
+    const isUnmatched = hasName && !r.raw_item_id;
     return `
       <tr>
         <td class="excel-row-num">${idx + 1}</td>
-        <td>
+        <td class="${isUnmatched ? 'cell-unmatched' : ''}" id="raw-cell-${idx}" data-row="${idx}" data-col="0">
           <input type="text"
                  class="excel-cell-input combo-input"
                  id="raw-input-${idx}"
-                 placeholder="Search raw item..."
+                 placeholder="Type or paste raw item..."
                  autocomplete="off"
                  value="${escHtml(r.raw_item_name)}"
-                 onfocus="openCombo(${idx}, this)"
-                 oninput="onComboInput(${idx}, this)"
-                 onkeydown="onComboKeydown(event, ${idx}, this)">
+                 oninput="onRawInput(${idx}, this)"
+                 onpaste="handleGridPaste(event, ${idx}, 'raw_item')"
+                 onkeydown="onCellKeydown(event, ${idx}, 'raw_item')">
+          ${isUnmatched ? `<span class="unmatched-badge" title="Raw item not found in Raw Items">!</span>` : ''}
         </td>
         <td class="excel-cell-uom" id="uom-${idx}">${escHtml(r.uom || '—')}</td>
-        <td>
+        <td data-row="${idx}" data-col="1">
           <input type="number" step="any" min="0"
                  class="excel-cell-input num"
                  id="qty-input-${idx}"
                  value="${formatInputVal(r.qty)}"
                  oninput="onCellChange(${idx}, 'qty', this.value)"
+                 onpaste="handleGridPaste(event, ${idx}, 'qty')"
                  onkeydown="onCellKeydown(event, ${idx}, 'qty')">
         </td>
-        <td>
+        <td data-row="${idx}" data-col="2">
           <input type="number" step="any" min="0"
                  class="excel-cell-input num"
                  id="cost-input-${idx}"
                  value="${formatInputVal(r.cost)}"
                  oninput="onCellChange(${idx}, 'cost', this.value)"
+                 onpaste="handleGridPaste(event, ${idx}, 'cost')"
                  onkeydown="onCellKeydown(event, ${idx}, 'cost')">
         </td>
         <td class="excel-cell-readonly" id="total-${idx}">${formatMoney(total)}</td>
-        <td>
+        <td data-row="${idx}" data-col="3">
           <input type="text"
                  class="excel-cell-input"
                  id="rem-input-${idx}"
                  value="${escHtml(r.remarks)}"
                  oninput="onCellChange(${idx}, 'remarks', this.value)"
+                 onpaste="handleGridPaste(event, ${idx}, 'remarks')"
                  onkeydown="onCellKeydown(event, ${idx}, 'remarks')">
         </td>
         <td>
@@ -563,6 +686,7 @@ function removeRow(idx) {
     return;
   }
 
+  pushUndoState();
   ROWS.splice(idx, 1);
   renderGrid();
 }
@@ -598,8 +722,10 @@ async function confirmDeleteSavedRow() {
 function onCellChange(idx, field, val) {
   const row = ROWS[idx];
   if (!row) return;
+  pushUndoState();
   if (field === 'remarks') {
     row.remarks = val;
+    updateSummary();
     return;
   }
   row[field] = parseFloat(val) || 0;
@@ -609,10 +735,132 @@ function onCellChange(idx, field, val) {
   updateSummary();
 }
 
+function onRawInput(idx, inputEl) {
+  pushUndoState();
+  const val = inputEl.value;
+  const wasLast = idx === ROWS.length - 1;
+  ROWS[idx].raw_item_name = val;
+  const matched = matchRawItem(val);
+  ROWS[idx].raw_item_id = matched ? matched.id : null;
+  ROWS[idx].uom = matched ? (matched.uom || '') : '';
+
+  const uomEl = document.getElementById(`uom-${idx}`);
+  if (uomEl) uomEl.textContent = ROWS[idx].uom || '—';
+
+  const cellEl = document.getElementById(`raw-cell-${idx}`);
+  if (cellEl) {
+    const isUnmatched = val.trim() !== '' && !matched;
+    cellEl.classList.toggle('cell-unmatched', isUnmatched);
+    let badge = cellEl.querySelector('.unmatched-badge');
+    if (isUnmatched && !badge) {
+      badge = document.createElement('span');
+      badge.className = 'unmatched-badge';
+      badge.title = 'Raw item not found in Raw Items';
+      badge.textContent = '!';
+      cellEl.appendChild(badge);
+    } else if (!isUnmatched && badge) {
+      badge.remove();
+    }
+  }
+
+  if (wasLast && val.trim() !== '') {
+    ensureTrailingEmptyRow();
+    const tbody = document.getElementById('gridBody');
+    if (tbody && tbody.children.length < ROWS.length) {
+      renderGrid();
+      const refocused = document.getElementById(`raw-input-${idx}`);
+      if (refocused) {
+        refocused.focus();
+        refocused.setSelectionRange(val.length, val.length);
+      }
+      return;
+    }
+  }
+  updateSummary();
+}
+
+function parsePasteNum(str) {
+  const cleaned = String(str ?? '').replace(/[^0-9.-]/g, '');
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? 0 : n;
+}
+
+function handleGridPaste(e, startRowIdx, startCol) {
+  const text = (e.clipboardData || window.clipboardData)?.getData('text');
+  if (!text) return;
+
+  if (!text.includes('\t') && !text.includes('\n') && !text.includes('\r')) {
+    return;
+  }
+
+  e.preventDefault();
+  pushUndoState();
+  const colsOrder = ['raw_item', 'qty', 'cost', 'remarks'];
+  const startColIdx = colsOrder.indexOf(startCol);
+  if (startColIdx === -1) return;
+
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  if (lines.length > 1 && lines[lines.length - 1] === '') {
+    lines.pop();
+  }
+
+  let pastedCount = 0;
+  let unmatchedCount = 0;
+
+  lines.forEach((line, offset) => {
+    const rIdx = startRowIdx + offset;
+    while (rIdx >= ROWS.length) {
+      ROWS.push({ raw_item_id: null, raw_item_name: '', uom: '', qty: 0, cost: 0, total_cost: 0, remarks: '' });
+    }
+    const cells = line.split('\t');
+    cells.forEach((cellVal, cOffset) => {
+      const targetCol = colsOrder[startColIdx + cOffset];
+      if (!targetCol) return;
+      const trimmed = cellVal.trim();
+      if (targetCol === 'raw_item') {
+        ROWS[rIdx].raw_item_name = trimmed;
+        const m = matchRawItem(trimmed);
+        ROWS[rIdx].raw_item_id = m ? m.id : null;
+        ROWS[rIdx].uom = m ? (m.uom || '') : '';
+        if (trimmed && !m) unmatchedCount++;
+      } else if (targetCol === 'qty') {
+        ROWS[rIdx].qty = parsePasteNum(trimmed);
+      } else if (targetCol === 'cost') {
+        ROWS[rIdx].cost = parsePasteNum(trimmed);
+      } else if (targetCol === 'remarks') {
+        ROWS[rIdx].remarks = trimmed;
+      }
+    });
+    ROWS[rIdx].total_cost = (Number(ROWS[rIdx].qty) || 0) * (Number(ROWS[rIdx].cost) || 0);
+    pastedCount++;
+  });
+
+  renderGrid();
+  if (unmatchedCount > 0) {
+    showToast(`Pasted ${pastedCount} row(s). ${unmatchedCount} raw item(s) not found (circled in red).`, 'error');
+  } else {
+    showToast(`Pasted ${pastedCount} row(s) from Excel.`, 'success');
+  }
+}
+
 function onCellKeydown(e, idx, col) {
+  if (col === 'raw_item') {
+    if (e.altKey && e.key === 'ArrowDown') {
+      e.preventDefault();
+      openCombo(idx, e.target);
+      return;
+    }
+    const dd = document.getElementById('comboDropdown');
+    if (dd && dd.style.display === 'block') {
+      onComboKeydown(e, idx, e.target);
+      if (e.defaultPrevented) return;
+    }
+  }
+
   if (e.key === 'Enter') {
     e.preventDefault();
-    if (col === 'qty') document.getElementById(`cost-input-${idx}`)?.focus();
+    if (col === 'raw_item') document.getElementById(`qty-input-${idx}`)?.focus();
+    else if (col === 'qty') document.getElementById(`cost-input-${idx}`)?.focus();
     else if (col === 'cost') document.getElementById(`rem-input-${idx}`)?.focus();
     else if (col === 'remarks') {
       if (idx === ROWS.length - 1) addEmptyRow(true);
@@ -745,6 +993,11 @@ function openConfirmSubmit() {
     const r = ROWS[i];
     const name = (r.raw_item_name || '').trim();
     if (!name) continue;
+    if (!r.raw_item_id) {
+      showToast(`"${name}" was not found in Raw Items (circled in red).`, 'error');
+      document.getElementById(`raw-input-${i}`)?.focus();
+      return;
+    }
     if ((Number(r.qty) || 0) <= 0) {
       showToast(`Please enter Qty for "${name}".`, 'error');
       document.getElementById(`qty-input-${i}`)?.focus();
@@ -783,6 +1036,7 @@ async function confirmAndSubmitSheet() {
       return;
     }
     confirmSubmitModal.hide();
+    clearDraftFromStorage();
     showToast(data.message || 'Finalized!', 'success');
     await reloadGridForDate(dateVal);
   } catch (err) {
@@ -816,8 +1070,190 @@ document.addEventListener('DOMContentLoaded', () => {
   if (lbl) lbl.textContent = PAGE_LABEL;
   confirmSubmitModal = new bootstrap.Modal(document.getElementById('confirmSubmitModal'));
   confirmDeleteRowModal = new bootstrap.Modal(document.getElementById('confirmDeleteRowModal'));
+  restoreDraftFromStorage();
+  initMultiCellSelection();
   renderGrid();
 });
+
+/* ── Multi-Cell Selection (Drag / Shift+Click, Ctrl+C Copy, Delete Clear) ── */
+let isMouseSelecting = false;
+let selAnchor = null;
+let selEnd = null;
+const EDIT_COLS = ['raw_item', 'qty', 'cost', 'remarks'];
+
+function getSelectionBounds() {
+  if (!selAnchor || !selEnd) return null;
+  return {
+    r1: Math.min(selAnchor.r, selEnd.r),
+    r2: Math.max(selAnchor.r, selEnd.r),
+    c1: Math.min(selAnchor.c, selEnd.c),
+    c2: Math.max(selAnchor.c, selEnd.c),
+  };
+}
+
+function isMultiCellSelected() {
+  const b = getSelectionBounds();
+  return !!(b && (b.r1 !== b.r2 || b.c1 !== b.c2));
+}
+
+function paintSelection() {
+  const b = getSelectionBounds();
+  document.querySelectorAll('#gridBody td[data-row]').forEach(td => {
+    const r = parseInt(td.dataset.row, 10);
+    const c = parseInt(td.dataset.col, 10);
+    const inRange = b && r >= b.r1 && r <= b.r2 && c >= b.c1 && c <= b.c2 && (b.r1 !== b.r2 || b.c1 !== b.c2);
+    td.classList.toggle('cell-selected', Boolean(inRange));
+  });
+}
+
+function clearSelection() {
+  selAnchor = null;
+  selEnd = null;
+  paintSelection();
+}
+
+function initMultiCellSelection() {
+  const tbody = document.getElementById('gridBody');
+  if (!tbody) return;
+
+  tbody.addEventListener('mousedown', (e) => {
+    const td = e.target.closest('td[data-row][data-col]');
+    if (!td) return;
+    const pos = { r: parseInt(td.dataset.row, 10), c: parseInt(td.dataset.col, 10) };
+    if (e.shiftKey && selAnchor) {
+      e.preventDefault();
+      selEnd = pos;
+      paintSelection();
+      return;
+    }
+    isMouseSelecting = true;
+    selAnchor = pos;
+    selEnd = pos;
+    paintSelection();
+  });
+
+  tbody.addEventListener('mousemove', (e) => {
+    if (!isMouseSelecting) return;
+    const td = e.target.closest('td[data-row][data-col]');
+    if (!td) return;
+    const pos = { r: parseInt(td.dataset.row, 10), c: parseInt(td.dataset.col, 10) };
+    if (!selEnd || selEnd.r !== pos.r || selEnd.c !== pos.c) {
+      selEnd = pos;
+      if (selAnchor && (selAnchor.r !== selEnd.r || selAnchor.c !== selEnd.c)) {
+        window.getSelection()?.removeAllRanges();
+      }
+      paintSelection();
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    isMouseSelecting = false;
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const activeEl = document.activeElement;
+    const activeTd = activeEl ? activeEl.closest('#gridBody td[data-row][data-col]') : null;
+
+    // Undo (Ctrl+Z / Cmd+Z) and Redo (Ctrl+Y or Ctrl+Shift+Z / Cmd+Shift+Z)
+    if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        performUndo();
+        return;
+      }
+      if (key === 'y' || (key === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        performRedo();
+        return;
+      }
+    }
+
+    // Shift + Arrow keys: extend selection across rows/columns
+    if (e.shiftKey && activeTd && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+      const curPos = { r: parseInt(activeTd.dataset.row, 10), c: parseInt(activeTd.dataset.col, 10) };
+      if (!selAnchor) selAnchor = { ...curPos };
+      if (!selEnd) selEnd = { ...curPos };
+
+      let dr = 0, dc = 0;
+      if (e.key === 'ArrowUp') dr = -1;
+      else if (e.key === 'ArrowDown') dr = 1;
+      else if (e.key === 'ArrowLeft') dc = -1;
+      else if (e.key === 'ArrowRight') dc = 1;
+
+      selEnd = {
+        r: Math.max(0, Math.min(ROWS.length - 1, selEnd.r + dr)),
+        c: Math.max(0, Math.min(EDIT_COLS.length - 1, selEnd.c + dc)),
+      };
+      window.getSelection()?.removeAllRanges();
+      paintSelection();
+      return;
+    }
+
+    if (!isMultiCellSelected()) return;
+    if (activeEl && !activeEl.closest('#gridBody')) return;
+
+    const b = getSelectionBounds();
+    if (!b) return;
+
+    // Ctrl+C / Cmd+C: copy selected range as TSV
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+      e.preventDefault();
+      const lines = [];
+      for (let r = b.r1; r <= b.r2; r++) {
+        const row = ROWS[r];
+        if (!row) continue;
+        const vals = [];
+        for (let c = b.c1; c <= b.c2; c++) {
+          const col = EDIT_COLS[c];
+          if (col === 'raw_item') vals.push(row.raw_item_name || '');
+          else if (col === 'qty') vals.push(row.qty ? String(row.qty) : '');
+          else if (col === 'cost') vals.push(row.cost ? String(row.cost) : '');
+          else if (col === 'remarks') vals.push(row.remarks || '');
+        }
+        lines.push(vals.join('\t'));
+      }
+      const tsv = lines.join('\n');
+      navigator.clipboard?.writeText(tsv).then(() => {
+        showToast(`Copied ${lines.length} row(s) to clipboard.`, 'success');
+      });
+      return;
+    }
+
+    // Delete or Backspace: clear all selected cells
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      pushUndoState();
+      let cleared = 0;
+      for (let r = b.r1; r <= b.r2; r++) {
+        const row = ROWS[r];
+        if (!row) continue;
+        for (let c = b.c1; c <= b.c2; c++) {
+          const col = EDIT_COLS[c];
+          if (col === 'raw_item') {
+            row.raw_item_id = null;
+            row.raw_item_name = '';
+            row.uom = '';
+          } else if (col === 'qty') {
+            row.qty = 0;
+          } else if (col === 'cost') {
+            row.cost = 0;
+          } else if (col === 'remarks') {
+            row.remarks = '';
+          }
+          cleared++;
+        }
+        row.total_cost = (Number(row.qty) || 0) * (Number(row.cost) || 0);
+      }
+      clearSelection();
+      renderGrid();
+      showToast(`Cleared ${cleared} cell(s).`, 'success');
+    } else if (e.key === 'Escape') {
+      clearSelection();
+    }
+  });
+}
 </script>
 </body>
 </html>

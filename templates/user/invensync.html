@@ -47,6 +47,7 @@
   overflow-x: auto;
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
+  outline: none;
 }
 
 .excel-grid {
@@ -55,6 +56,7 @@
   border-collapse: collapse;
   margin: 0;
   font-size: 0.84rem;
+  user-select: none;
 }
 
 .excel-grid thead th {
@@ -121,6 +123,12 @@
   border-radius: 0;
   box-shadow: none;
   font-family: inherit;
+  pointer-events: none;
+}
+
+.excel-grid tbody td.cell-editing .excel-cell-input {
+  pointer-events: auto;
+  user-select: text;
 }
 
 .excel-cell-input.num {
@@ -136,10 +144,21 @@
 }
 .excel-cell-input[type="number"] { -moz-appearance: textfield; }
 
-.excel-grid tbody td:focus-within {
-  box-shadow: inset 0 0 0 2px #10b981;
-  background: #f0fdf4 !important;
+.excel-grid tbody td.cell-selected {
+  background: rgba(16, 185, 129, 0.14) !important;
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.35);
+}
+
+.excel-grid tbody td.cell-active {
+  box-shadow: inset 0 0 0 2px #10b981 !important;
   z-index: 3;
+}
+
+.excel-grid tbody td.cell-editing,
+.excel-grid tbody td:focus-within {
+  box-shadow: inset 0 0 0 2px #059669 !important;
+  background: #f0fdf4 !important;
+  z-index: 4;
 }
 
 .excel-auto-cell {
@@ -250,9 +269,17 @@ html.dark-mode .raw-pagination-bar {
   color: #e4e4e7 !important;
 }
 html.dark-mode .excel-cell-input { color: #f4f4f5 !important; }
+html.dark-mode .excel-grid tbody td.cell-selected {
+  background: rgba(16, 185, 129, 0.22) !important;
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.4);
+}
+html.dark-mode .excel-grid tbody td.cell-active {
+  box-shadow: inset 0 0 0 2px #10b981 !important;
+}
+html.dark-mode .excel-grid tbody td.cell-editing,
 html.dark-mode .excel-grid tbody td:focus-within {
   background: #18181b !important;
-  box-shadow: inset 0 0 0 2px #10b981;
+  box-shadow: inset 0 0 0 2px #059669 !important;
 }
 html.dark-mode .excel-auto-cell {
   padding: 0 8px !important;
@@ -338,7 +365,7 @@ html.dark-mode .excel-var-cell.empty { background: #141416 !important; color: #7
 
       <!-- Excel Grid Table Card -->
       <div class="excel-card">
-        <div class="excel-grid-wrap" id="invensyncTableWrap">
+        <div class="excel-grid-wrap" id="invensyncTableWrap" tabindex="0">
           <table class="excel-grid" id="invensyncTable">
             <thead>
               <tr>
@@ -503,6 +530,140 @@ function renderVarianceHtml(row) {
   return { cls: 'match', text: '0 Match' };
 }
 
+const GRID_COLS = [
+  { key: 'raw_item_name', editable: false, type: 'text' },
+  { key: 'beg', editable: true, type: 'num' },
+  { key: 'trans_in', editable: false, type: 'num' },
+  { key: 'trans_out', editable: false, type: 'num' },
+  { key: 'wastage', editable: false, type: 'num' },
+  { key: 'sold', editable: false, type: 'num' },
+  { key: 'theoretical_ending', editable: false, type: 'num' },
+  { key: 'actual_ending', editable: true, type: 'num' },
+  { key: 'variance', editable: false, type: 'text' },
+  { key: 'remarks', editable: true, type: 'text' }
+];
+
+let selectionAnchor = null;
+let selectionFocus = null;
+let isDraggingSelection = false;
+let editingCell = null;
+
+const MAX_HISTORY = 50;
+let undoStack = [];
+let redoStack = [];
+
+function captureSnapshot() {
+  return {
+    rows: ALL_ROWS.map(r => ({
+      beg: r.beg,
+      actual_ending: r.actual_ending,
+      remarks: r.remarks
+    })),
+    anchor: selectionAnchor ? { ...selectionAnchor } : null,
+    focus: selectionFocus ? { ...selectionFocus } : null
+  };
+}
+
+function pushUndoState(snap) {
+  undoStack.push(snap || captureSnapshot());
+  if (undoStack.length > MAX_HISTORY) undoStack.shift();
+  redoStack = [];
+}
+
+function applySnapshot(snap) {
+  if (!snap || !snap.rows || snap.rows.length !== ALL_ROWS.length) return;
+  for (let i = 0; i < ALL_ROWS.length; i++) {
+    ALL_ROWS[i].beg = snap.rows[i].beg;
+    ALL_ROWS[i].actual_ending = snap.rows[i].actual_ending;
+    ALL_ROWS[i].remarks = snap.rows[i].remarks;
+    ALL_ROWS[i].theoretical_ending = computeTheoretical(ALL_ROWS[i]);
+    ALL_ROWS[i].variance = ALL_ROWS[i].actual_ending !== null && ALL_ROWS[i].actual_ending !== undefined
+      ? (ALL_ROWS[i].actual_ending - ALL_ROWS[i].theoretical_ending)
+      : null;
+  }
+  editingCell = null;
+  if (snap.focus && filteredRows.length > 0) {
+    const r = Math.max(0, Math.min(filteredRows.length - 1, snap.focus.row));
+    const c = Math.max(0, Math.min(GRID_COLS.length - 1, snap.focus.col));
+    selectionFocus = { row: r, col: c };
+    selectionAnchor = snap.anchor
+      ? {
+          row: Math.max(0, Math.min(filteredRows.length - 1, snap.anchor.row)),
+          col: Math.max(0, Math.min(GRID_COLS.length - 1, snap.anchor.col))
+        }
+      : { row: r, col: c };
+    currentPage = Math.floor(r / PAGE_SIZE) + 1;
+  }
+  renderTable();
+  document.getElementById('invensyncTableWrap')?.focus({ preventScroll: true });
+  if (selectionFocus) {
+    getCellEl(selectionFocus.row, selectionFocus.col)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+}
+
+function performUndo() {
+  if (undoStack.length === 0) return;
+  redoStack.push(captureSnapshot());
+  if (redoStack.length > MAX_HISTORY) redoStack.shift();
+  const prev = undoStack.pop();
+  applySnapshot(prev);
+  showToast('Undid last change', 'success');
+}
+
+function performRedo() {
+  if (redoStack.length === 0) return;
+  undoStack.push(captureSnapshot());
+  if (undoStack.length > MAX_HISTORY) undoStack.shift();
+  const next = redoStack.pop();
+  applySnapshot(next);
+  showToast('Redid change', 'success');
+}
+
+function getSelectionBounds() {
+  if (!selectionAnchor || !selectionFocus) return null;
+  return {
+    minRow: Math.min(selectionAnchor.row, selectionFocus.row),
+    maxRow: Math.max(selectionAnchor.row, selectionFocus.row),
+    minCol: Math.min(selectionAnchor.col, selectionFocus.col),
+    maxCol: Math.max(selectionAnchor.col, selectionFocus.col)
+  };
+}
+
+function renderSelection() {
+  const bounds = getSelectionBounds();
+  const cells = document.querySelectorAll('#invensyncBody td[data-row][data-col]');
+  cells.forEach(td => {
+    const r = Number(td.dataset.row);
+    const c = Number(td.dataset.col);
+    const inRange = bounds && r >= bounds.minRow && r <= bounds.maxRow && c >= bounds.minCol && c <= bounds.maxCol;
+    const isActive = selectionFocus && r === selectionFocus.row && c === selectionFocus.col;
+    td.classList.toggle('cell-selected', Boolean(inRange));
+    td.classList.toggle('cell-active', Boolean(isActive));
+  });
+}
+
+function getCellEl(row, col) {
+  return document.querySelector(`#invensyncBody td[data-row="${row}"][data-col="${col}"]`);
+}
+
+function getCellDisplayValue(rowObj, colIdx) {
+  const col = GRID_COLS[colIdx];
+  if (!col) return '';
+  if (col.key === 'raw_item_name') return rowObj.raw_item_name || '';
+  if (col.key === 'beg') return formatInputVal(rowObj.beg) || '0';
+  if (col.key === 'trans_in') return formatInputVal(rowObj.trans_in) || '0';
+  if (col.key === 'trans_out') return formatInputVal(rowObj.trans_out) || '0';
+  if (col.key === 'wastage') return formatInputVal(rowObj.wastage) || '0';
+  if (col.key === 'sold') return formatInputVal(rowObj.sold) || '0';
+  if (col.key === 'theoretical_ending') return formatNum(computeTheoretical(rowObj));
+  if (col.key === 'actual_ending') {
+    return (rowObj.actual_ending === null || rowObj.actual_ending === undefined) ? '' : formatNum(rowObj.actual_ending);
+  }
+  if (col.key === 'variance') return renderVarianceHtml(rowObj).text;
+  if (col.key === 'remarks') return rowObj.remarks || '';
+  return '';
+}
+
 function onFieldChange(rowIndex, field, value) {
   const row = filteredRows[rowIndex];
   if (!row) return;
@@ -511,9 +672,16 @@ function onFieldChange(rowIndex, field, value) {
     return;
   }
   if (field === 'actual_ending') {
-    row.actual_ending = value.trim() === '' ? null : (parseFloat(value) || 0);
+    const trimmed = String(value ?? '').trim();
+    if (trimmed === '') {
+      row.actual_ending = null;
+    } else {
+      const parsed = parseFloat(trimmed);
+      row.actual_ending = isNaN(parsed) ? null : parsed;
+    }
   } else {
-    row[field] = parseFloat(value) || 0;
+    const parsed = parseFloat(value);
+    row[field] = isNaN(parsed) ? 0 : parsed;
     row.theoretical_ending = computeTheoretical(row);
     const cell = document.getElementById(`theo-${rowIndex}`);
     if (cell) {
@@ -521,7 +689,9 @@ function onFieldChange(rowIndex, field, value) {
       cell.classList.toggle('negative', row.theoretical_ending < 0);
     }
   }
-  row.variance = row.actual_ending !== null ? (row.actual_ending - row.theoretical_ending) : null;
+  row.variance = row.actual_ending !== null && row.actual_ending !== undefined
+    ? (row.actual_ending - row.theoretical_ending)
+    : null;
   const varEl = document.getElementById(`var-${rowIndex}`);
   if (varEl) {
     const info = renderVarianceHtml(row);
@@ -530,22 +700,226 @@ function onFieldChange(rowIndex, field, value) {
   }
 }
 
-function onCellKeydown(e, idx, col) {
-  if (e.key !== 'Enter') return;
-  e.preventDefault();
-  const order = ['beg', 'actual_ending', 'remarks'];
-  const pos = order.indexOf(col);
-  if (pos >= 0 && pos < order.length - 1) {
-    document.getElementById(`cell-${idx}-${order[pos + 1]}`)?.focus();
+function startCellEdit(row, col, replaceChar = null) {
+  const colDef = GRID_COLS[col];
+  if (!colDef || !colDef.editable) return;
+  if (editingCell && (editingCell.row !== row || editingCell.col !== col)) {
+    commitCellEdit(true);
+  }
+  ensureRowOnPage(row);
+  const td = getCellEl(row, col);
+  const input = document.getElementById(`cell-${row}-${colDef.key}`);
+  if (!td || !input) return;
+
+  const prevSnapshot = captureSnapshot();
+  const prevValue = input.value;
+  editingCell = { row, col, key: colDef.key, prevSnapshot, prevValue };
+
+  td.classList.add('cell-editing');
+  if (replaceChar !== null) {
+    input.value = replaceChar;
+    onFieldChange(row, colDef.key, input.value);
+  }
+  input.focus();
+  const len = input.value.length;
+  try { input.setSelectionRange(len, len); } catch (_) {}
+}
+
+function commitCellEdit(keepGridFocus = false) {
+  if (!editingCell) return;
+  const { row, col, key, prevSnapshot, prevValue } = editingCell;
+  const td = getCellEl(row, col);
+  const input = document.getElementById(`cell-${row}-${key}`);
+  editingCell = null;
+  if (td) td.classList.remove('cell-editing');
+  if (input && input.value !== prevValue) {
+    onFieldChange(row, key, input.value);
+    pushUndoState(prevSnapshot);
+  }
+  if (keepGridFocus) {
+    document.getElementById('invensyncTableWrap')?.focus({ preventScroll: true });
+  }
+}
+
+function cancelCellEdit() {
+  if (!editingCell) return;
+  const { row, col, key, prevValue } = editingCell;
+  const td = getCellEl(row, col);
+  const input = document.getElementById(`cell-${row}-${key}`);
+  editingCell = null;
+  if (td) td.classList.remove('cell-editing');
+  if (input) {
+    input.value = prevValue;
+    onFieldChange(row, key, prevValue);
+  }
+  document.getElementById('invensyncTableWrap')?.focus({ preventScroll: true });
+}
+
+function ensureRowOnPage(rowIdx) {
+  const targetPage = Math.floor(rowIdx / PAGE_SIZE) + 1;
+  if (targetPage !== currentPage) {
+    currentPage = targetPage;
+    renderTable();
+  }
+}
+
+function moveSelection(dRow, dCol, extend = false) {
+  if (filteredRows.length === 0) return;
+  const cur = selectionFocus || { row: 0, col: 1 };
+  const nextRow = Math.max(0, Math.min(filteredRows.length - 1, cur.row + dRow));
+  const nextCol = Math.max(0, Math.min(GRID_COLS.length - 1, cur.col + dCol));
+  ensureRowOnPage(nextRow);
+  selectionFocus = { row: nextRow, col: nextCol };
+  if (!extend || !selectionAnchor) {
+    selectionAnchor = { row: nextRow, col: nextCol };
+  }
+  renderSelection();
+  getCellEl(nextRow, nextCol)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+function onCellKeydown(e, idx, colKey) {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    cancelCellEdit();
+    return;
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    commitCellEdit(true);
+    moveSelection(e.shiftKey ? -1 : 1, 0, false);
+    return;
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    commitCellEdit(true);
+    moveSelection(e.key === 'ArrowDown' ? 1 : -1, 0, false);
+    return;
+  }
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    commitCellEdit(true);
+    moveSelection(0, e.shiftKey ? -1 : 1, false);
+  }
+}
+
+function clearSelectedCells() {
+  const bounds = getSelectionBounds();
+  if (!bounds) return;
+  let hasEditable = false;
+  for (let c = bounds.minCol; c <= bounds.maxCol; c++) {
+    if (GRID_COLS[c].editable) { hasEditable = true; break; }
+  }
+  if (!hasEditable) return;
+
+  pushUndoState();
+  for (let r = bounds.minRow; r <= bounds.maxRow; r++) {
+    const rowObj = filteredRows[r];
+    if (!rowObj) continue;
+    for (let c = bounds.minCol; c <= bounds.maxCol; c++) {
+      const colDef = GRID_COLS[c];
+      if (!colDef.editable) continue;
+      onFieldChange(r, colDef.key, '');
+      const input = document.getElementById(`cell-${r}-${colDef.key}`);
+      if (input) input.value = '';
+    }
+  }
+  showToast('Cleared selected cells', 'success');
+}
+
+async function copySelectedCells() {
+  const bounds = getSelectionBounds();
+  if (!bounds) return;
+  const lines = [];
+  let count = 0;
+  for (let r = bounds.minRow; r <= bounds.maxRow; r++) {
+    const rowObj = filteredRows[r];
+    if (!rowObj) continue;
+    const vals = [];
+    for (let c = bounds.minCol; c <= bounds.maxCol; c++) {
+      vals.push(getCellDisplayValue(rowObj, c));
+      count++;
+    }
+    lines.push(vals.join('\t'));
+  }
+  const tsv = lines.join('\n');
+  try {
+    await navigator.clipboard.writeText(tsv);
+    showToast(`Copied ${count} cell(s)`, 'success');
+  } catch (_) {
+    const ta = document.createElement('textarea');
+    ta.value = tsv;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast(`Copied ${count} cell(s)`, 'success');
+  }
+}
+
+function handlePasteText(text) {
+  if (!text) return;
+  const bounds = getSelectionBounds();
+  const startRow = bounds ? bounds.minRow : (selectionFocus ? selectionFocus.row : 0);
+  const startCol = bounds ? bounds.minCol : (selectionFocus ? selectionFocus.col : 1);
+
+  const rawLines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  if (rawLines.length > 1 && rawLines[rawLines.length - 1] === '') rawLines.pop();
+  const matrix = rawLines.map(line => line.split('\t'));
+  if (matrix.length === 0) return;
+
+  pushUndoState();
+  let updated = 0;
+
+  if (matrix.length === 1 && matrix[0].length === 1 && bounds &&
+      (bounds.maxRow > bounds.minRow || bounds.maxCol > bounds.minCol)) {
+    const val = matrix[0][0];
+    for (let r = bounds.minRow; r <= bounds.maxRow; r++) {
+      for (let c = bounds.minCol; c <= bounds.maxCol; c++) {
+        const colDef = GRID_COLS[c];
+        if (!colDef || !colDef.editable) continue;
+        onFieldChange(r, colDef.key, val);
+        updated++;
+      }
+    }
   } else {
-    document.getElementById(`cell-${idx + 1}-beg`)?.focus();
+    let maxR = startRow;
+    let maxC = startCol;
+    for (let rOff = 0; rOff < matrix.length; rOff++) {
+      const r = startRow + rOff;
+      if (r >= filteredRows.length) break;
+      for (let cOff = 0; cOff < matrix[rOff].length; cOff++) {
+        const c = startCol + cOff;
+        if (c >= GRID_COLS.length) break;
+        const colDef = GRID_COLS[c];
+        if (colDef && colDef.editable) {
+          onFieldChange(r, colDef.key, matrix[rOff][cOff]);
+          updated++;
+        }
+        maxR = Math.max(maxR, r);
+        maxC = Math.max(maxC, c);
+      }
+    }
+    selectionAnchor = { row: startRow, col: startCol };
+    selectionFocus = { row: maxR, col: maxC };
+  }
+
+  renderTable();
+  if (updated > 0) {
+    showToast(`Pasted ${updated} cell(s)`, 'success');
+  } else {
+    showToast('Target cells are read-only.', 'error');
   }
 }
 
 function applyFilter() {
+  commitCellEdit(false);
   const q = document.getElementById('invSearchInput').value.trim().toLowerCase();
   filteredRows = ALL_ROWS.filter(r => !q || (r.raw_item_name || '').toLowerCase().includes(q));
   currentPage = 1;
+  selectionAnchor = filteredRows.length > 0 ? { row: 0, col: 1 } : null;
+  selectionFocus = filteredRows.length > 0 ? { row: 0, col: 1 } : null;
   renderTable();
 }
 
@@ -560,6 +934,7 @@ function changeDate() {
 }
 
 function changePage(delta) {
+  commitCellEdit(false);
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   currentPage = Math.min(totalPages, Math.max(1, currentPage + delta));
   renderTable();
@@ -591,16 +966,16 @@ function renderTable() {
     return `
       <tr>
         <td class="excel-row-num">${idx + 1}</td>
-        <td class="excel-fixed-item" title="${escHtml(r.raw_item_name)}">${escHtml(r.raw_item_name)}</td>
-        <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-beg" value="${formatInputVal(r.beg)}" oninput="onFieldChange(${idx}, 'beg', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'beg')"></td>
-        <td class="excel-auto-cell" title="Auto-synced from Trans - In">${formatInputVal(r.trans_in) || '0'}</td>
-        <td class="excel-auto-cell" title="Auto-synced from Trans - Out">${formatInputVal(r.trans_out) || '0'}</td>
-        <td class="excel-auto-cell" title="Auto-synced from Wastage / Spoilage">${formatInputVal(r.wastage) || '0'}</td>
-        <td class="excel-auto-cell" title="Auto-synced from POS Sold">${formatInputVal(r.sold) || '0'}</td>
-        <td class="excel-theo-cell ${theo < 0 ? 'negative' : ''}" id="theo-${idx}">${formatNum(theo)}</td>
-        <td><input type="number" step="any" class="excel-cell-input num" id="cell-${idx}-actual_ending" value="${actualVal}" oninput="onFieldChange(${idx}, 'actual_ending', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'actual_ending')"></td>
-        <td class="excel-var-cell ${varInfo.cls}" id="var-${idx}">${varInfo.text}</td>
-        <td><input type="text" class="excel-cell-input" id="cell-${idx}-remarks" value="${escHtml(r.remarks)}" oninput="onFieldChange(${idx}, 'remarks', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'remarks')"></td>
+        <td class="excel-fixed-item" data-row="${idx}" data-col="0" title="${escHtml(r.raw_item_name)}">${escHtml(r.raw_item_name)}</td>
+        <td data-row="${idx}" data-col="1"><input type="text" inputmode="decimal" class="excel-cell-input num" id="cell-${idx}-beg" value="${formatInputVal(r.beg)}" oninput="onFieldChange(${idx}, 'beg', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'beg')" onblur="commitCellEdit(false)"></td>
+        <td class="excel-auto-cell" data-row="${idx}" data-col="2" title="Auto-synced from Trans - In">${formatInputVal(r.trans_in) || '0'}</td>
+        <td class="excel-auto-cell" data-row="${idx}" data-col="3" title="Auto-synced from Trans - Out">${formatInputVal(r.trans_out) || '0'}</td>
+        <td class="excel-auto-cell" data-row="${idx}" data-col="4" title="Auto-synced from Wastage / Spoilage">${formatInputVal(r.wastage) || '0'}</td>
+        <td class="excel-auto-cell" data-row="${idx}" data-col="5" title="Auto-synced from POS Sold">${formatInputVal(r.sold) || '0'}</td>
+        <td class="excel-theo-cell ${theo < 0 ? 'negative' : ''}" data-row="${idx}" data-col="6" id="theo-${idx}">${formatNum(theo)}</td>
+        <td data-row="${idx}" data-col="7"><input type="text" inputmode="decimal" class="excel-cell-input num" id="cell-${idx}-actual_ending" value="${actualVal}" oninput="onFieldChange(${idx}, 'actual_ending', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'actual_ending')" onblur="commitCellEdit(false)"></td>
+        <td class="excel-var-cell ${varInfo.cls}" data-row="${idx}" data-col="8" id="var-${idx}">${varInfo.text}</td>
+        <td data-row="${idx}" data-col="9"><input type="text" class="excel-cell-input" id="cell-${idx}-remarks" value="${escHtml(r.remarks)}" oninput="onFieldChange(${idx}, 'remarks', this.value)" onkeydown="onCellKeydown(event, ${idx}, 'remarks')" onblur="commitCellEdit(false)"></td>
       </tr>
     `;
   }).join('');
@@ -610,6 +985,7 @@ function renderTable() {
   document.getElementById('invPageNum').textContent = `Page ${currentPage} / ${totalPages}`;
   document.getElementById('btnPrevPage').disabled = currentPage <= 1;
   document.getElementById('btnNextPage').disabled = currentPage >= totalPages;
+  renderSelection();
 }
 
 let confirmSaveModal = null;
@@ -668,7 +1044,137 @@ document.addEventListener('DOMContentLoaded', () => {
   const lbl = document.getElementById('pageLabel');
   if (lbl) lbl.textContent = 'InvenSync';
   confirmSaveModal = new bootstrap.Modal(document.getElementById('confirmSaveModal'));
+  if (filteredRows.length > 0) {
+    selectionAnchor = { row: 0, col: 1 };
+    selectionFocus = { row: 0, col: 1 };
+  }
   renderTable();
+
+  const wrap = document.getElementById('invensyncTableWrap');
+  const tbody = document.getElementById('invensyncBody');
+
+  tbody.addEventListener('mousedown', (e) => {
+    const td = e.target.closest('td[data-row][data-col]');
+    if (!td) return;
+    const r = Number(td.dataset.row);
+    const c = Number(td.dataset.col);
+    if (editingCell && editingCell.row === r && editingCell.col === c) return;
+
+    e.preventDefault();
+    if (editingCell) commitCellEdit(false);
+    wrap.focus({ preventScroll: true });
+
+    if (e.shiftKey && selectionAnchor) {
+      selectionFocus = { row: r, col: c };
+    } else {
+      selectionAnchor = { row: r, col: c };
+      selectionFocus = { row: r, col: c };
+      isDraggingSelection = true;
+    }
+    renderSelection();
+  });
+
+  tbody.addEventListener('mouseover', (e) => {
+    if (!isDraggingSelection) return;
+    const td = e.target.closest('td[data-row][data-col]');
+    if (!td) return;
+    selectionFocus = { row: Number(td.dataset.row), col: Number(td.dataset.col) };
+    renderSelection();
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDraggingSelection = false;
+  });
+
+  tbody.addEventListener('dblclick', (e) => {
+    const td = e.target.closest('td[data-row][data-col]');
+    if (!td) return;
+    const r = Number(td.dataset.row);
+    const c = Number(td.dataset.col);
+    if (GRID_COLS[c]?.editable) {
+      startCellEdit(r, c, null);
+    }
+  });
+
+  wrap.addEventListener('keydown', (e) => {
+    if (editingCell) return;
+
+    const isMod = e.ctrlKey || e.metaKey;
+    if (isMod) {
+      const k = e.key.toLowerCase();
+      if (k === 'c') {
+        e.preventDefault();
+        copySelectedCells();
+        return;
+      }
+      if (k === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        performUndo();
+        return;
+      }
+      if (k === 'y' || (k === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        performRedo();
+        return;
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowUp') { e.preventDefault(); moveSelection(-1, 0, e.shiftKey); return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveSelection(1, 0, e.shiftKey); return; }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); moveSelection(0, -1, e.shiftKey); return; }
+    if (e.key === 'ArrowRight') { e.preventDefault(); moveSelection(0, 1, e.shiftKey); return; }
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      moveSelection(0, e.shiftKey ? -1 : 1, false);
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectionFocus && GRID_COLS[selectionFocus.col]?.editable) {
+        startCellEdit(selectionFocus.row, selectionFocus.col, null);
+      } else {
+        moveSelection(e.shiftKey ? -1 : 1, 0, false);
+      }
+      return;
+    }
+
+    if (e.key === 'F2') {
+      e.preventDefault();
+      if (selectionFocus && GRID_COLS[selectionFocus.col]?.editable) {
+        startCellEdit(selectionFocus.row, selectionFocus.col, null);
+      }
+      return;
+    }
+
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      clearSelectedCells();
+      return;
+    }
+
+    if (e.key.length === 1 && !e.altKey && selectionFocus) {
+      const colDef = GRID_COLS[selectionFocus.col];
+      if (!colDef || !colDef.editable) return;
+      if (colDef.type === 'num' && !/^[0-9.\-]$/.test(e.key)) return;
+      e.preventDefault();
+      startCellEdit(selectionFocus.row, selectionFocus.col, e.key);
+    }
+  });
+
+  document.addEventListener('paste', (e) => {
+    if (editingCell) return;
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+    if (document.querySelector('.modal.show')) return;
+    if (!selectionFocus) return;
+    const text = e.clipboardData?.getData('text/plain');
+    if (text === undefined || text === null || text === '') return;
+    e.preventDefault();
+    handlePasteText(text);
+  });
 });
 </script>
 </body>
