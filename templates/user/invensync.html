@@ -780,23 +780,27 @@ function moveSelection(dRow, dCol, extend = false) {
 function onCellKeydown(e, idx, colKey) {
   if (e.key === 'Escape') {
     e.preventDefault();
+    e.stopPropagation();
     cancelCellEdit();
     return;
   }
   if (e.key === 'Enter') {
     e.preventDefault();
+    e.stopPropagation();
     commitCellEdit(true);
     moveSelection(e.shiftKey ? -1 : 1, 0, false);
     return;
   }
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     e.preventDefault();
+    e.stopPropagation();
     commitCellEdit(true);
     moveSelection(e.key === 'ArrowDown' ? 1 : -1, 0, false);
     return;
   }
   if (e.key === 'Tab') {
     e.preventDefault();
+    e.stopPropagation();
     commitCellEdit(true);
     moveSelection(0, e.shiftKey ? -1 : 1, false);
   }
